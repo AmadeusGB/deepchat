@@ -10,7 +10,17 @@
     "promptFilesAdded": "Prompt 檔案已新增",
     "promptFilesAddedDesc": "已成功新增 {count} 個檔案",
     "promptFilesError": "檔案處理錯誤",
-    "promptFilesErrorDesc": "{count} 個檔案處理失敗"
+    "promptFilesErrorDesc": "{count} 個檔案處理失敗",
+    "voiceInput": "語音輸入",
+    "voiceRecording": "正在錄音，點擊停止",
+    "voiceTranscribing": "正在轉換為文字...",
+    "voiceError": "語音功能錯誤",
+    "voiceRecordingError": "無法開始錄音，請檢查麥克風權限",
+    "voiceTranscriptionError": "語音轉文字失敗，請重試",
+    "voiceSuccess": "語音輸入成功",
+    "voiceTranscriptionComplete": "語音已成功轉換為文字",
+    "voiceWarning": "語音輸入提醒",
+    "voiceNoSpeechDetected": "未檢測到語音內容"
   },
   "features": {
     "deepThinking": "深度思考",

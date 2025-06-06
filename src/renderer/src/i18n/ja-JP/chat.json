@@ -10,7 +10,17 @@
     "promptFilesAdded": "プロンプトファイルが追加されました",
     "promptFilesAddedDesc": "{count}個のファイルが正常に追加されました",
     "promptFilesError": "ファイル処理エラー",
-    "promptFilesErrorDesc": "{count}個のファイルの処理に失敗しました"
+    "promptFilesErrorDesc": "{count} ファイルの処理に失敗しました",
+    "voiceInput": "音声入力",
+    "voiceRecording": "録音中、クリックして停止",
+    "voiceTranscribing": "テキストに変換中...",
+    "voiceError": "音声機能エラー",
+    "voiceRecordingError": "録音を開始できません。マイクの権限を確認してください",
+    "voiceTranscriptionError": "音声からテキストへの変換に失敗しました。再試行してください",
+    "voiceSuccess": "音声入力成功",
+    "voiceTranscriptionComplete": "音声がテキストに正常に変換されました",
+    "voiceWarning": "音声入力の通知",
+    "voiceNoSpeechDetected": "音声コンテンツが検出されませんでした"
   },
   "features": {
     "deepThinking": "深い思考",

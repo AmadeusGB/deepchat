@@ -10,7 +10,17 @@
     "promptFilesAdded": "Prompt Files Added",
     "promptFilesAddedDesc": "Successfully added {count} files",
     "promptFilesError": "File Processing Error",
-    "promptFilesErrorDesc": "{count} files failed to process"
+    "promptFilesErrorDesc": "{count} files failed to process",
+    "voiceInput": "Voice Input",
+    "voiceRecording": "Recording, click to stop",
+    "voiceTranscribing": "Converting to text...",
+    "voiceError": "Voice Feature Error",
+    "voiceRecordingError": "Cannot start recording, please check microphone permissions",
+    "voiceTranscriptionError": "Speech-to-text failed, please try again",
+    "voiceSuccess": "Voice Input Success",
+    "voiceTranscriptionComplete": "Speech successfully converted to text",
+    "voiceWarning": "Voice Input Notice",
+    "voiceNoSpeechDetected": "No speech content detected"
   },
   "features": {
     "deepThinking": "Deep Thinking",

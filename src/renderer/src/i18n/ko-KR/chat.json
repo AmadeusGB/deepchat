@@ -10,7 +10,17 @@
     "promptFilesAdded": "프롬프트 파일이 추가됨",
     "promptFilesAddedDesc": "{count}개 파일이 성공적으로 추가되었습니다",
     "promptFilesError": "파일 처리 오류",
-    "promptFilesErrorDesc": "{count}개 파일 처리에 실패했습니다"
+    "promptFilesErrorDesc": "{count}개 파일 처리 실패",
+    "voiceInput": "음성 입력",
+    "voiceRecording": "녹음 중, 클릭하여 중지",
+    "voiceTranscribing": "텍스트로 변환 중...",
+    "voiceError": "음성 기능 오류",
+    "voiceRecordingError": "녹음을 시작할 수 없습니다. 마이크 권한을 확인하세요",
+    "voiceTranscriptionError": "음성을 텍스트로 변환하는데 실패했습니다. 다시 시도하세요",
+    "voiceSuccess": "음성 입력 성공",
+    "voiceTranscriptionComplete": "음성이 텍스트로 성공적으로 변환되었습니다",
+    "voiceWarning": "음성 입력 알림",
+    "voiceNoSpeechDetected": "음성 콘텐츠가 감지되지 않았습니다"
   },
   "features": {
     "deepThinking": "심층 사고",

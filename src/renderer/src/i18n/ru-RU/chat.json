@@ -10,7 +10,17 @@
     "promptFilesAdded": "Файлы промпта добавлены",
     "promptFilesAddedDesc": "Успешно добавлено {count} файлов",
     "promptFilesError": "Ошибка обработки файлов",
-    "promptFilesErrorDesc": "Не удалось обработать {count} файлов"
+    "promptFilesErrorDesc": "Не удалось обработать {count} файлов",
+    "voiceInput": "Голосовой ввод",
+    "voiceRecording": "Запись, нажмите для остановки",
+    "voiceTranscribing": "Преобразование в текст...",
+    "voiceError": "Ошибка голосовой функции",
+    "voiceRecordingError": "Не удается начать запись, проверьте разрешения микрофона",
+    "voiceTranscriptionError": "Не удалось преобразовать речь в текст, попробуйте еще раз",
+    "voiceSuccess": "Голосовой ввод успешен",
+    "voiceTranscriptionComplete": "Речь успешно преобразована в текст",
+    "voiceWarning": "Уведомление о голосовом вводе",
+    "voiceNoSpeechDetected": "Голосовой контент не обнаружен"
   },
   "features": {
     "deepThinking": "Глубокое мышление",

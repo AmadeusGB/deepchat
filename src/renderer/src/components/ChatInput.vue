@@ -142,6 +142,47 @@
             >
               {{ currentContextLengthText }}
             </div>
+            <!-- 麦克风按钮 -->
+            <Tooltip>
+              <TooltipTrigger>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  class="w-7 h-7 text-xs rounded-lg"
+                  :class="[
+                    isRecording ? 'bg-red-500 text-white border-red-500 hover:bg-red-600' : '',
+                    isTranscribing ? 'bg-blue-500 text-white border-blue-500' : ''
+                  ]"
+                  :disabled="disabledSend || isTranscribing"
+                  @click="toggleRecording"
+                >
+                  <Icon 
+                    v-if="!isRecording && !isTranscribing"
+                    icon="lucide:mic" 
+                    class="w-4 h-4" 
+                  />
+                  <Icon 
+                    v-else-if="isRecording"
+                    icon="lucide:square" 
+                    class="w-4 h-4" 
+                  />
+                  <Icon 
+                    v-else
+                    icon="lucide:loader-2" 
+                    class="w-4 h-4 animate-spin" 
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {{ 
+                  isRecording 
+                    ? t('chat.input.voiceRecording') 
+                    : isTranscribing 
+                      ? t('chat.input.voiceTranscribing')
+                      : t('chat.input.voiceInput') 
+                }}
+              </TooltipContent>
+            </Tooltip>
             <Button
               variant="default"
               size="icon"
@@ -211,8 +252,10 @@ import CodeBlock from '@tiptap/extension-code-block'
 import History from '@tiptap/extension-history'
 import { useMcpStore } from '@/stores/mcp'
 import { ResourceListEntry } from '@shared/presenter'
+import { useToast } from '@/components/ui/toast/use-toast'
 const mcpStore = useMcpStore()
 const { t } = useI18n()
+const { toast } = useToast()
 const editor = new Editor({
   editorProps: {
     attributes: {
@@ -306,6 +349,13 @@ const settings = ref({
 })
 const selectedSearchEngine = ref('')
 const searchEngines = computed(() => settingsStore.searchEngines)
+
+// 语音录音相关状态
+const isRecording = ref(false)
+const isTranscribing = ref(false)
+const mediaRecorder = ref<MediaRecorder | null>(null)
+const audioChunks = ref<Blob[]>([])
+
 const currentContextLength = computed(() => {
   return (
     approximateTokenSize(inputText.value) +
@@ -573,6 +623,131 @@ const emitSend = async () => {
   }
 }
 
+// 语音录音相关函数
+const toggleRecording = async () => {
+  if (isRecording.value) {
+    stopRecording()
+  } else {
+    await startRecording()
+  }
+}
+
+const startRecording = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    mediaRecorder.value = new MediaRecorder(stream)
+    audioChunks.value = []
+
+    mediaRecorder.value.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.value.push(event.data)
+      }
+    }
+
+    mediaRecorder.value.onstop = async () => {
+      await processRecording()
+      // 停止所有音频轨道
+      stream.getTracks().forEach(track => track.stop())
+    }
+
+    mediaRecorder.value.start()
+    isRecording.value = true
+  } catch (error) {
+    console.error('开始录音失败:', error)
+    toast({
+      title: t('chat.input.voiceError'),
+      description: t('chat.input.voiceRecordingError'),
+      variant: 'destructive'
+    })
+  }
+}
+
+const stopRecording = () => {
+  if (mediaRecorder.value && isRecording.value) {
+    mediaRecorder.value.stop()
+    isRecording.value = false
+  }
+}
+
+const processRecording = async () => {
+  if (audioChunks.value.length === 0) return
+
+  isTranscribing.value = true
+  try {
+    // 创建音频文件
+    const audioBlob = new Blob(audioChunks.value, { type: 'audio/wav' })
+    
+    // 调用语音转文字
+    const transcription = await transcribeAudio(audioBlob)
+    
+    if (transcription.trim()) {
+      // 将转录结果添加到输入框
+      const currentText = inputText.value
+      const newText = currentText ? `${currentText} ${transcription}` : transcription
+      inputText.value = newText
+      editor.commands.setContent(newText)
+      editor.commands.focus('end')
+      
+      toast({
+        title: t('chat.input.voiceSuccess'),
+        description: t('chat.input.voiceTranscriptionComplete'),
+        variant: 'default'
+      })
+    } else {
+      toast({
+        title: t('chat.input.voiceWarning'),
+        description: t('chat.input.voiceNoSpeechDetected'),
+        variant: 'default'
+      })
+    }
+  } catch (error) {
+    console.error('语音转文字失败:', error)
+    toast({
+      title: t('chat.input.voiceError'),
+      description: t('chat.input.voiceTranscriptionError'),
+      variant: 'destructive'
+    })
+  } finally {
+    isTranscribing.value = false
+    audioChunks.value = []
+  }
+}
+
+const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
+  try {
+    // 创建FormData
+    const formData = new FormData()
+    formData.append('file', audioBlob, 'audio.wav')
+    formData.append('model', 'whisper-1')
+    formData.append('language', 'zh') // 默认中文，也可以让模型自动检测
+
+    // 获取OpenAI Provider配置
+    const openaiProvider = await configPresenter.getProviderById('openai')
+    if (!openaiProvider || !openaiProvider.apiKey) {
+      throw new Error('未配置OpenAI API密钥')
+    }
+
+    // 调用OpenAI Whisper API
+    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiProvider.apiKey}`
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      throw new Error(`API请求失败: ${response.status}`)
+    }
+
+    const result = await response.json()
+    return result.text || ''
+  } catch (error) {
+    console.error('语音转文字API调用失败:', error)
+    throw error
+  }
+}
+
 const deleteFile = (idx: number) => {
   selectedFiles.value.splice(idx, 1)
   if (fileInput.value) {
@@ -593,7 +768,6 @@ const handlePromptFiles = async (files: Array<{
 }>) => {
   if (!files || files.length === 0) return
 
-  const { toast } = await import('@/components/ui/toast')
   let addedCount = 0
   let errorCount = 0
 

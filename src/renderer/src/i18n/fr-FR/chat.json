@@ -10,7 +10,17 @@
     "promptFilesAdded": "Fichiers de prompt ajoutés",
     "promptFilesAddedDesc": "{count} fichiers ajoutés avec succès",
     "promptFilesError": "Erreur de traitement des fichiers",
-    "promptFilesErrorDesc": "Échec du traitement de {count} fichiers"
+    "promptFilesErrorDesc": "Échec du traitement de {count} fichiers",
+    "voiceInput": "Saisie vocale",
+    "voiceRecording": "Enregistrement en cours, cliquez pour arrêter",
+    "voiceTranscribing": "Conversion en texte...",
+    "voiceError": "Erreur de fonction vocale",
+    "voiceRecordingError": "Impossible de commencer l'enregistrement, veuillez vérifier les permissions du microphone",
+    "voiceTranscriptionError": "Échec de la conversion vocale en texte, veuillez réessayer",
+    "voiceSuccess": "Saisie vocale réussie",
+    "voiceTranscriptionComplete": "La voix a été convertie en texte avec succès",
+    "voiceWarning": "Notification de saisie vocale",
+    "voiceNoSpeechDetected": "Aucun contenu vocal détecté"
   },
   "features": {
     "deepThinking": "Réflexion approfondie",
