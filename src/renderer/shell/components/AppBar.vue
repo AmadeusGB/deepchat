@@ -38,7 +38,7 @@
             @close="tabStore.removeTab(tab.id)"
             @dragstart="onTabDragStart(tab.id, $event)"
           >
-            <img src="@/assets/logo.png" class="w-4 h-4 mr-2 rounded-sm" />
+            <img src="@/assets/deeper.png" class="w-4 h-4 mr-2 rounded-sm" />
             <span class="truncate">{{ tab.title ?? 'DeepChat' }}</span>
           </AppBarTabItem>
           <div ref="endOfTabs" class="w-0 flex-shrink-0 h-full"></div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, defineAsyncComponent } from 'vue'
 import { Icon } from '@iconify/vue'
-import logo from '@/assets/logo.png'
+import logo from '@/assets/deeper.png'
 import { useSettingsStore } from '@/stores/settings'
 import { usePresenter } from '@/composables/usePresenter'
 import { useRouter } from 'vue-router'

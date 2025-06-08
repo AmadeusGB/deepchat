@@ -2,7 +2,7 @@
   <div class="w-full h-full">
     <div class="w-full h-full flex flex-col gap-2">
       <div class="w-full h-full flex flex-col items-center justify-center gap-2">
-        <img src="@/assets/logo.png" class="w-10 h-10" />
+        <img src="@/assets/deeper.png" class="w-10 h-10" />
         <div class="flex flex-col gap-2 items-center">
           <h1 class="text-2xl font-bold">{{ t('about.title') }}</h1>
           <p class="text-xs text-muted-foreground pb-4">v{{ appVersion }}</p>
