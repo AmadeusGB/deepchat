@@ -51,6 +51,9 @@
     "generationComplete": "生成完毕",
     "generationError": "生成失败"
   },
+  "search": {
+    "placeholder": "搜索聊天记录..."
+  },
   "suggestions": {
     "vpn_us_node": "帮我把节点调整到美国最快的免费节点",
     "nba_today": "我要看NBA今天下午的比赛",

@@ -49,6 +49,9 @@
     "generationComplete": "生成は完了しました",
     "generationError": "生成は失敗しました"
   },
+  "search": {
+    "placeholder": "チャット履歴を検索..."
+  },
   "suggestions": {
     "vpn_us_node": "最も速い無料のアメリカノードにノードを調整してください",
     "nba_today": "今日の午後のNBA試合を見たい",

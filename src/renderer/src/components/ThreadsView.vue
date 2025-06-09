@@ -2,6 +2,24 @@
   <div
     class="w-full h-full overflow-hidden p-2 space-y-3 flex-shrink-0 border-r flex flex-col bg-background"
   >
+    <!-- DeepChat Logo -->
+    <div class="flex-none flex justify-center mb-2">
+      <img src="@/assets/deeper.png" alt="DeepChat" class="h-8 w-auto" />
+    </div>
+    
+    <!-- 搜索框 -->
+    <div class="flex-none mb-2">
+      <div class="relative">
+        <Icon icon="lucide:search" class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          v-model="searchQuery"
+          :placeholder="t('chat.search.placeholder')"
+          class="pl-10 h-8 text-xs"
+          @input="handleSearch"
+        />
+      </div>
+    </div>
+
     <!-- 固定在顶部的"新会话"按钮 -->
     <div class="flex-none flex flex-row gap-2">
       <Button
@@ -136,6 +154,7 @@ const renameThread = ref<CONVERSATION | null>(null)
 const cleanMessagesDialog = ref(false)
 const cleanMessagesThread = ref<CONVERSATION | null>(null)
 const currentPage = ref(1) // 当前页码
+const searchQuery = ref('')
 
 const windowSize = useWindowSize()
 
@@ -146,6 +165,12 @@ const createNewThread = async () => {
   } catch (error) {
     console.error(t('common.error.createChatFailed'), error)
   }
+}
+
+// 搜索聊天记录
+const handleSearch = () => {
+  // TODO: 实现搜索功能
+  console.log('搜索:', searchQuery.value)
 }
 
 // 处理滚动事件

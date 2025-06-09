@@ -51,6 +51,9 @@
     "generationComplete": "Generation is complete",
     "generationError": "Generation failed"
   },
+  "search": {
+    "placeholder": "Search chat history..."
+  },
   "suggestions": {
     "vpn_us_node": "Help me adjust the node to the fastest free US node",
     "nba_today": "I want to watch NBA games this afternoon",
