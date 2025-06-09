@@ -21,7 +21,10 @@
     "voiceTranscriptionComplete": "La voix a été convertie en texte avec succès",
     "voiceWarning": "Notification de saisie vocale",
     "voiceNoSpeechDetected": "Aucun contenu vocal détecté",
-    "send": "Envoyer"
+    "send": "Envoyer",
+    "textChat": "Chat textuel",
+    "micEnabled": "Microphone activé",
+    "micDisabled": "Microphone désactivé"
   },
   "features": {
     "deepThinking": "Réflexion approfondie",

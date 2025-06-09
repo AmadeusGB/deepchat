@@ -23,7 +23,10 @@
     "voiceNoSpeechDetected": "No speech content detected",
     "showToolbar": "Show Toolbar",
     "hideToolbar": "Hide Toolbar",
-    "send": "Send"
+    "send": "Send",
+    "textChat": "Text Chat",
+    "micEnabled": "Microphone Enabled",
+    "micDisabled": "Microphone Disabled"
   },
   "features": {
     "deepThinking": "Deep Thinking",

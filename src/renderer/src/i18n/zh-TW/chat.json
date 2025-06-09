@@ -21,7 +21,10 @@
     "voiceTranscriptionComplete": "語音已成功轉換為文字",
     "voiceWarning": "語音輸入提醒",
     "voiceNoSpeechDetected": "未檢測到語音內容",
-    "send": "發送"
+    "send": "發送",
+    "textChat": "文字交流",
+    "micEnabled": "麥克風已啟用",
+    "micDisabled": "麥克風未啟用"
   },
   "features": {
     "deepThinking": "深度思考",

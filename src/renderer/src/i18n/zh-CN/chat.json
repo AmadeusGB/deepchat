@@ -23,7 +23,10 @@
     "voiceNoSpeechDetected": "未检测到语音内容",
     "showToolbar": "显示工具栏",
     "hideToolbar": "隐藏工具栏",
-    "send": "发送"
+    "send": "发送",
+    "textChat": "文字交流",
+    "micEnabled": "麦克风已启用",
+    "micDisabled": "麦克风未启用"
   },
   "features": {
     "deepThinking": "深度思考",

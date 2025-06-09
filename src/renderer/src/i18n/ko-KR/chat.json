@@ -21,7 +21,10 @@
     "voiceTranscriptionComplete": "음성이 텍스트로 성공적으로 변환되었습니다",
     "voiceWarning": "음성 입력 알림",
     "voiceNoSpeechDetected": "음성 콘텐츠가 감지되지 않았습니다",
-    "send": "전송"
+    "send": "전송",
+    "textChat": "텍스트 채팅",
+    "micEnabled": "마이크 활성화됨",
+    "micDisabled": "마이크 비활성화됨"
   },
   "features": {
     "deepThinking": "심층 사고",

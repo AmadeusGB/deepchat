@@ -21,7 +21,10 @@
     "voiceTranscriptionComplete": "音声がテキストに正常に変換されました",
     "voiceWarning": "音声入力の通知",
     "voiceNoSpeechDetected": "音声コンテンツが検出されませんでした",
-    "send": "送信"
+    "send": "送信",
+    "textChat": "テキストチャット",
+    "micEnabled": "マイクが有効",
+    "micDisabled": "マイクが無効"
   },
   "features": {
     "deepThinking": "深い思考",

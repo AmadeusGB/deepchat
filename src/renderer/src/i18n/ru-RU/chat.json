@@ -21,7 +21,10 @@
     "voiceTranscriptionComplete": "Речь успешно преобразована в текст",
     "voiceWarning": "Уведомление о голосовом вводе",
     "voiceNoSpeechDetected": "Голосовой контент не обнаружен",
-    "send": "Отправить"
+    "send": "Отправить",
+    "textChat": "Текстовый чат",
+    "micEnabled": "Микрофон включен",
+    "micDisabled": "Микрофон отключен"
   },
   "features": {
     "deepThinking": "Глубокое мышление",
