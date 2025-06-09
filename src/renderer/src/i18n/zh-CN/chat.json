@@ -20,7 +20,10 @@
     "voiceSuccess": "语音输入成功",
     "voiceTranscriptionComplete": "语音已成功转换为文字",
     "voiceWarning": "语音输入提醒",
-    "voiceNoSpeechDetected": "未检测到语音内容"
+    "voiceNoSpeechDetected": "未检测到语音内容",
+    "showToolbar": "显示工具栏",
+    "hideToolbar": "隐藏工具栏",
+    "send": "发送"
   },
   "features": {
     "deepThinking": "深度思考",
@@ -44,5 +47,12 @@
   "notify": {
     "generationComplete": "生成完毕",
     "generationError": "生成失败"
+  },
+  "suggestions": {
+    "vpn_us_node": "帮我把节点调整到美国最快的免费节点",
+    "nba_today": "我要看NBA今天下午的比赛",
+    "mr_beast": "我要看Mr. Beast的频道，帮我调好",
+    "new_chan_drama": "我要看《新婵传》，帮我调好",
+    "uk_node_fastest": "哪个英国节点最快，帮我调去"
   }
 }

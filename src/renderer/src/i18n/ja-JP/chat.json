@@ -20,7 +20,8 @@
     "voiceSuccess": "音声入力成功",
     "voiceTranscriptionComplete": "音声がテキストに正常に変換されました",
     "voiceWarning": "音声入力の通知",
-    "voiceNoSpeechDetected": "音声コンテンツが検出されませんでした"
+    "voiceNoSpeechDetected": "音声コンテンツが検出されませんでした",
+    "send": "送信"
   },
   "features": {
     "deepThinking": "深い思考",
@@ -44,5 +45,12 @@
   "notify": {
     "generationComplete": "生成は完了しました",
     "generationError": "生成は失敗しました"
+  },
+  "suggestions": {
+    "vpn_us_node": "最も速い無料のアメリカノードにノードを調整してください",
+    "nba_today": "今日の午後のNBA試合を見たい",
+    "mr_beast": "Mr. Beastのチャンネルを見たい、設定してください",
+    "new_chan_drama": "「新婵伝」を見たい、設定してください",
+    "uk_node_fastest": "どのイギリスノードが最も速いですか？切り替えてください"
   }
 }

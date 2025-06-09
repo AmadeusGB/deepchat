@@ -1,15 +1,33 @@
 <template>
   <div
     class="w-full max-w-4xl mx-auto"
-    @dragenter.prevent="handleDragEnter"
-    @dragover.prevent="handleDragOver"
-    @drop.prevent="handleDrop"
-    @dragleave.prevent="handleDragLeave"
-    @paste="handlePaste"
+    @mouseenter="isDragging = false"
   >
     <TooltipProvider>
+      <!-- 添加建议按钮区域 -->
+      <div class="flex gap-2 mb-4 px-2 overflow-x-auto scrollbar-hide">
+        <Button
+          v-for="(suggestion, index) in suggestions"
+          :key="index"
+          variant="outline"
+          size="sm"
+          class="text-xs h-8 px-4 rounded-full bg-background border-border/50 hover:bg-muted/30 text-muted-foreground hover:text-foreground transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap flex-shrink-0"
+          @click="insertSuggestion(suggestion.key)"
+        >
+          {{ t(suggestion.key) }}
+        </Button>
+      </div>
+
       <div
         class="bg-card border border-border rounded-lg focus-within:border-primary p-2 flex flex-col gap-2 shadow-sm relative"
+        :class="{
+          'ring-2 ring-ring': isDragging
+        }"
+        @dragenter.prevent="handleDragEnter"
+        @dragleave.prevent="handleDragLeave"
+        @dragover.prevent="handleDragOver"
+        @drop.prevent="handleDrop"
+        @paste="handlePaste"
       >
         <!-- {{  t('chat.input.fileArea') }} -->
         <div v-if="selectedFiles.length > 0">
@@ -46,82 +64,104 @@
         <div class="flex items-center justify-between">
           <!-- {{ t('chat.input.functionSwitch') }} -->
           <div class="flex gap-1.5">
+            <!-- 工具栏展开/收起按钮 -->
             <Tooltip>
               <TooltipTrigger>
                 <Button
                   variant="outline"
                   size="icon"
                   class="w-7 h-7 text-xs rounded-lg"
-                  @click="openFilePicker"
+                  @click="showToolbar = !showToolbar"
                 >
-                  <Icon icon="lucide:paperclip" class="w-4 h-4" />
-                  <input
-                    ref="fileInput"
-                    type="file"
-                    class="hidden"
-                    multiple
-                    accept="application/json,application/javascript,text/plain,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.oasis.opendocument.spreadsheet,application/vnd.ms-excel.sheet.binary.macroEnabled.12,application/vnd.apple.numbers,text/markdown,application/x-yaml,application/xml,application/typescript,text/typescript,text/x-typescript,application/x-typescript,application/x-sh,text/*,application/pdf,image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp,image/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/html,text/css,application/xhtml+xml,.js,.jsx,.ts,.tsx,.py,.java,.c,.cpp,.cs,.go,.rb,.php,.rs,.swift,.kt,.scala,.pl,.lua,.sh,.json,.yaml,.yml,.xml,.html,.htm,.css,.md,audio/mp3,audio/wav,audio/mp4,audio/mpeg,.mp3,.wav,.m4a"
-                    @change="handleFileSelect"
+                  <Icon 
+                    :icon="showToolbar ? 'lucide:chevron-left' : 'lucide:chevron-right'" 
+                    class="w-4 h-4" 
                   />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{{ t('chat.input.fileSelect') }}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger>
-                <span
-                  class="search-engine-select overflow-hidden flex items-center h-7 rounded-lg shadow-sm border border-input transition-all duration-300"
-                  :class="{
-                    'border-primary': settings.webSearch
-                  }"
-                >
-                  <Button
-                    variant="outline"
-                    :class="[
-                      'flex w-7 border-none rounded-none shadow-none items-center gap-1.5 px-2 h-full',
-                      settings.webSearch
-                        ? 'dark:!bg-primary bg-primary border-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
-                        : ''
-                    ]"
-                    size="icon"
-                    @click="onWebSearchClick"
-                  >
-                    <Icon icon="lucide:globe" class="w-4 h-4" />
-                  </Button>
-                  <Select
-                    v-model="selectedSearchEngine"
-                    @update:model-value="onSearchEngineChange"
-                    @update:open="handleSelectOpen"
-                  >
-                    <SelectTrigger
-                      class="h-full rounded-none border-none shadow-none hover:bg-accent text-muted-foreground dark:hover:text-primary-foreground transition-all duration-300"
-                      :class="{
-                        'w-0 opacity-0 p-0 overflow-hidden':
-                          !showSearchSettingsButton && !isSearchHovering && !isSelectOpen,
-                        'w-24 max-w-28 px-2 opacity-100':
-                          showSearchSettingsButton || isSearchHovering || isSelectOpen
-                      }"
-                    >
-                      <div class="flex items-center gap-1">
-                        <SelectValue class="text-xs font-bold truncate" />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent align="start" class="w-64">
-                      <SelectItem
-                        v-for="engine in searchEngines"
-                        :key="engine.id"
-                        :value="engine.id"
-                      >
-                        {{ engine.name }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{{ t('chat.features.webSearch') }}</TooltipContent>
+              <TooltipContent>{{ showToolbar ? t('chat.input.hideToolbar') : t('chat.input.showToolbar') }}</TooltipContent>
             </Tooltip>
 
-            <McpToolsList />
+            <!-- 工具栏内容 (条件渲染) -->
+            <template v-if="showToolbar">
+              <Tooltip>
+                <TooltipTrigger>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    class="w-7 h-7 text-xs rounded-lg"
+                    @click="openFilePicker"
+                  >
+                    <Icon icon="lucide:paperclip" class="w-4 h-4" />
+                    <input
+                      ref="fileInput"
+                      type="file"
+                      class="hidden"
+                      multiple
+                      accept="application/json,application/javascript,text/plain,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.oasis.opendocument.spreadsheet,application/vnd.ms-excel.sheet.binary.macroEnabled.12,application/vnd.apple.numbers,text/markdown,application/x-yaml,application/xml,application/typescript,text/typescript,text/x-typescript,application/x-typescript,application/x-sh,text/*,application/pdf,image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp,image/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/html,text/css,application/xhtml+xml,.js,.jsx,.ts,.tsx,.py,.java,.c,.cpp,.cs,.go,.rb,.php,.rs,.swift,.kt,.scala,.pl,.lua,.sh,.json,.yaml,.yml,.xml,.html,.htm,.css,.md,audio/mp3,audio/wav,audio/mp4,audio/mpeg,.mp3,.wav,.m4a"
+                      @change="handleFileSelect"
+                    />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{{ t('chat.input.fileSelect') }}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger>
+                  <span
+                    class="search-engine-select overflow-hidden flex items-center h-7 rounded-lg shadow-sm border border-input transition-all duration-300"
+                    :class="{
+                      'border-primary': settings.webSearch
+                    }"
+                  >
+                    <Button
+                      variant="outline"
+                      :class="[
+                        'flex w-7 border-none rounded-none shadow-none items-center gap-1.5 px-2 h-full',
+                        settings.webSearch
+                          ? 'dark:!bg-primary bg-primary border-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
+                          : ''
+                      ]"
+                      size="icon"
+                      @click="onWebSearchClick"
+                    >
+                      <Icon icon="lucide:globe" class="w-4 h-4" />
+                    </Button>
+                    <Select
+                      v-model="selectedSearchEngine"
+                      @update:model-value="onSearchEngineChange"
+                      @update:open="handleSelectOpen"
+                    >
+                      <SelectTrigger
+                        class="h-full rounded-none border-none shadow-none hover:bg-accent text-muted-foreground dark:hover:text-primary-foreground transition-all duration-300"
+                        :class="{
+                          'w-0 opacity-0 p-0 overflow-hidden':
+                            !showSearchSettingsButton && !isSearchHovering && !isSelectOpen,
+                          'w-24 max-w-28 px-2 opacity-100':
+                            showSearchSettingsButton || isSearchHovering || isSelectOpen
+                        }"
+                      >
+                        <div class="flex items-center gap-1">
+                          <SelectValue class="text-xs font-bold truncate" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent align="start" class="w-64">
+                        <SelectItem
+                          v-for="engine in searchEngines"
+                          :key="engine.id"
+                          :value="engine.id"
+                        >
+                          {{ engine.name }}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{{ t('chat.features.webSearch') }}</TooltipContent>
+              </Tooltip>
+
+              <McpToolsList />
+            </template>
+            
             <!-- {{ t('chat.input.fileSelect') }} -->
             <slot name="addon-buttons"></slot>
           </div>
@@ -185,12 +225,11 @@
             </Tooltip>
             <Button
               variant="default"
-              size="icon"
-              class="w-7 h-7 text-xs rounded-lg"
+              class="h-7 px-3 text-xs rounded-lg font-medium"
               :disabled="disabledSend"
               @click="emitSend"
             >
-              <Icon icon="lucide:arrow-up" class="w-4 h-4" />
+              {{ t('chat.input.send') }}
             </Button>
           </div>
         </div>
@@ -386,7 +425,11 @@ const currentContextLengthText = computed(() => {
   return `${Math.round((currentContextLength.value / (props.contextLength ?? 1000)) * 100)}%`
 })
 
-const emit = defineEmits(['send', 'file-upload'])
+const emit = defineEmits<{
+  'send': [messageContent: UserMessageContent],
+  'file-upload': [files: MessageFile[]],
+  'toolbar-toggle': [visible: boolean]
+}>()
 
 const openFilePicker = () => {
   fileInput.value?.click()
@@ -982,6 +1025,30 @@ const handleSearchMouseEnter = () => {
 
 const handleSearchMouseLeave = () => {
   isSearchHovering.value = false
+}
+
+// 添加工具栏显示/隐藏状态
+const showToolbar = ref(false)
+
+// 监听showToolbar变化并发射事件
+watch(showToolbar, (newValue) => {
+  emit('toolbar-toggle', newValue)
+})
+
+// 建议按钮数据
+const suggestions = ref([
+  { key: 'chat.suggestions.vpn_us_node' },
+  { key: 'chat.suggestions.nba_today' },
+  { key: 'chat.suggestions.mr_beast' },
+  { key: 'chat.suggestions.new_chan_drama' },
+  { key: 'chat.suggestions.uk_node_fastest' }
+])
+
+// 插入建议文本到编辑器
+const insertSuggestion = (suggestionKey: string) => {
+  const text = t(suggestionKey)
+  editor.commands.setContent(text)
+  editor.commands.focus('end')
 }
 
 onMounted(() => {

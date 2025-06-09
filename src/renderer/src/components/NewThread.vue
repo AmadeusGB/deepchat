@@ -24,9 +24,11 @@
         :max-rows="10"
         :context-length="contextLength"
         @send="handleSend"
+        @toolbar-toggle="handleToolbarToggle"
       >
         <template #addon-buttons>
           <div
+            v-if="showToolbar"
             key="newThread-model-select"
             class="new-thread-model-select overflow-hidden flex items-center h-7 rounded-lg shadow-sm border border-input transition-all duration-300"
           >
@@ -361,6 +363,14 @@ const handleSend = async (content: UserMessageContent) => {
   console.log('threadId', threadId, activeModel.value)
   await chatStore.setActiveThread(threadId)
   chatStore.sendMessage(content)
+}
+
+// 添加工具栏显示状态
+const showToolbar = ref(false)
+
+// 处理工具栏切换事件
+const handleToolbarToggle = (visible: boolean) => {
+  showToolbar.value = visible
 }
 </script>
 

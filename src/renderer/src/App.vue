@@ -163,6 +163,8 @@ const handleGoSettings = () => {
   }
 }
 
+
+
 getInitComplete()
 
 onMounted(() => {
@@ -172,6 +174,22 @@ onMounted(() => {
   // 设置初始 body class
   document.body.classList.add(themeStore.themeMode)
   document.body.classList.add(settingsStore.fontSizeClass)
+
+  // Initialize stagewise in development
+  if (process.env.NODE_ENV === 'development') {
+    // @ts-ignore - Module resolution issue, but works at runtime
+    import('@stagewise/toolbar-vue').then((module) => {
+      const { StagewiseToolbar } = module
+      const app = document.createElement('div')
+      document.body.appendChild(app)
+      
+      import('vue').then(({ createApp }) => {
+        createApp(StagewiseToolbar, { config: { plugins: [] } }).mount(app)
+      })
+    }).catch(() => {
+      console.log('Stagewise toolbar not available')
+    })
+  }
 
   // 监听全局错误通知事件
   window.electron.ipcRenderer.on(NOTIFICATION_EVENTS.SHOW_ERROR, (_event, error) => {
@@ -295,5 +313,7 @@ onBeforeUnmount(() => {
     <Toaster />
     <SelectedTextContextMenu />
     <TranslatePopup />
+    
+
   </div>
 </template>
