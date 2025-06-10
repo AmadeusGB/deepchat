@@ -1258,6 +1258,8 @@ const insertSuggestion = (suggestionKey: string) => {
   const text = t(suggestionKey)
   editor.commands.setContent(text)
   editor.commands.focus('end')
+  // 立即更新inputText.value，确保Send按钮能立即响应
+  inputText.value = text
 }
 
 onMounted(() => {

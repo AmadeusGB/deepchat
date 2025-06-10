@@ -4,7 +4,7 @@
   >
     <!-- DeepChat Logo -->
     <div class="flex-none flex justify-center mb-2">
-      <img src="@/assets/deeper.png" alt="DeepChat" class="h-8 w-auto" />
+      <img src="@/assets/dper.png" alt="DeepChat" class="h-8 w-auto" />
     </div>
     
     <!-- 搜索框 -->
