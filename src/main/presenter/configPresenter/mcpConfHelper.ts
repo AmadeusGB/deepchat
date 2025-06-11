@@ -188,10 +188,20 @@ const DEFAULT_MCP_SERVERS = {
       autoApprove: ['all'],
       disable: true,
       type: 'stdio' as MCPServerType
+    },
+    playwright: {
+      command: 'npx',
+      args: ['-y', '@modelcontextprotocol/server-playwright'],
+      env: {},
+      descriptions: 'Playwright web automation and testing service',
+      icons: '🎭',
+      autoApprove: ['all'],
+      disable: false,
+      type: 'stdio' as MCPServerType
     }
   },
-  defaultServers: ['Artifacts'], // 默认服务器列表
-  mcpEnabled: false // 默认关闭MCP功能
+  defaultServers: ['Artifacts', 'playwright'], // 添加playwright到默认服务器列表
+  mcpEnabled: true // 默认开启MCP功能
 }
 // 这部分mcp有系统逻辑判断是否启用，不受用户配置控制，受软件环境控制
 export const SYSTEM_INMEM_MCP_SERVERS: Record<string, MCPServerConfig> = {

@@ -38,7 +38,7 @@ export const useChatStore = defineStore('chat', () => {
   const generatingThreadIds = ref(new Set<string>())
   const pageSize = ref(40)
   const hasMore = ref(true)
-  const isSidebarOpen = ref(false)
+  const isSidebarOpen = ref(true)
 
   // 使用Map来存储会话工作状态
   const threadsWorkingStatusMap = ref<Map<number, Map<string, WorkingStatus>>>(new Map())

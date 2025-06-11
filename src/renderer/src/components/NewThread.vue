@@ -1,16 +1,5 @@
 <template>
   <div class="h-full w-full flex flex-col items-center justify-start">
-    <div class="w-full p-2 flex flex-row gap-2 items-center">
-      <Button
-        class="w-7 h-7 rounded-md"
-        size="icon"
-        variant="outline"
-        @click="onSidebarButtonClick"
-      >
-        <Icon v-if="chatStore.isSidebarOpen" icon="lucide:panel-left-close" class="w-4 h-4" />
-        <Icon v-else icon="lucide:panel-left-open" class="w-4 h-4" />
-      </Button>
-    </div>
     
     <!-- Main content with fixed bottom positioning -->
     <div class="h-0 w-full flex-grow flex flex-col items-center justify-center relative">
@@ -311,9 +300,7 @@ const handleMouseLeave = () => {
   isHovering.value = false
 }
 
-const onSidebarButtonClick = () => {
-  chatStore.isSidebarOpen = !chatStore.isSidebarOpen
-}
+
 
 const handleModelUpdate = (model: MODEL_META, providerId: string) => {
   activeModel.value = {
