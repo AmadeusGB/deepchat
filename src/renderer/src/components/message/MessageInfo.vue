@@ -1,18 +1,23 @@
 <template>
   <div class="flex flex-row items-center gap-2 min-h-5">
-    <!-- 特殊处理：如果名称以 "Deeper Ai" 开头，显示自定义图标 -->
+    <!-- 特殊处理：如果名称以 "Deeper Ai" 开头，使用Figma设计样式 -->
     <template v-if="name.startsWith('Deeper Ai')">
-      <img src="@/assets/deeper.png" alt="Deeper AI" class="w-4 h-4" />
-      <span class="text-xs font-bold text-muted-foreground">{{ name }}</span>
+      <div class="figma-ai-message-header">
+        <div class="figma-ai-header-content">
+          <img src="@/assets/deeper.png" alt="Deeper AI" class="figma-ai-icon" />
+          <span class="figma-ai-text">{{ name }}</span>
+        </div>
+      </div>
+      <span class="figma-ai-timestamp">{{ formattedTime }}</span>
     </template>
     <!-- 默认显示 -->
     <template v-else>
       <span class="text-xs font-bold text-muted-foreground">{{ name }}</span>
+      <span
+        class="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+        >{{ formattedTime }}</span
+      >
     </template>
-    <span
-      class="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-      >{{ formattedTime }}</span
-    >
   </div>
 </template>
 

@@ -3,17 +3,7 @@
     :data-message-id="message.id"
     class="flex flex-row py-4 pl-4 pr-11 group gap-2 w-full justify-start assistant-message-item"
   >
-    <div
-      class="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-base-900/5 dark:bg-base-100/10 border border-input rounded-md"
-    >
-      <ModelIcon
-        :model-id="currentMessage.model_provider"
-        custom-class=" block"
-        class="w-3 h-3"
-        :is-dark="themeStore.isDark"
-        :alt="currentMessage.role"
-      />
-    </div>
+    <!-- 移除模型图标 -->
 
     <div class="flex flex-col w-full space-y-1.5">
       <MessageInfo :name="displayName" :timestamp="currentMessage.timestamp" />
@@ -117,7 +107,6 @@ import MessageToolbar from './MessageToolbar.vue'
 import MessageInfo from './MessageInfo.vue'
 import { useChatStore } from '@/stores/chat'
 import { useSettingsStore } from '@/stores/settings'
-import ModelIcon from '@/components/icons/ModelIcon.vue'
 import { Icon } from '@iconify/vue'
 import MessageBlockAction from './MessageBlockAction.vue'
 import { useI18n } from 'vue-i18n'
@@ -132,13 +121,11 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { useThemeStore } from '@/stores/theme'
 const props = defineProps<{
   message: AssistantMessage
   isCapturingImage: boolean
 }>()
 
-const themeStore = useThemeStore()
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
 const currentVariantIndex = ref(0)

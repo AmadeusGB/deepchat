@@ -1,19 +1,24 @@
 <template>
-  <div class="flex flex-col overflow-hidden h-0 flex-1">
-    <!-- 消息列表区域 -->
-    <MessageList
-      :key="chatStore.getActiveThreadId() ?? 'default'"
-      ref="messageList"
-      :messages="chatStore.getMessages()"
-      @scroll-bottom="scrollToBottom"
-    />
+  <div class="flex flex-col h-0 flex-1 gap-2.5" style="padding: 20px 30px 20px 60px;">
+    <!-- 消息列表区域 - 对话历史玻璃形态 -->
+    <div class="figma-chat-history relative flex-1 overflow-hidden p-7.5" style="margin-top: 10px;">
+      <MessageList
+        :key="chatStore.getActiveThreadId() ?? 'default'"
+        ref="messageList"
+        :messages="chatStore.getMessages()"
+        @scroll-bottom="scrollToBottom"
+        class="h-full"
+      />
+    </div>
 
-    <!-- 输入框区域 -->
-    <div class="flex-none px-2 pb-2">
+    <!-- 输入框区域 - 对话页面玻璃形态 -->
+    <div class="figma-chat-input-area relative flex-none p-5" style="margin-bottom: 0;">
       <ChatInput
         :disabled="!chatStore.getActiveThreadId() || isGenerating"
         @send="handleSend"
         @file-upload="handleFileUpload"
+        class="figma-chat-input"
+        :hide-toolbar="true"
       />
     </div>
   </div>

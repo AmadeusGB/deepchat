@@ -44,7 +44,7 @@
       <div v-else>
 
       <div
-        class="bg-card border border-border rounded-lg focus-within:border-primary p-2 flex flex-col gap-2 shadow-sm relative"
+        class="bg-card border border-border rounded-lg focus-within:border-primary p-2 flex flex-col gap-2 shadow-sm relative figma-chat-input-inner"
         :class="{
           'ring-2 ring-ring': isDragging
         }"
@@ -86,7 +86,7 @@
           @keydown.enter.exact="handleEditorEnter"
         />
 
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between" v-if="!props.hideToolbar">
           <!-- {{ t('chat.input.functionSwitch') }} -->
           <div class="flex gap-1.5">
             <!-- 工具栏展开/收起按钮 -->
@@ -449,10 +449,12 @@ const props = withDefaults(
     contextLength?: number
     maxRows?: number
     rows?: number
+    hideToolbar?: boolean
   }>(),
   {
     maxRows: 10,
-    rows: 1
+    rows: 1,
+    hideToolbar: false
   }
 )
 

@@ -131,6 +131,9 @@ module.exports = {
         'collapsible-down': 'collapsible-down 0.2s ease-in-out',
         'collapsible-up': 'collapsible-up 0.2s ease-in-out',
         pulse: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+      },
+      spacing: {
+        '7.5': '30px', // 对应Figma设计中的30px间距
       }
     }
   },
