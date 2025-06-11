@@ -1337,6 +1337,8 @@ watch(
 defineExpose({
   setText: (text: string) => {
     inputText.value = text
+    editor.commands.setContent(text)
+    editor.commands.focus()
   }
 })
 </script>

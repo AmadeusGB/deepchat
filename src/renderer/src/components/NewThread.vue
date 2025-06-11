@@ -18,7 +18,18 @@
       <div class="figma-main-content flex flex-col items-center gap-4 mb-8">
         <!-- Mini device container -->
         <div class="figma-device-container relative">
+          <!-- Light beams above device -->
+          <div class="figma-light-beams figma-light-beams-top">
+            <div class="figma-light-beam" v-for="i in 6" :key="`top-${i}`" :style="{ left: `${15 + (i-1) * 14}%` }"></div>
+          </div>
+          
+          <!-- Device image -->
           <img src="@/assets/figma-icons/mini.png" class="figma-mini-device" />
+          
+          <!-- Light beams below device -->
+          <div class="figma-light-beams figma-light-beams-bottom">
+            <div class="figma-light-beam" v-for="i in 6" :key="`bottom-${i}`" :style="{ left: `${15 + (i-1) * 14}%` }"></div>
+          </div>
         </div>
         
         <!-- Hello icon and greeting text -->
@@ -549,6 +560,7 @@ const insertExample = (text: string) => {
 .figma-main-content {
   position: relative;
   z-index: 1;
+  transform: translateY(-80px);
 }
 
 /* Mini device styles based on Figma design */
@@ -557,14 +569,44 @@ const insertExample = (text: string) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 25px;
+  margin-bottom: 60px;
+}
+
+.figma-device-container::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  height: 200px;
+  background: radial-gradient(ellipse at center, rgba(217, 217, 217, 0.4) 0%, rgba(217, 217, 217, 0.2) 40%, transparent 70%);
+  border-radius: 50%;
+  z-index: -1;
+  filter: blur(20px);
+}
+
+.figma-device-container::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 450px;
+  height: 180px;
+  background: radial-gradient(ellipse at center, rgba(73, 90, 245, 0.1) 0%, rgba(73, 90, 245, 0.05) 50%, transparent 80%);
+  border-radius: 50%;
+  z-index: -1;
+  filter: blur(15px);
 }
 
 .figma-mini-device {
-  width: 400px;
+  width: 600px;
   height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 4px 15px rgba(0, 0, 0, 0.1));
+  filter: drop-shadow(0 4px 15px rgba(0, 0, 0, 0.1)) drop-shadow(0 8px 25px rgba(73, 90, 245, 0.15));
+  position: relative;
+  z-index: 1;
 }
 
 /* Hello icon styles based on Figma design */
@@ -602,21 +644,143 @@ const insertExample = (text: string) => {
   color: #ffffff;
 }
 
+/* Dark mode adjustments for device glow effect */
+.dark .figma-device-container::before {
+  background: radial-gradient(ellipse at center, rgba(100, 100, 100, 0.3) 0%, rgba(100, 100, 100, 0.15) 40%, transparent 70%);
+}
+
+.dark .figma-device-container::after {
+  background: radial-gradient(ellipse at center, rgba(73, 90, 245, 0.2) 0%, rgba(73, 90, 245, 0.1) 50%, transparent 80%);
+}
+
+.dark .figma-mini-device {
+  filter: drop-shadow(0 4px 15px rgba(255, 255, 255, 0.05)) drop-shadow(0 8px 25px rgba(73, 90, 245, 0.2));
+}
+
+/* Light beams container */
+.figma-light-beams {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.figma-light-beams-top {
+  top: -60px;
+  height: 80px;
+}
+
+.figma-light-beams-bottom {
+  bottom: -60px;
+  height: 80px;
+}
+
+/* Individual light beam */
+.figma-light-beam {
+  position: absolute;
+  width: 3px;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 30%, rgba(255, 255, 255, 0.3) 60%, transparent 100%);
+  border-radius: 2px;
+  opacity: 0.7;
+  transform: translateX(-50%);
+  animation: lightBeamPulse 3s ease-in-out infinite;
+}
+
+.figma-light-beams-bottom .figma-light-beam {
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 30%, rgba(255, 255, 255, 0.3) 60%, transparent 100%);
+}
+
+/* Animation for light beams */
+@keyframes lightBeamPulse {
+  0%, 100% {
+    opacity: 0.7;
+    transform: translateX(-50%) scaleY(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateX(-50%) scaleY(1.1);
+  }
+}
+
+/* Stagger animation for each beam */
+.figma-light-beam:nth-child(1) { animation-delay: 0s; }
+.figma-light-beam:nth-child(2) { animation-delay: 0.2s; }
+.figma-light-beam:nth-child(3) { animation-delay: 0.4s; }
+.figma-light-beam:nth-child(4) { animation-delay: 0.6s; }
+.figma-light-beam:nth-child(5) { animation-delay: 0.8s; }
+.figma-light-beam:nth-child(6) { animation-delay: 1s; }
+
+/* Dark mode adjustments for light beams */
+.dark .figma-light-beam {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 30%, rgba(255, 255, 255, 0.2) 60%, transparent 100%);
+}
+
+.dark .figma-light-beams-bottom .figma-light-beam {
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 30%, rgba(255, 255, 255, 0.2) 60%, transparent 100%);
+}
+
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   .figma-mini-device {
-    width: 350px;
+    width: 500px;
+  }
+  
+  .figma-device-container {
+    margin-bottom: 50px;
+  }
+  
+  .figma-device-container::before {
+    width: 450px;
+    height: 180px;
+  }
+  
+  .figma-device-container::after {
+    width: 400px;
+    height: 160px;
   }
   
   .figma-hello-icon {
     width: 140px;
     height: 45px;
   }
+  
+  .figma-light-beams-top {
+    top: -50px;
+    height: 70px;
+  }
+  
+  .figma-light-beams-bottom {
+    bottom: -50px;
+    height: 70px;
+  }
+  
+  .figma-main-content {
+    transform: translateY(-60px);
+  }
 }
 
 @media (max-width: 768px) {
   .figma-mini-device {
-    width: 300px;
+    width: 400px;
+  }
+  
+  .figma-device-container {
+    margin-bottom: 40px;
+  }
+  
+  .figma-device-container::before {
+    width: 380px;
+    height: 150px;
+  }
+  
+  .figma-device-container::after {
+    width: 340px;
+    height: 135px;
   }
   
   .figma-hello-icon {
@@ -627,11 +791,43 @@ const insertExample = (text: string) => {
   .figma-greeting-title {
     font-size: 22px;
   }
+  
+  .figma-light-beams-top {
+    top: -45px;
+    height: 60px;
+  }
+  
+  .figma-light-beams-bottom {
+    bottom: -45px;
+    height: 60px;
+  }
+  
+  .figma-light-beam {
+    width: 2.5px;
+  }
+  
+  .figma-main-content {
+    transform: translateY(-50px);
+  }
 }
 
 @media (max-width: 480px) {
   .figma-mini-device {
-    width: 250px;
+    width: 300px;
+  }
+  
+  .figma-device-container {
+    margin-bottom: 35px;
+  }
+  
+  .figma-device-container::before {
+    width: 320px;
+    height: 125px;
+  }
+  
+  .figma-device-container::after {
+    width: 280px;
+    height: 110px;
   }
   
   .figma-hello-icon {
@@ -641,6 +837,24 @@ const insertExample = (text: string) => {
   
   .figma-greeting-title {
     font-size: 20px;
+  }
+  
+  .figma-light-beams-top {
+    top: -40px;
+    height: 50px;
+  }
+  
+  .figma-light-beams-bottom {
+    bottom: -40px;
+    height: 50px;
+  }
+  
+  .figma-light-beam {
+    width: 2px;
+  }
+  
+  .figma-main-content {
+    transform: translateY(-40px);
   }
 }
 </style>
