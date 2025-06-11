@@ -1,6 +1,6 @@
 <template>
   <div class="flex items-center justify-between w-full p-2">
-    <div class="flex flex-row gap-2 items-center">
+    <div class="flex flex-row gap-2 items-center pl-8">
       <Popover v-model:open="modelSelectOpen">
         <PopoverTrigger as-child>
           <Button variant="outline" class="flex items-center gap-1.5 px-2 h-7" size="sm">

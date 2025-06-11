@@ -9,10 +9,17 @@
           <h4
             class="text-xs font-medium leading-none text-accent-foreground flex flex-row gap-2 items-center"
           >
-            <span v-if="block.tool_call?.server_icons" class="text-base leading-none">{{
-              `${block.tool_call?.server_icons}  `
-            }}</span>
-            <Icon v-else icon="lucide:hammer" class="w-4 h-4 text-muted-foreground" />
+            <!-- 特殊处理：如果是 playwright 相关工具，显示 Deeper AI 图标 -->
+            <template v-if="block.tool_call?.server_name?.toLowerCase().includes('playwright') || block.tool_call?.name?.toLowerCase().includes('playwright')">
+              <img src="@/assets/deeper.png" alt="Deeper AI" class="w-4 h-4" />
+            </template>
+            <!-- 默认逻辑：显示服务器图标或默认图标 -->
+            <template v-else>
+              <span v-if="block.tool_call?.server_icons" class="text-base leading-none">{{
+                `${block.tool_call?.server_icons}  `
+              }}</span>
+              <Icon v-else icon="lucide:hammer" class="w-4 h-4 text-muted-foreground" />
+            </template>
             {{ block.tool_call?.server_name ? `${block.tool_call?.server_name} · ` : ''
             }}{{ block.tool_call?.name ?? '' }}
           </h4>
@@ -123,7 +130,7 @@ const t = (() => {
   try {
     const { t } = useI18n()
     return t
-  } catch (e) {
+  } catch {
     // 如果 i18n 未初始化，提供默认翻译
     return (key: string) => {
       if (key === 'toolCall.calling') return '工具调用中'
@@ -188,7 +195,7 @@ const parseJson = (jsonStr: string) => {
       }
     }
     return parsed
-  } catch (e) {
+  } catch {
     return { raw: jsonStr }
   }
 }
