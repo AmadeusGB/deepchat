@@ -1,41 +1,32 @@
 <template>
   <div
-    class="w-full h-full overflow-hidden p-2 space-y-3 flex-shrink-0 border-r flex flex-col bg-background"
+    class="w-full h-full overflow-hidden flex-shrink-0 flex flex-col figma-sidebar"
   >
     <!-- DeepChat Logo -->
-    <div class="flex-none flex justify-center mb-2">
-      <img src="@/assets/dper.png" alt="DeepChat" class="h-8 w-auto" />
+    <div class="flex-none flex justify-center mb-6">
+      <img src="@/assets/figma-icons/dper.png" alt="DeepChat" class="h-8 w-auto" />
     </div>
     
-    <!-- 搜索框 -->
-    <div class="flex-none mb-2">
-      <div class="relative">
-        <Icon icon="lucide:search" class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          v-model="searchQuery"
-          :placeholder="t('chat.search.placeholder')"
-          class="pl-10 h-8 text-xs"
-          @input="handleSearch"
-        />
+    <!-- Search histories 按钮 -->
+    <div class="flex-none mb-4">
+      <div class="figma-search-histories">
+        <span>Search histories</span>
       </div>
     </div>
 
     <!-- 固定在顶部的"新会话"按钮 -->
-    <div class="flex-none flex flex-row gap-2">
+    <div class="flex-none flex flex-row gap-3 mb-6">
       <Button
-        variant="outline"
-        size="sm"
-        class="w-0 flex-1 text-xs justify-start gap-2 h-7"
+        class="w-0 flex-1 justify-center figma-new-chat-btn"
         @click="createNewThread"
       >
-        <Icon icon="lucide:pen-line" class="h-4 w-4" />
-        <span>{{ t('common.newChat') }}</span>
+        <span>New Chat</span>
       </Button>
       <Button
         v-if="windowSize.width.value < 1024"
         variant="outline"
         size="icon"
-        class="flex-shrink-0 text-xs justify-center h-7 w-7"
+        class="flex-shrink-0 text-xs justify-center h-8 w-8"
         @click="chatStore.isSidebarOpen = false"
       >
         <Icon icon="lucide:x" class="h-4 w-4" />
@@ -46,7 +37,7 @@
     <ScrollArea ref="scrollAreaRef" class="flex-1" @scroll="handleScroll">
       <!-- 最近 -->
       <div v-for="thread in chatStore.threads" :key="thread.dt" class="space-y-1.5 mb-3">
-        <div class="text-xs font-bold text-muted-foreground px-2">{{ thread.dt }}</div>
+        <div class="text-xs font-semibold text-muted-foreground px-2">{{ thread.dt }}</div>
         <ul class="space-y-1.5">
           <ThreadItem
             v-for="dtThread in thread.dtThreads"
@@ -154,7 +145,7 @@ const renameThread = ref<CONVERSATION | null>(null)
 const cleanMessagesDialog = ref(false)
 const cleanMessagesThread = ref<CONVERSATION | null>(null)
 const currentPage = ref(1) // 当前页码
-const searchQuery = ref('')
+// const searchQuery = ref('')
 
 const windowSize = useWindowSize()
 
@@ -167,11 +158,11 @@ const createNewThread = async () => {
   }
 }
 
-// 搜索聊天记录
-const handleSearch = () => {
-  // TODO: 实现搜索功能
-  console.log('搜索:', searchQuery.value)
-}
+// 搜索聊天记录（暂时保留用于将来功能）
+// const handleSearch = () => {
+//   // TODO: 实现搜索功能
+//   console.log('搜索:', searchQuery.value)
+// }
 
 // 处理滚动事件
 const handleScroll = async () => {
@@ -350,4 +341,81 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped></style>
+<style scoped>
+/* Figma UI-inspired simplified sidebar styling */
+.figma-sidebar {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 30px;
+  margin: 0 26px;
+  backdrop-filter: blur(20px);
+  /* 简化的阴影效果，更接近UI设计 */
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.06),
+    0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+/* Search histories styling (based on UI design) */
+.figma-search-histories {
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.219;
+  color: #898989;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* New Chat button styling (based on UI design) */
+.figma-new-chat-btn {
+  background: #495AF5;
+  color: white;
+  border: none;
+  border-radius: 15px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 0.819;
+  padding: 10px 20px;
+  transition: all 0.2s ease;
+  /* 简化阴影效果 */
+  box-shadow: 
+    0 4px 16px rgba(73, 90, 245, 0.2),
+    0 2px 8px rgba(73, 90, 245, 0.1);
+  backdrop-filter: blur(20px);
+  height: auto;
+  min-height: 50px;
+  width: auto;
+  max-width: 250px;
+}
+
+.figma-new-chat-btn:hover {
+  background: #3d4ae8;
+  transform: translateY(-1px);
+  box-shadow: 
+    0 6px 20px rgba(73, 90, 245, 0.25),
+    0 3px 10px rgba(73, 90, 245, 0.15);
+}
+
+/* Dark mode adjustments */
+.dark .figma-sidebar {
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.dark .figma-search-histories {
+  background: rgba(40, 40, 40, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #898989;
+}
+</style>

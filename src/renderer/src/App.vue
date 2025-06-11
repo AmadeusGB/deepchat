@@ -301,7 +301,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex flex-col h-screen bg-container">
+  <div class="flex flex-col h-screen bg-gradient-container">
     <div class="flex flex-row h-0 flex-grow relative overflow-hidden px-[1px] py-[1px]">
       <!-- 主内容区域 -->
 

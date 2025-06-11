@@ -11,87 +11,130 @@
         <Icon v-else icon="lucide:panel-left-open" class="w-4 h-4" />
       </Button>
     </div>
-    <div class="h-0 w-full flex-grow flex flex-col items-center justify-center">
-      <img src="@/assets/deeper-dark.png" class="w-24 h-24" />
-      <h1 class="text-2xl font-bold px-8 pt-4">{{ t('newThread.greeting') }}</h1>
-      <h3 class="text-lg px-8 pb-2">{{ t('newThread.prompt') }}</h3>
-      <div class="h-12"></div>
-      <ChatInput
-        ref="chatInputRef"
-        key="newThread"
-        class="!max-w-2xl flex-shrink-0 px-4"
-        :rows="3"
-        :max-rows="10"
-        :context-length="contextLength"
-        @send="handleSend"
-        @toolbar-toggle="handleToolbarToggle"
-      >
-        <template #addon-buttons>
-          <div
-            v-if="showToolbar"
-            key="newThread-model-select"
-            class="new-thread-model-select overflow-hidden flex items-center h-7 rounded-lg shadow-sm border border-input transition-all duration-300"
-          >
-            <Popover v-model:open="modelSelectOpen">
-              <PopoverTrigger as-child>
-                <Button
-                  variant="outline"
-                  class="flex border-none rounded-none shadow-none items-center gap-1.5 px-2 h-full"
-                  size="sm"
-                >
-                  <ModelIcon
-                    class="w-4 h-4"
-                    :model-id="activeModel.providerId"
-                    :is-dark="themeStore.isDark"
-                  ></ModelIcon>
-                  <!-- <Icon icon="lucide:message-circle" class="w-5 h-5 text-muted-foreground" /> -->
-                  <h2 class="text-xs font-bold max-w-[150px] truncate">{{ name }}</h2>
-                  <Badge
-                    v-for="tag in activeModel.tags"
-                    :key="tag"
-                    variant="outline"
-                    class="py-0 rounded-lg"
-                    size="xs"
-                  >
-                    {{ t(`model.tags.${tag}`) }}</Badge
-                  >
-                  <Icon icon="lucide:chevron-right" class="w-4 h-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="start" class="p-0 w-80">
-                <ModelSelect @update:model="handleModelUpdate" />
-              </PopoverContent>
-            </Popover>
-            <Popover v-model:open="settingsPopoverOpen" @update:open="handleSettingsPopoverUpdate">
-              <PopoverTrigger as-child>
-                <Button
-                  class="w-7 h-full rounded-none border-none shadow-none transition-all duration-300"
-                  :class="{
-                    'w-0 opacity-0 p-0 overflow-hidden': !showSettingsButton && !isHovering,
-                    'w-7 opacity-100': showSettingsButton || isHovering
-                  }"
-                  size="icon"
-                  variant="outline"
-                >
-                  <Icon icon="lucide:settings-2" class="w-4 h-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="start" class="p-0 w-80">
-                <ChatConfig
-                  v-model:temperature="temperature"
-                  v-model:context-length="contextLength"
-                  v-model:max-tokens="maxTokens"
-                  v-model:system-prompt="systemPrompt"
-                  v-model:artifacts="artifacts"
-                  :context-length-limit="contextLengthLimit"
-                  :max-tokens-limit="maxTokensLimit"
-                />
-              </PopoverContent>
-            </Popover>
+    
+    <!-- Main content with fixed bottom positioning -->
+    <div class="h-0 w-full flex-grow flex flex-col items-center justify-center relative">
+      <!-- Figma design inspired logo and greeting -->
+      <div class="figma-main-content flex flex-col items-center gap-4 mb-8">
+        <!-- Mini device container -->
+        <div class="figma-device-container relative">
+          <img src="@/assets/figma-icons/mini.png" class="figma-mini-device" />
+        </div>
+        
+        <!-- Hello icon and greeting text -->
+        <div class="figma-greeting-section flex flex-col items-center gap-4">
+          <!-- Hello icon with gradient stroke -->
+          <div class="figma-hello-container">
+            <img src="@/assets/figma-icons/hello.png" class="figma-hello-icon" />
           </div>
-        </template>
-      </ChatInput>
-      <div class="h-12"></div>
+          
+          <!-- Greeting text -->
+          <div class="figma-greeting-text text-center">
+            <h1 class="figma-greeting-title">
+              {{ t('newThread.prompt') }}
+            </h1>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Fixed bottom section aligned with sidebar -->
+      <div class="absolute bottom-0 left-0 right-0 flex flex-col items-center" style="padding-bottom: 20px;">
+        <!-- Example cards container aligned with input -->
+        <div class="figma-example-cards-container w-full max-w-4xl mb-6">
+          <div class="figma-example-cards-grid">
+            <div class="figma-example-card" @click="insertExample('Help me adjust the node to the fastest node in the United States.')">
+              Help me adjust the node to the fastest node in the United States.
+            </div>
+            <div class="figma-example-card" @click="insertExample('I want to watch the NBA game this afternoon, help me set it.')">
+              I want to watch the NBA game this afternoon, help me set it.
+            </div>
+            <div class="figma-example-card" @click="insertExample('I want to watch Mr. Beast\'s channel, help me set it.')">
+              I want to watch Mr. Beast's channel, help me set it.
+            </div>
+            <div class="figma-example-card" @click="insertExample('I want to watch &quot;The Legend of Zhen Huan&quot;, please help me adjust it.')">
+              I want to watch "The Legend of Zhen Huan", please help me adjust it.
+            </div>
+          </div>
+        </div>
+        
+        <!-- Input area aligned with sidebar bottom -->
+        <div class="figma-input-container w-full max-w-4xl">
+          <ChatInput
+            ref="chatInputRef"
+            key="newThread"
+            class="figma-input-wrapper"
+            :rows="1"
+            :max-rows="6"
+            :context-length="contextLength"
+            @send="handleSend"
+            @toolbar-toggle="handleToolbarToggle"
+          >
+            <template #addon-buttons>
+              <div
+                v-if="showToolbar"
+                key="newThread-model-select"
+                class="new-thread-model-select overflow-hidden flex items-center h-7 rounded-lg shadow-sm border border-input transition-all duration-300"
+              >
+                <Popover v-model:open="modelSelectOpen">
+                  <PopoverTrigger as-child>
+                    <Button
+                      variant="outline"
+                      class="flex border-none rounded-none shadow-none items-center gap-1.5 px-2 h-full"
+                      size="sm"
+                    >
+                      <ModelIcon
+                        class="w-4 h-4"
+                        :model-id="activeModel.providerId"
+                        :is-dark="themeStore.isDark"
+                      ></ModelIcon>
+                      <h2 class="text-xs font-bold max-w-[150px] truncate">{{ name }}</h2>
+                      <Badge
+                        v-for="tag in activeModel.tags"
+                        :key="tag"
+                        variant="outline"
+                        class="py-0 rounded-lg"
+                        size="xs"
+                      >
+                        {{ t(`model.tags.${tag}`) }}</Badge
+                      >
+                      <Icon icon="lucide:chevron-right" class="w-4 h-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" class="p-0 w-80">
+                    <ModelSelect @update:model="handleModelUpdate" />
+                  </PopoverContent>
+                </Popover>
+                <Popover v-model:open="settingsPopoverOpen" @update:open="handleSettingsPopoverUpdate">
+                  <PopoverTrigger as-child>
+                    <Button
+                      class="w-7 h-full rounded-none border-none shadow-none transition-all duration-300"
+                      :class="{
+                        'w-0 opacity-0 p-0 overflow-hidden': !showSettingsButton && !isHovering,
+                        'w-7 opacity-100': showSettingsButton || isHovering
+                      }"
+                      size="icon"
+                      variant="outline"
+                    >
+                      <Icon icon="lucide:settings-2" class="w-4 h-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" class="p-0 w-80">
+                    <ChatConfig
+                      v-model:temperature="temperature"
+                      v-model:context-length="contextLength"
+                      v-model:max-tokens="maxTokens"
+                      v-model:system-prompt="systemPrompt"
+                      v-model:artifacts="artifacts"
+                      :context-length-limit="contextLengthLimit"
+                      :max-tokens-limit="maxTokensLimit"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </template>
+          </ChatInput>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -372,6 +415,14 @@ const showToolbar = ref(false)
 const handleToolbarToggle = (visible: boolean) => {
   showToolbar.value = visible
 }
+
+// 插入示例文本
+const insertExample = (text: string) => {
+  if (chatInputRef.value) {
+    chatInputRef.value.setText(text)
+  }
+}
+
 </script>
 
 <style scoped>
@@ -382,5 +433,214 @@ const handleToolbarToggle = (visible: boolean) => {
 
 .duration-300 {
   transition-duration: 300ms;
+}
+
+/* Figma-inspired example cards */
+.figma-example-card {
+  background: rgba(240, 240, 240, 0.3);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(156, 156, 156, 0.4);
+  border-radius: 20px;
+  padding: 15px 20px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.219;
+  color: #000000;
+  width: 195px;
+  height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 
+    -2px 4px 10px 0px rgba(145, 145, 145, 0.05), 
+    -7px 17px 18px 0px rgba(145, 145, 145, 0.04), 
+    -15px 37px 24px 0px rgba(145, 145, 145, 0.03), 
+    -27px 66px 29px 0px rgba(145, 145, 145, 0.01), 
+    -42px 103px 31px 0px rgba(145, 145, 145, 0),
+    inset 0px 4px 4px 0px rgba(255, 255, 255, 0.25), 
+    inset 0px -5px 4px 0px rgba(255, 255, 255, 0.25);
+}
+
+.figma-example-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    -3px 6px 12px 0px rgba(145, 145, 145, 0.08), 
+    -9px 20px 22px 0px rgba(145, 145, 145, 0.06);
+}
+
+/* Dark mode for example cards */
+.dark .figma-example-card {
+  background: rgba(34, 34, 34, 0.5);
+  border: 1px solid rgba(156, 156, 156, 0.2);
+  color: #ffffff;
+}
+
+/* Figma-inspired example cards container */
+.figma-example-cards-container {
+  padding: 0 20px;
+}
+
+.figma-example-cards-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+/* Responsive grid layout for example cards */
+@media (max-width: 1024px) {
+  .figma-example-cards-grid {
+    justify-content: center;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .figma-example-cards-grid {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .figma-example-card {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+
+
+/* Figma-inspired input container */
+.figma-input-container {
+  padding: 0 20px;
+}
+
+.figma-input-wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Override ChatInput styles to match Figma design */
+.figma-input-wrapper :deep(.bg-card) {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(156, 156, 156, 0.4);
+  border-radius: 20px;
+  box-shadow: 
+    -2px 4px 10px 0px rgba(145, 145, 145, 0.05), 
+    -7px 17px 18px 0px rgba(145, 145, 145, 0.04), 
+    -15px 37px 24px 0px rgba(145, 145, 145, 0.03), 
+    -27px 66px 29px 0px rgba(145, 145, 145, 0.01), 
+    -42px 103px 31px 0px rgba(145, 145, 145, 0),
+    inset 0px 4px 4px 0px rgba(255, 255, 255, 0.25), 
+    inset 0px -5px 4px 0px rgba(255, 255, 255, 0.25);
+}
+
+.dark .figma-input-wrapper :deep(.bg-card) {
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(156, 156, 156, 0.2);
+}
+
+/* Figma main content styles */
+.figma-main-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Mini device styles based on Figma design */
+.figma-device-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 25px;
+}
+
+.figma-mini-device {
+  width: 400px;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 15px rgba(0, 0, 0, 0.1));
+}
+
+/* Hello icon styles based on Figma design */
+.figma-hello-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+
+.figma-hello-icon {
+  width: 153px;
+  height: 49px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 5px rgba(73, 90, 245, 0.2));
+}
+
+/* Greeting text styles matching Figma */
+.figma-greeting-text {
+  max-width: 400px;
+}
+
+.figma-greeting-title {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 25px;
+  line-height: 1.219;
+  color: #646466;
+  text-align: center;
+  margin: 0;
+}
+
+.dark .figma-greeting-title {
+  color: #ffffff;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .figma-mini-device {
+    width: 350px;
+  }
+  
+  .figma-hello-icon {
+    width: 140px;
+    height: 45px;
+  }
+}
+
+@media (max-width: 768px) {
+  .figma-mini-device {
+    width: 300px;
+  }
+  
+  .figma-hello-icon {
+    width: 120px;
+    height: 38px;
+  }
+  
+  .figma-greeting-title {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 480px) {
+  .figma-mini-device {
+    width: 250px;
+  }
+  
+  .figma-hello-icon {
+    width: 100px;
+    height: 32px;
+  }
+  
+  .figma-greeting-title {
+    font-size: 20px;
+  }
 }
 </style>

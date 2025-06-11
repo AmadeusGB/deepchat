@@ -16,9 +16,10 @@
         >
           <div
             v-show="chatStore.isSidebarOpen"
-            class="w-60 max-w-60 h-full fixed left-0 z-20 lg:relative"
+            class="w-60 max-w-60 fixed left-0 z-20 lg:relative"
+            style="height: calc(100vh - 40px); top: 20px;"
           >
-            <ThreadsView class="transform" />
+            <ThreadsView class="transform h-full" />
           </div>
         </Transition>
 

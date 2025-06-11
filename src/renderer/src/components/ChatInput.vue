@@ -42,19 +42,6 @@
       
       <!-- 正常聊天界面 -->
       <div v-else>
-        <!-- 添加建议按钮区域 -->
-      <div class="flex gap-2 mb-4 px-2 overflow-x-auto scrollbar-hide">
-        <Button
-          v-for="(suggestion, index) in suggestions"
-          :key="index"
-          variant="outline"
-          size="sm"
-          class="text-xs h-8 px-4 rounded-full bg-background border-border/50 hover:bg-muted/30 text-muted-foreground hover:text-foreground transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap flex-shrink-0"
-          @click="insertSuggestion(suggestion.key)"
-        >
-          {{ t(suggestion.key) }}
-        </Button>
-      </div>
 
       <div
         class="bg-card border border-border rounded-lg focus-within:border-primary p-2 flex flex-col gap-2 shadow-sm relative"
@@ -1244,23 +1231,7 @@ watch(showToolbar, (newValue) => {
   emit('toolbar-toggle', newValue)
 })
 
-// 建议按钮数据
-const suggestions = ref([
-  { key: 'chat.suggestions.vpn_us_node' },
-  { key: 'chat.suggestions.nba_today' },
-  { key: 'chat.suggestions.mr_beast' },
-  { key: 'chat.suggestions.new_chan_drama' },
-  { key: 'chat.suggestions.uk_node_fastest' }
-])
 
-// 插入建议文本到编辑器
-const insertSuggestion = (suggestionKey: string) => {
-  const text = t(suggestionKey)
-  editor.commands.setContent(text)
-  editor.commands.focus('end')
-  // 立即更新inputText.value，确保Send按钮能立即响应
-  inputText.value = text
-}
 
 onMounted(() => {
   initSettings()
