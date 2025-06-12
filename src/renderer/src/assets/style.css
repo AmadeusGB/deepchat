@@ -156,7 +156,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-transparent text-foreground font-text;
+    @apply text-foreground font-text;
     font-family:
       'Geist',
       Noto Sans,
@@ -167,6 +167,14 @@
       'Segoe UI Emoji',
       'Segoe UI Symbol',
       'Noto Color Emoji' !important;
+    
+    /* Figma背景板 - 适用于所有页面 */
+    background-image: url('@/assets/figma-icons/background.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    min-height: 100vh;
   }
   html {
     font-family:
@@ -179,6 +187,27 @@
       'Segoe UI Emoji',
       'Segoe UI Symbol',
       'Noto Color Emoji' !important;
+    
+    /* 确保html元素也有背景覆盖 */
+    background-image: url('@/assets/figma-icons/background.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+  
+  /* 深色模式下的背景调整 */
+  .dark body,
+  .dark html {
+    /* 在深色模式下，可以添加一个半透明的深色覆盖层来调整背景亮度 */
+    background-image: 
+      linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)),
+      url('@/assets/figma-icons/background.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
   }
 }
 

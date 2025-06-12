@@ -2,62 +2,71 @@
   <div
     class="w-full h-full overflow-hidden flex-shrink-0 flex flex-col figma-sidebar"
   >
-    <!-- DeepChat Logo -->
-    <div class="flex-none flex justify-center mb-6">
-      <img src="@/assets/figma-icons/dper.png" alt="DeepChat" class="h-8 w-auto" />
-    </div>
-    
-    <!-- Search histories 按钮 -->
-    <div class="flex-none mb-4">
+    <!-- 顶部区域：Logo + Search histories + New Chat -->
+    <div class="flex-none space-y-6 mb-12">
+      <!-- DeepChat Logo -->
+      <div class="flex justify-center">
+        <img src="@/assets/figma-icons/dper.png" alt="DeepChat" class="figma-logo" />
+      </div>
+      
+      <!-- Search histories 按钮 -->
       <div class="figma-search-histories">
         <span>Search histories</span>
       </div>
+
+      <!-- 新会话按钮 -->
+      <div class="flex flex-row gap-3">
+        <Button
+          class="w-0 flex-1 justify-center figma-new-chat-btn"
+          @click="createNewThread"
+        >
+          <span>New Chat</span>
+        </Button>
+        <Button
+          v-if="windowSize.width.value < 1024"
+          variant="outline"
+          size="icon"
+          class="flex-shrink-0 text-xs justify-center h-8 w-8"
+          @click="chatStore.isSidebarOpen = false"
+        >
+          <Icon icon="lucide:x" class="h-4 w-4" />
+        </Button>
+      </div>
     </div>
 
-    <!-- 固定在顶部的"新会话"按钮 -->
-    <div class="flex-none flex flex-row gap-3 mb-6">
-      <Button
-        class="w-0 flex-1 justify-center figma-new-chat-btn"
-        @click="createNewThread"
-      >
-        <span>New Chat</span>
-      </Button>
-      <Button
-        v-if="windowSize.width.value < 1024"
-        variant="outline"
-        size="icon"
-        class="flex-shrink-0 text-xs justify-center h-8 w-8"
-        @click="chatStore.isSidebarOpen = false"
-      >
-        <Icon icon="lucide:x" class="h-4 w-4" />
-      </Button>
+    <!-- Historical Chats 区域 -->
+    <div class="flex-1 flex flex-col">
+      <!-- Historical Chats 标题 -->
+      <div class="flex-none mb-4">
+        <h3 class="figma-historical-title">Historical Chats</h3>
+      </div>
+      
+      <!-- 可滚动的会话列表 -->
+      <ScrollArea ref="scrollAreaRef" class="flex-1" @scroll="handleScroll">
+        <div v-for="thread in chatStore.threads" :key="thread.dt" class="space-y-2.5 mb-3">
+          <div class="text-xs font-semibold text-muted-foreground px-2">{{ thread.dt }}</div>
+          <ul class="space-y-2.5">
+            <ThreadItem
+              v-for="dtThread in thread.dtThreads"
+              :key="dtThread.id"
+              :thread="dtThread"
+              :is-active="dtThread.id === chatStore.getActiveThreadId()"
+              :working-status="chatStore.getThreadWorkingStatus(dtThread.id)"
+              @select="handleThreadSelect"
+              @rename="showRenameDialog(dtThread)"
+              @delete="showDeleteDialog(dtThread)"
+              @cleanmsgs="showCleanMessagesDialog(dtThread)"
+              class="figma-thread-item"
+            />
+          </ul>
+        </div>
+
+        <!-- 加载状态提示 -->
+        <div v-if="chatStore.isLoading" class="text-xs text-center text-muted-foreground py-2">
+          {{ t('common.loading') }}
+        </div>
+      </ScrollArea>
     </div>
-
-    <!-- 可滚动的会话列表 -->
-    <ScrollArea ref="scrollAreaRef" class="flex-1" @scroll="handleScroll">
-      <!-- 最近 -->
-      <div v-for="thread in chatStore.threads" :key="thread.dt" class="space-y-1.5 mb-3">
-        <div class="text-xs font-semibold text-muted-foreground px-2">{{ thread.dt }}</div>
-        <ul class="space-y-1.5">
-          <ThreadItem
-            v-for="dtThread in thread.dtThreads"
-            :key="dtThread.id"
-            :thread="dtThread"
-            :is-active="dtThread.id === chatStore.getActiveThreadId()"
-            :working-status="chatStore.getThreadWorkingStatus(dtThread.id)"
-            @select="handleThreadSelect"
-            @rename="showRenameDialog(dtThread)"
-            @delete="showDeleteDialog(dtThread)"
-            @cleanmsgs="showCleanMessagesDialog(dtThread)"
-          />
-        </ul>
-      </div>
-
-      <!-- 加载状态提示 -->
-      <div v-if="chatStore.isLoading" class="text-xs text-center text-muted-foreground py-2">
-        {{ t('common.loading') }}
-      </div>
-    </ScrollArea>
     <Dialog v-model:open="deleteDialog">
       <DialogContent>
         <DialogHeader>
@@ -342,24 +351,35 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* Figma UI-inspired simplified sidebar styling */
+/* Figma UI-inspired sidebar styling - 基于 node-id=44-315 */
 .figma-sidebar {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid transparent;
+  border-radius: 25px;
   padding: 30px;
   margin: 0 26px;
   backdrop-filter: blur(20px);
-  /* 简化的阴影效果，更接近UI设计 */
+  /* Figma精确阴影效果 */
   box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.06),
-    0 4px 16px rgba(0, 0, 0, 0.04);
+    -2px 4px 10px 0px rgba(145, 145, 145, 0.05),
+    -7px 17px 18px 0px rgba(145, 145, 145, 0.04),
+    -15px 37px 24px 0px rgba(145, 145, 145, 0.03),
+    -27px 66px 29px 0px rgba(145, 145, 145, 0.01),
+    -42px 103px 31px 0px rgba(145, 145, 145, 0),
+    inset 0px 4px 4px 0px rgba(255, 255, 255, 0.25),
+    inset 0px -5px 4px 0px rgba(255, 255, 255, 0.25);
 }
 
-/* Search histories styling (based on UI design) */
+/* Logo styling - 基于Figma尺寸 91×26.29px */
+.figma-logo {
+  width: 91px;
+  height: 26.29px;
+}
+
+/* Search histories styling - 基于Figma设计 */
 .figma-search-histories {
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 15px;
   padding: 10px 20px;
   font-family: 'Montserrat', sans-serif;
   font-weight: 400;
@@ -370,52 +390,72 @@ onBeforeUnmount(() => {
   align-items: center;
   width: 100%;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-/* New Chat button styling (based on UI design) */
+/* New Chat button styling - 基于Figma设计 */
 .figma-new-chat-btn {
   background: #495AF5;
-  color: white;
+  color: #FFFFFF;
   border: none;
   border-radius: 15px;
   font-family: 'Montserrat', sans-serif;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 18px;
-  line-height: 0.819;
-  padding: 10px 20px;
+  line-height: 1.219;
+  padding: 20px;
   transition: all 0.2s ease;
-  /* 简化阴影效果 */
-  box-shadow: 
-    0 4px 16px rgba(73, 90, 245, 0.2),
-    0 2px 8px rgba(73, 90, 245, 0.1);
-  backdrop-filter: blur(20px);
   height: auto;
   min-height: 50px;
-  width: auto;
-  max-width: 250px;
+  width: 100%;
 }
 
 .figma-new-chat-btn:hover {
   background: #3d4ae8;
   transform: translateY(-1px);
-  box-shadow: 
-    0 6px 20px rgba(73, 90, 245, 0.25),
-    0 3px 10px rgba(73, 90, 245, 0.15);
+}
+
+/* Historical Chats 标题样式 - 基于Figma设计 */
+.figma-historical-title {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.219;
+  color: #646466;
+  margin: 0;
+}
+
+/* 聊天历史项目样式 - 基于Figma设计 */
+.figma-thread-item {
+  width: 169px;
+  border-radius: 15px;
+}
+
+.figma-thread-item li {
+  padding: 10px 0px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.219;
+  color: #000000;
 }
 
 /* Dark mode adjustments */
 .dark .figma-sidebar {
-  background: rgba(20, 20, 20, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    0 4px 16px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .dark .figma-search-histories {
   background: rgba(40, 40, 40, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #898989;
+}
+
+.dark .figma-historical-title {
+  color: #646466;
+}
+
+.dark .figma-thread-item li {
+  color: #FFFFFF;
 }
 </style>
