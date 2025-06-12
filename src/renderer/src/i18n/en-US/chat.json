@@ -26,7 +26,9 @@
     "send": "Send",
     "textChat": "Text Chat",
     "micEnabled": "Microphone Enabled",
-    "micDisabled": "Microphone Disabled"
+    "micDisabled": "Microphone Disabled",
+    "clickWaveToRecord": "Click waveform to start recording",
+    "spaceToRecord": "Hold Space to record"
   },
   "features": {
     "deepThinking": "Deep Thinking",

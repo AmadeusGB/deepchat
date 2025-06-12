@@ -37,10 +37,54 @@
         </div>
       </div>
       
+      <!-- Voice waveform (shown when in voice mode) -->
+      <div v-if="isVoiceMode" class="figma-voice-waveform-container flex items-center justify-center gap-1 mb-8">
+        <!-- Recording status indicator -->
+        <div class="figma-voice-status-container mb-4">
+          <div class="flex items-center gap-2 text-sm text-muted-foreground">
+            <div 
+              class="w-3 h-3 rounded-full transition-colors"
+              :class="isRecording ? 'bg-red-500 animate-pulse' : isTranscribing ? 'bg-blue-500 animate-pulse' : 'bg-gray-400'"
+            ></div>
+            <span>
+              {{ 
+                isRecording 
+                  ? t('chat.input.voiceRecording') 
+                  : isTranscribing 
+                    ? t('chat.input.voiceTranscribing')
+                    : t('chat.input.spaceToRecord')
+              }}
+            </span>
+          </div>
+        </div>
+        
+        <!-- Clickable waveform -->
+        <div 
+          class="figma-voice-waveform-bars cursor-pointer"
+          :class="{ 'recording': isRecording, 'transcribing': isTranscribing }"
+          @click="toggleVoiceRecording"
+        >
+          <div 
+            v-for="(bar, i) in figmaWaveformBars" 
+            :key="i"
+            class="figma-voice-bar"
+            :class="`figma-voice-bar-${bar.gradient}`"
+            :style="{
+              position: 'absolute',
+              left: `${(bar.x / 838) * 100}%`,
+              bottom: `${(bar.y / 144.2) * 100}%`,
+              width: `${(bar.width / 838) * 100}%`,
+              height: `${Math.max(waveformHeights[i] || bar.height, 4)}px`,
+              borderRadius: '50px'
+            }"
+          ></div>
+        </div>
+      </div>
+      
       <!-- Fixed bottom section aligned with sidebar -->
       <div class="absolute bottom-0 left-0 right-0 flex flex-col items-center" style="padding-bottom: 20px;">
-        <!-- Example cards container aligned with input -->
-        <div class="figma-example-cards-container w-full max-w-4xl mb-6">
+        <!-- Example cards container aligned with input (hidden in voice mode) -->
+        <div v-if="!isVoiceMode" class="figma-example-cards-container w-full max-w-4xl mb-6">
           <div class="figma-example-cards-grid">
             <div class="figma-example-card" @click="insertExample('Help me adjust the node to the fastest node in the United States.')">
               Help me adjust the node to the fastest node in the United States.
@@ -59,7 +103,28 @@
         
         <!-- Input area aligned with sidebar bottom -->
         <div class="figma-input-container w-full max-w-4xl">
+          <!-- Voice mode input (smaller) -->
+          <div v-if="isVoiceMode" class="figma-voice-input-container flex items-center gap-4">
+            <div class="figma-voice-input-box">
+              <input 
+                v-model="voiceInputText"
+                type="text" 
+                class="figma-voice-input"
+                :placeholder="t('chat.input.placeholder')"
+                @keydown.enter="handleVoiceInputSend"
+              />
+            </div>
+            <Button
+              class="figma-text-chat-button"
+              @click="exitVoiceMode"
+            >
+              {{ t('chat.input.textChat') }}
+            </Button>
+          </div>
+          
+          <!-- Normal input -->
           <ChatInput
+            v-else
             ref="chatInputRef"
             key="newThread"
             class="figma-input-wrapper"
@@ -68,6 +133,7 @@
             :context-length="contextLength"
             @send="handleSend"
             @toolbar-toggle="handleToolbarToggle"
+            @voice-mode="enterVoiceMode"
           >
             <template #addon-buttons>
               <div
@@ -151,7 +217,7 @@ import ModelSelect from './ModelSelect.vue'
 import { useChatStore } from '@/stores/chat'
 import { MODEL_META } from '@shared/presenter'
 import { useSettingsStore } from '@/stores/settings'
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { UserMessageContent } from '@shared/chat'
 import ChatConfig from './ChatConfig.vue'
 import { usePresenter } from '@/composables/usePresenter'
@@ -170,6 +236,342 @@ interface PreferredModel {
 const { t } = useI18n()
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
+
+// 语音模式状态
+const isVoiceMode = ref(false)
+const voiceInputText = ref('')
+
+// 根据Figma设计的波浪数据
+const figmaWaveformBars = ref([
+  { x: 63.25, y: 90.43, width: 212.46, height: 48.29, gradient: 'gradient1' },
+  { x: 615.65, y: 90.43, width: 156.14, height: 48.29, gradient: 'gradient2' },
+  { x: 305.1, y: 29.74, width: 310.66, height: 60.6, gradient: 'gradient3' },
+  { x: 615.65, y: 37.75, width: 222.35, height: 52.68, gradient: 'gradient3' },
+  { x: 500.45, y: 90.34, width: 133.71, height: 53.87, gradient: 'gradient2' },
+  { x: 276.13, y: 0, width: 213.33, height: 90.34, gradient: 'gradient3' },
+  { x: 334.44, y: 90.34, width: 208.2, height: 30.69, gradient: 'gradient2' },
+  { x: 541.54, y: 73.5, width: 209.3, height: 16.84, gradient: 'gradient3' },
+  { x: 126.25, y: 41.01, width: 208.2, height: 49.32, gradient: 'gradient3' },
+  { x: 549.17, y: 53.04, width: 93.68, height: 37.3, gradient: 'gradient3' },
+  { x: 396.61, y: 90.34, width: 168.74, height: 24.06, gradient: 'gradient2' },
+  { x: 230.35, y: 19.88, width: 166.26, height: 70.46, gradient: 'gradient3' },
+  { x: 0, y: 41.27, width: 207.52, height: 49.17, gradient: 'gradient4' },
+  { x: 549.44, y: 90.43, width: 173.92, height: 28.1, gradient: 'gradient2' }
+])
+
+// 动态高度调整（用于动画）
+const waveformHeights = ref<number[]>(figmaWaveformBars.value.map(bar => bar.height))
+
+// 音频相关状态
+let audioContext: AudioContext | null = null
+let analyser: AnalyserNode | null = null
+let microphone: MediaStreamAudioSourceNode | null = null
+let dataArray: Uint8Array | null = null
+let animationFrameId: number | null = null
+
+// 语音录制状态
+const isRecording = ref(false)
+const isTranscribing = ref(false)
+const isSpacePressed = ref(false)
+let mediaRecorder: MediaRecorder | null = null
+let audioChunks: Blob[] = []
+
+// 进入语音模式
+const enterVoiceMode = () => {
+  isVoiceMode.value = true
+  initAudioAnalysis()
+  // 添加键盘事件监听
+  document.addEventListener('keydown', handleKeyDown)
+  document.addEventListener('keyup', handleKeyUp)
+}
+
+// 退出语音模式
+const exitVoiceMode = () => {
+  isVoiceMode.value = false
+  voiceInputText.value = ''
+  stopAudioAnalysis()
+  stopRecording()
+  // 移除键盘事件监听
+  document.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('keyup', handleKeyUp)
+}
+
+// 键盘按下事件
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.code === 'Space' && !isSpacePressed.value && !isRecording.value) {
+    event.preventDefault()
+    isSpacePressed.value = true
+    startVoiceRecording()
+  }
+}
+
+// 键盘抬起事件
+const handleKeyUp = (event: KeyboardEvent) => {
+  if (event.code === 'Space' && isSpacePressed.value && isRecording.value) {
+    event.preventDefault()
+    isSpacePressed.value = false
+    stopRecording()
+  }
+}
+
+// 处理语音输入发送
+const handleVoiceInputSend = () => {
+  if (voiceInputText.value.trim()) {
+    handleSend({
+      text: voiceInputText.value.trim(),
+      files: [],
+      links: [],
+      think: false,
+      search: false
+    })
+  }
+}
+
+// 开始语音录制
+const startVoiceRecording = async () => {
+  if (isRecording.value) return
+  
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    mediaRecorder = new MediaRecorder(stream)
+    audioChunks = []
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data)
+      }
+    }
+
+    mediaRecorder.onstop = async () => {
+      await processVoiceRecording()
+      // 停止所有音频轨道
+      stream.getTracks().forEach(track => track.stop())
+    }
+
+    mediaRecorder.start()
+    isRecording.value = true
+  } catch (error) {
+    console.error('开始录音失败:', error)
+  }
+}
+
+// 停止语音录制
+const stopRecording = () => {
+  if (mediaRecorder && isRecording.value) {
+    mediaRecorder.stop()
+    isRecording.value = false
+  }
+}
+
+// 处理语音录制结果
+const processVoiceRecording = async () => {
+  if (audioChunks.length === 0) return
+
+  isTranscribing.value = true
+  try {
+    // 创建音频文件
+    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' })
+    
+    // 调用语音转文字
+    const transcription = await transcribeAudio(audioBlob)
+    
+    if (transcription.trim()) {
+      // 将转录结果添加到语音输入框
+      voiceInputText.value = transcription.trim()
+    }
+  } catch (error) {
+    console.error('语音转文字失败:', error)
+  } finally {
+    isTranscribing.value = false
+    audioChunks = []
+  }
+}
+
+// 语音转文字API调用
+const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
+  try {
+    // 创建FormData
+    const formData = new FormData()
+    formData.append('file', audioBlob, 'audio.wav')
+    formData.append('model', 'whisper-1')
+    formData.append('language', 'zh') // 默认中文，也可以让模型自动检测
+
+    // 获取OpenAI Provider配置
+    const openaiProvider = await configPresenter.getProviderById('openai')
+    if (!openaiProvider || !openaiProvider.apiKey) {
+      throw new Error('未配置OpenAI API密钥')
+    }
+
+    // 调用OpenAI Whisper API
+    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiProvider.apiKey}`
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      throw new Error(`API请求失败: ${response.status}`)
+    }
+
+    const result = await response.json()
+    return result.text || ''
+  } catch (error) {
+    console.error('语音转文字API调用失败:', error)
+    throw error
+  }
+}
+
+// 切换录制状态（点击语音波浪时）
+const toggleVoiceRecording = () => {
+  if (isRecording.value) {
+    stopRecording()
+  } else {
+    startVoiceRecording()
+  }
+}
+
+// 初始化音频分析
+const initAudioAnalysis = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
+    })
+    
+    audioContext = new AudioContext()
+    analyser = audioContext.createAnalyser()
+    microphone = audioContext.createMediaStreamSource(stream)
+    
+    // 提高分析精度和灵敏度
+    analyser.fftSize = 1024
+    analyser.smoothingTimeConstant = 0.3
+    analyser.minDecibels = -90
+    analyser.maxDecibels = -10
+    
+    const bufferLength = analyser.frequencyBinCount
+    dataArray = new Uint8Array(bufferLength)
+    
+    microphone.connect(analyser)
+    
+    startWaveformAnimation()
+  } catch (error) {
+    console.error('Error accessing microphone:', error)
+    // 如果无法访问麦克风，使用默认动画
+    startFallbackAnimation()
+  }
+}
+
+// 真实音频波形动画
+const startWaveformAnimation = () => {
+  const updateWaveform = () => {
+    if (!analyser || !dataArray) return
+    
+    analyser.getByteFrequencyData(dataArray)
+    
+    // 专注于语音频率范围 (85Hz - 3400Hz)
+    const speechStartIndex = Math.floor((85 / (audioContext!.sampleRate / 2)) * dataArray.length)
+    const speechEndIndex = Math.floor((3400 / (audioContext!.sampleRate / 2)) * dataArray.length)
+    
+    // 提取语音频段数据
+    const speechData = dataArray.slice(speechStartIndex, speechEndIndex)
+    
+    // 计算语音能量
+    const speechEnergy = speechData.reduce((sum, value) => sum + value * value, 0) / speechData.length
+    const normalizedEnergy = Math.sqrt(speechEnergy) / 255
+    
+    // 更新波形高度
+    waveformHeights.value = figmaWaveformBars.value.map((bar, i) => {
+      // 基础高度来自Figma设计
+      const baseHeight = bar.height
+      
+      // 计算当前条对应的频率索引
+      const frequencyIndex = speechStartIndex + Math.floor((i / figmaWaveformBars.value.length) * speechData.length)
+      const frequencyValue = dataArray![frequencyIndex] || 0
+      
+      // 增强灵敏度的计算
+      const localIntensity = (frequencyValue / 255) * (frequencyValue / 255) // 平方增强对比度
+      const energyBoost = normalizedEnergy * 2 // 增强整体能量影响
+      
+      // 添加一些随机变化模拟真实语音的复杂性
+      const randomVariation = (Math.random() - 0.5) * 0.2 * normalizedEnergy
+      
+      // 计算最终高度
+      const dynamicHeight = baseHeight + 
+                           localIntensity * 30 + 
+                           energyBoost * 20 + 
+                           randomVariation * 10
+      
+      // 限制高度范围并添加平滑过渡
+      const targetHeight = Math.max(baseHeight * 0.5, Math.min(dynamicHeight, baseHeight * 2))
+      const currentHeight = waveformHeights.value[i] || baseHeight
+      
+      // 平滑过渡
+      return currentHeight + (targetHeight - currentHeight) * 0.4
+    })
+    
+    animationFrameId = requestAnimationFrame(updateWaveform)
+  }
+  
+  updateWaveform()
+}
+
+// 备用动画（麦克风不可用时）
+const startFallbackAnimation = () => {
+  let time = 0
+  const animate = () => {
+    time += 0.05
+    waveformHeights.value = figmaWaveformBars.value.map((bar, i) => {
+      // 基础高度来自Figma设计
+      const baseHeight = bar.height
+      
+      // 创建更自然的波形模拟
+      const wave1 = Math.sin(time * 2 + i * 0.4) * (baseHeight * 0.2)
+      const wave2 = Math.sin(time * 3.2 + i * 0.6) * (baseHeight * 0.15)
+      const wave3 = Math.sin(time * 1.8 + i * 0.2) * (baseHeight * 0.1)
+      const randomNoise = (Math.random() - 0.5) * (baseHeight * 0.05)
+      
+      const height = baseHeight + wave1 + wave2 + wave3 + randomNoise
+      return Math.max(baseHeight * 0.5, Math.min(height, baseHeight * 1.5))
+    })
+    animationFrameId = requestAnimationFrame(animate)
+  }
+  animate()
+}
+
+// 停止音频分析
+const stopAudioAnalysis = () => {
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId)
+    animationFrameId = null
+  }
+  
+  if (microphone) {
+    microphone.disconnect()
+    microphone = null
+  }
+  
+  if (audioContext) {
+    audioContext.close()
+    audioContext = null
+  }
+  
+  analyser = null
+  dataArray = null
+  
+  // 重置波形高度为Figma设计的原始值
+  waveformHeights.value = figmaWaveformBars.value.map(bar => bar.height)
+}
+
+// 组件销毁时清理音频资源
+onUnmounted(() => {
+  stopAudioAnalysis()
+})
+
 const activeModel = ref({
   name: '',
   id: '',
@@ -299,8 +701,6 @@ const handleMouseEnter = () => {
 const handleMouseLeave = () => {
   isHovering.value = false
 }
-
-
 
 const handleModelUpdate = (model: MODEL_META, providerId: string) => {
   activeModel.value = {
@@ -510,8 +910,6 @@ const insertExample = (text: string) => {
   }
 }
 
-
-
 /* Figma-inspired input container */
 .figma-input-container {
   padding: 0 20px;
@@ -547,7 +945,7 @@ const insertExample = (text: string) => {
 .figma-main-content {
   position: relative;
   z-index: 1;
-  transform: translateY(-80px);
+  transform: translateY(-40px);
 }
 
 /* Mini device styles based on Figma design */
@@ -842,6 +1240,234 @@ const insertExample = (text: string) => {
   
   .figma-main-content {
     transform: translateY(-40px);
+  }
+}
+
+/* Voice interface styles based on Figma design */
+.figma-voice-waveform-container {
+  width: 838px;
+  height: 200px;
+  max-width: 100%;
+  margin: 0 auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.figma-voice-status-container {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.figma-voice-waveform-bars {
+  position: relative;
+  width: 838px;
+  height: 144px;
+  max-width: 100%;
+  margin: 0 auto;
+  transition: all 0.3s ease;
+  padding: 20px;
+  border-radius: 20px;
+}
+
+.figma-voice-waveform-bars:hover {
+  background: rgba(73, 90, 245, 0.1);
+}
+
+.figma-voice-waveform-bars.recording {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.figma-voice-waveform-bars.transcribing {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.figma-voice-bar {
+  transition: all 0.1s ease-in-out;
+  min-height: 4px;
+}
+
+/* Figma gradient styles */
+.figma-voice-bar-gradient1 {
+  background: linear-gradient(180deg, 
+    rgba(73, 94, 219, 0.05) 0%, 
+    rgba(0, 163, 255, 0.5) 100%);
+}
+
+.figma-voice-bar-gradient2 {
+  background: linear-gradient(180deg, 
+    rgba(93, 139, 250, 0) 0%, 
+    rgba(0, 163, 255, 0.5) 100%);
+}
+
+.figma-voice-bar-gradient3 {
+  background: linear-gradient(180deg, 
+    rgba(0, 163, 255, 0.5) 0%, 
+    rgba(73, 94, 219, 0.05) 100%);
+}
+
+.figma-voice-bar-gradient4 {
+  background: linear-gradient(180deg, 
+    rgba(73, 94, 219, 0.05) 0%, 
+    rgba(0, 163, 255, 0.5) 100%);
+}
+
+/* Voice input container */
+.figma-voice-input-container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.figma-voice-input-box {
+  flex: 1;
+  background: #FFFFFF;
+  border-radius: 25px;
+  padding: 20px 30px;
+  box-shadow: 
+    inset 0px 0px 22px 0px rgba(242, 242, 242, 0.5), 
+    inset 0px 0px 0px 1px rgba(153, 153, 153, 1), 
+    inset -1px -1px 1px -2px rgba(179, 179, 179, 1), 
+    inset 1px 1px 1px -2px rgba(179, 179, 179, 1), 
+    inset 1px 1px 0.5px -3.5px rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(12px);
+  height: 50px;
+  display: flex;
+  align-items: center;
+}
+
+.figma-voice-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1.219;
+  color: #646466;
+}
+
+.figma-voice-input::placeholder {
+  color: rgba(100, 100, 102, 0.7);
+}
+
+/* Text Chat button */
+.figma-text-chat-button {
+  background: #495AF5;
+  border-radius: 25px;
+  padding: 10px;
+  width: 156px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  box-shadow: 2px 4px 12px 0px rgba(0, 0, 0, 0.08);
+  border: none;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 1.219;
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.figma-text-chat-button:hover {
+  background: #3d4ed4;
+  transform: translateY(-1px);
+  box-shadow: 2px 6px 16px 0px rgba(0, 0, 0, 0.12);
+}
+
+/* Dark mode adjustments for voice interface */
+.dark .figma-voice-input-box {
+  background: rgba(26, 26, 26, 0.9);
+  box-shadow: 
+    inset 0px 0px 22px 0px rgba(242, 242, 242, 0.3), 
+    inset 0px 0px 0px 1px rgba(153, 153, 153, 0.8), 
+    inset -1px -1px 1px -2px rgba(179, 179, 179, 0.8), 
+    inset 1px 1px 1px -2px rgba(179, 179, 179, 0.8), 
+    inset 1px 1px 0.5px -3.5px rgba(255, 255, 255, 0.3);
+}
+
+/* Responsive adjustments for voice interface */
+@media (max-width: 1024px) {
+  .figma-voice-waveform-container {
+    width: 700px;
+    height: 120px;
+  }
+  
+  .figma-voice-input-container {
+    max-width: 550px;
+  }
+  
+  .figma-text-chat-button {
+    width: 140px;
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .figma-voice-waveform-container {
+    width: 500px;
+    height: 100px;
+  }
+  
+  .figma-voice-input-container {
+    max-width: 450px;
+    gap: 12px;
+  }
+  
+  .figma-voice-input-box {
+    padding: 15px 25px;
+    height: 45px;
+  }
+  
+  .figma-voice-input {
+    font-size: 14px;
+  }
+  
+  .figma-text-chat-button {
+    width: 120px;
+    height: 45px;
+    font-size: 16px;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .figma-voice-waveform-container {
+    width: 350px;
+    height: 80px;
+  }
+  
+  .figma-voice-input-container {
+    max-width: 350px;
+    gap: 10px;
+  }
+  
+  .figma-voice-input-box {
+    padding: 12px 20px;
+    height: 40px;
+  }
+  
+  .figma-voice-input {
+    font-size: 13px;
+  }
+  
+  .figma-text-chat-button {
+    width: 100px;
+    height: 40px;
+    font-size: 14px;
+    padding: 6px;
   }
 }
 </style>

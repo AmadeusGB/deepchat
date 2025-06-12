@@ -24,7 +24,9 @@
     "send": "送信",
     "textChat": "テキストチャット",
     "micEnabled": "マイクが有効",
-    "micDisabled": "マイクが無効"
+    "micDisabled": "マイクが無効",
+    "clickWaveToRecord": "波形をクリックして録音開始",
+    "spaceToRecord": "スペースキーを押して録音"
   },
   "features": {
     "deepThinking": "深い思考",

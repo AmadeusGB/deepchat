@@ -24,7 +24,9 @@
     "send": "Envoyer",
     "textChat": "Chat textuel",
     "micEnabled": "Microphone activé",
-    "micDisabled": "Microphone désactivé"
+    "micDisabled": "Microphone désactivé",
+    "clickWaveToRecord": "Cliquez sur la forme d'onde pour commencer l'enregistrement",
+    "spaceToRecord": "Maintenez Espace pour enregistrer"
   },
   "features": {
     "deepThinking": "Réflexion approfondie",

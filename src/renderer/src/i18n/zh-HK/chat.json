@@ -14,7 +14,9 @@
     "send": "發送",
     "textChat": "文字交流",
     "micEnabled": "咪高峰已啟用",
-    "micDisabled": "咪高峰未啟用"
+    "micDisabled": "咪高峰未啟用",
+    "clickWaveToRecord": "點擊波浪開始錄音",
+    "spaceToRecord": "按住空格鍵錄音"
   },
   "features": {
     "deepThinking": "深度思考",

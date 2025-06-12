@@ -219,7 +219,7 @@
                     isTranscribing ? 'bg-blue-500 text-white border-blue-500' : ''
                   ]"
                   :disabled="disabledSend || isTranscribing"
-                  @click="toggleRecording"
+                  @click="handleMicrophoneClick"
                 >
                   <Icon 
                     v-if="!isRecording && !isTranscribing"
@@ -465,7 +465,8 @@ const currentContextLengthText = computed(() => {
 const emit = defineEmits<{
   'send': [messageContent: UserMessageContent],
   'file-upload': [files: MessageFile[]],
-  'toolbar-toggle': [visible: boolean]
+  'toolbar-toggle': [visible: boolean],
+  'voice-mode': []
 }>()
 
 const openFilePicker = () => {
@@ -704,6 +705,11 @@ const emitSend = async () => {
 }
 
 // 语音录音相关函数
+const handleMicrophoneClick = () => {
+  // 在NewThread页面，点击麦克风按钮进入语音模式
+  emit('voice-mode')
+}
+
 const toggleRecording = async () => {
   if (isRecording.value) {
     stopRecording()

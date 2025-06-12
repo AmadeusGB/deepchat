@@ -26,7 +26,9 @@
     "send": "发送",
     "textChat": "文字交流",
     "micEnabled": "麦克风已启用",
-    "micDisabled": "麦克风未启用"
+    "micDisabled": "麦克风未启用",
+    "clickWaveToRecord": "点击波浪开始录音",
+    "spaceToRecord": "按住空格键录音"
   },
   "features": {
     "deepThinking": "深度思考",

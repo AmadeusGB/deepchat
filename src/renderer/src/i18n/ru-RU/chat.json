@@ -24,7 +24,9 @@
     "send": "Отправить",
     "textChat": "Текстовый чат",
     "micEnabled": "Микрофон включен",
-    "micDisabled": "Микрофон отключен"
+    "micDisabled": "Микрофон отключен",
+    "clickWaveToRecord": "Нажмите на волну, чтобы начать запись",
+    "spaceToRecord": "Удерживайте пробел для записи"
   },
   "features": {
     "deepThinking": "Глубокое мышление",

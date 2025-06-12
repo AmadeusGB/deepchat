@@ -24,7 +24,9 @@
     "send": "전송",
     "textChat": "텍스트 채팅",
     "micEnabled": "마이크 활성화됨",
-    "micDisabled": "마이크 비활성화됨"
+    "micDisabled": "마이크 비활성화됨",
+    "clickWaveToRecord": "파형을 클릭하여 녹음 시작",
+    "spaceToRecord": "스페이스바를 눌러 녹음"
   },
   "features": {
     "deepThinking": "심층 사고",
