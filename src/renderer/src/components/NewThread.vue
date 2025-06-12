@@ -45,11 +45,11 @@
             <div class="figma-example-card" @click="insertExample('Help me adjust the node to the fastest node in the United States.')">
               Help me adjust the node to the fastest node in the United States.
             </div>
-            <div class="figma-example-card" @click="insertExample('I want to watch the NBA game this afternoon, help me set it.')">
-              I want to watch the NBA game this afternoon, help me set it.
+            <div class="figma-example-card" @click="insertExample('I want to watch recent NBA games on YouTube, help me search.')">
+              I want to watch recent NBA games on YouTube, help me search.
             </div>
-            <div class="figma-example-card" @click="insertExample('I want to watch Mr. Beast\'s channel, help me set it.')">
-              I want to watch Mr. Beast's channel, help me set it.
+            <div class="figma-example-card" @click="insertExample('I want to watch Mr. Beast\'s channel, help me search it.')">
+              I want to watch Mr. Beast's channel, help me search it.
             </div>
             <div class="figma-example-card" @click="insertExample('I want to watch &quot;The Legend of Zhen Huan&quot;, please help me adjust it.')">
               I want to watch "The Legend of Zhen Huan", please help me adjust it.

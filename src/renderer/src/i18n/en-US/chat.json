@@ -56,8 +56,8 @@
   },
   "suggestions": {
     "vpn_us_node": "Help me adjust the node to the fastest free US node",
-    "nba_today": "I want to watch NBA games this afternoon",
-    "mr_beast": "I want to watch Mr. Beast's channel, help me set it up",
+    "nba_today": "I want to watch recent NBA games on YouTube, help me search",
+    "mr_beast": "I want to watch Mr. Beast's channel, help me search it",
     "new_chan_drama": "I want to watch 'New Chan Drama', help me set it up",
     "uk_node_fastest": "Which UK node is fastest? Help me switch to it"
   }
