@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col h-0 flex-1 gap-2.5" style="padding: 20px 30px 20px 60px;">
     <!-- 消息列表区域 - 对话历史玻璃形态 -->
-    <div class="figma-chat-history relative flex-1 overflow-hidden p-7.5" style="margin-top: 10px;">
+    <div class="figma-chat-history relative flex-1 overflow-hidden p-7.5" style="margin-top: 0px;">
       <MessageList
         :key="chatStore.getActiveThreadId() ?? 'default'"
         ref="messageList"
