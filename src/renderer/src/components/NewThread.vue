@@ -64,20 +64,71 @@
           :class="{ 'recording': isRecording, 'transcribing': isTranscribing }"
           @click="toggleVoiceRecording"
         >
-          <div 
-            v-for="(bar, i) in figmaWaveformBars" 
-            :key="i"
-            class="figma-voice-bar"
-            :class="`figma-voice-bar-${bar.gradient}`"
-            :style="{
-              position: 'absolute',
-              left: `${(bar.x / 838) * 100}%`,
-              bottom: `${(bar.y / 144.2) * 100}%`,
-              width: `${(bar.width / 838) * 100}%`,
-              height: `${Math.max(waveformHeights[i] || bar.height, 4)}px`,
-              borderRadius: '50px'
-            }"
-          ></div>
+          <!-- 多个正弦线条组成的语音波浪 -->
+          <svg 
+            class="voice-sine-waves" 
+            viewBox="0 0 838 144" 
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+              <!-- 渐变定义 -->
+              <linearGradient id="waveGradient1" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" style="stop-color:#495EDB;stop-opacity:0.3" />
+                <stop offset="100%" style="stop-color:#00A3FF;stop-opacity:0.8" />
+              </linearGradient>
+              <linearGradient id="waveGradient2" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" style="stop-color:#5D8BFA;stop-opacity:0.2" />
+                <stop offset="100%" style="stop-color:#00A3FF;stop-opacity:0.6" />
+              </linearGradient>
+              <linearGradient id="waveGradient3" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" style="stop-color:#00A3FF;stop-opacity:0.4" />
+                <stop offset="100%" style="stop-color:#495EDB;stop-opacity:0.2" />
+              </linearGradient>
+            </defs>
+            
+            <!-- 主正弦波 -->
+            <path 
+              :d="generateSineWave(1, 20, 0.015, 0)" 
+              stroke="url(#waveGradient1)" 
+              stroke-width="3"
+              fill="none"
+              class="sine-wave primary"
+              :class="{ 'animate': isRecording }"
+            />
+            
+            <!-- 辅助正弦波 -->
+            <path 
+              :d="generateSineWave(2, 15, 0.018, Math.PI / 4)" 
+              stroke="url(#waveGradient2)" 
+              stroke-width="2.5"
+              fill="none"
+              class="sine-wave secondary"
+              :class="{ 'animate': isRecording }"
+              opacity="0.8"
+            />
+            
+            <!-- 第三层正弦波 -->
+            <path 
+              :d="generateSineWave(3, 12, 0.012, Math.PI / 2)" 
+              stroke="url(#waveGradient3)" 
+              stroke-width="2"
+              fill="none"
+              class="sine-wave tertiary"
+              :class="{ 'animate': isRecording }"
+              opacity="0.6"
+            />
+            
+            <!-- 第四层正弦波 -->
+            <path 
+              :d="generateSineWave(4, 8, 0.022, Math.PI / 3)" 
+              stroke="url(#waveGradient1)" 
+              stroke-width="1.5"
+              fill="none"
+              class="sine-wave quaternary"
+              :class="{ 'animate': isRecording }"
+              opacity="0.4"
+            />
+          </svg>
         </div>
       </div>
       
@@ -206,18 +257,19 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ChatInput from './ChatInput.vue'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
-import ModelIcon from './icons/ModelIcon.vue'
 import { Badge } from '@/components/ui/badge'
+
+import ChatInput from './ChatInput.vue'
+import ModelIcon from './icons/ModelIcon.vue'
 import { Icon } from '@iconify/vue'
 import ModelSelect from './ModelSelect.vue'
 import { useChatStore } from '@/stores/chat'
 import { MODEL_META } from '@shared/presenter'
 import { useSettingsStore } from '@/stores/settings'
-import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { UserMessageContent } from '@shared/chat'
 import ChatConfig from './ChatConfig.vue'
 import { usePresenter } from '@/composables/usePresenter'
@@ -240,46 +292,136 @@ const settingsStore = useSettingsStore()
 // 语音模式状态
 const isVoiceMode = ref(false)
 const voiceInputText = ref('')
+const isRecording = ref(false)
+const isTranscribing = ref(false)
 
-// 根据Figma设计的波浪数据
-const figmaWaveformBars = ref([
-  { x: 63.25, y: 90.43, width: 212.46, height: 48.29, gradient: 'gradient1' },
-  { x: 615.65, y: 90.43, width: 156.14, height: 48.29, gradient: 'gradient2' },
-  { x: 305.1, y: 29.74, width: 310.66, height: 60.6, gradient: 'gradient3' },
-  { x: 615.65, y: 37.75, width: 222.35, height: 52.68, gradient: 'gradient3' },
-  { x: 500.45, y: 90.34, width: 133.71, height: 53.87, gradient: 'gradient2' },
-  { x: 276.13, y: 0, width: 213.33, height: 90.34, gradient: 'gradient3' },
-  { x: 334.44, y: 90.34, width: 208.2, height: 30.69, gradient: 'gradient2' },
-  { x: 541.54, y: 73.5, width: 209.3, height: 16.84, gradient: 'gradient3' },
-  { x: 126.25, y: 41.01, width: 208.2, height: 49.32, gradient: 'gradient3' },
-  { x: 549.17, y: 53.04, width: 93.68, height: 37.3, gradient: 'gradient3' },
-  { x: 396.61, y: 90.34, width: 168.74, height: 24.06, gradient: 'gradient2' },
-  { x: 230.35, y: 19.88, width: 166.26, height: 70.46, gradient: 'gradient3' },
-  { x: 0, y: 41.27, width: 207.52, height: 49.17, gradient: 'gradient4' },
-  { x: 549.44, y: 90.43, width: 173.92, height: 28.1, gradient: 'gradient2' }
-])
+// 录音相关变量
+let mediaRecorder: MediaRecorder | null = null
+let audioChunks: Blob[] = []
 
-// 动态高度调整（用于动画）
-const waveformHeights = ref<number[]>(figmaWaveformBars.value.map(bar => bar.height))
+// 动画时间戳，用于正弦波动画
+const animationTime = ref(0)
+let animationFrameId: number | null = null
 
-// 音频相关状态
+// 音频分析相关
 let audioContext: AudioContext | null = null
 let analyser: AnalyserNode | null = null
 let microphone: MediaStreamAudioSourceNode | null = null
 let dataArray: Uint8Array | null = null
-let animationFrameId: number | null = null
+const audioLevel = ref(0) // 当前音频强度 0-1
+
+// 生成正弦波路径
+const generateSineWave = (waveId: number, amplitude: number, frequency: number, phaseOffset: number) => {
+  const centerY = 72 // 144/2，波浪中心线
+  
+  // 静态状态下也有一定的波动
+  const staticAmplitude = amplitude * 0.8
+  
+  // 根据音频强度动态调整振幅
+  const dynamicAmplitude = isRecording.value 
+    ? staticAmplitude + (amplitude * audioLevel.value * 2) // 说话时根据音量调整
+    : staticAmplitude
+  
+  const phase = animationTime.value * 0.003 * waveId + phaseOffset
+  
+  let path = `M 0 ${centerY}`
+  
+  for (let x = 0; x <= 838; x += 6) {
+    // 添加音频驱动的随机跳跃效果
+    const jumpEffect = isRecording.value ? audioLevel.value * Math.sin(x * 0.1 + phase * 3) * 5 : 0
+    const baseWave = Math.sin(x * frequency + phase) * dynamicAmplitude
+    const complexWave = baseWave * (1 + Math.sin(x * frequency * 2 + phase) * 0.3)
+    const y = centerY + complexWave + jumpEffect
+    path += ` L ${x} ${y}`
+  }
+  
+  return path
+}
 
 // 语音录制状态
-const isRecording = ref(false)
-const isTranscribing = ref(false)
 const isSpacePressed = ref(false)
-let mediaRecorder: MediaRecorder | null = null
-let audioChunks: Blob[] = []
+
+// 开始正弦波动画
+const startWaveAnimation = () => {
+  const animate = () => {
+    // 静态和录音状态都有动画
+    if (isVoiceMode.value) {
+      animationTime.value = Date.now()
+      
+      // 分析音频数据（仅在录音时）
+      if (isRecording.value && analyser && dataArray) {
+        analyser.getByteFrequencyData(dataArray)
+        
+        // 计算平均音量
+        let sum = 0
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i]
+        }
+        const average = sum / dataArray.length
+        
+        // 将音量转换为0-1的范围，并增加灵敏度
+        audioLevel.value = Math.min(1, (average / 128) * 2)
+      } else if (!isRecording.value) {
+        // 非录音状态下音频强度为0
+        audioLevel.value = 0
+      }
+      
+      animationFrameId = requestAnimationFrame(animate)
+    }
+  }
+  animate()
+}
+
+// 初始化音频分析
+const initAudioAnalysis = async (stream: MediaStream) => {
+  try {
+    audioContext = new AudioContext()
+    analyser = audioContext.createAnalyser()
+    microphone = audioContext.createMediaStreamSource(stream)
+    
+    analyser.fftSize = 256
+    analyser.smoothingTimeConstant = 0.8
+    dataArray = new Uint8Array(analyser.frequencyBinCount)
+    
+    microphone.connect(analyser)
+  } catch (error) {
+    console.error('音频分析初始化失败:', error)
+  }
+}
+
+// 停止音频分析
+const stopAudioAnalysis = () => {
+  if (microphone) {
+    microphone.disconnect()
+    microphone = null
+  }
+  if (audioContext) {
+    audioContext.close()
+    audioContext = null
+  }
+  analyser = null
+  dataArray = null
+  audioLevel.value = 0
+}
+
+// 停止正弦波动画
+const stopWaveAnimation = () => {
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId)
+    animationFrameId = null
+  }
+  animationTime.value = 0
+  stopAudioAnalysis()
+}
 
 // 进入语音模式
 const enterVoiceMode = () => {
   isVoiceMode.value = true
-  initAudioAnalysis()
+  voiceInputText.value = ''
+  
+  // 开始静态波动动画
+  startWaveAnimation()
+  
   // 添加键盘事件监听
   document.addEventListener('keydown', handleKeyDown)
   document.addEventListener('keyup', handleKeyUp)
@@ -289,8 +431,15 @@ const enterVoiceMode = () => {
 const exitVoiceMode = () => {
   isVoiceMode.value = false
   voiceInputText.value = ''
-  stopAudioAnalysis()
-  stopRecording()
+  
+  // 停止录音
+  if (isRecording.value) {
+    stopRecording()
+  }
+  
+  // 停止正弦波动画
+  stopWaveAnimation()
+  
   // 移除键盘事件监听
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('keyup', handleKeyUp)
@@ -350,6 +499,9 @@ const startVoiceRecording = async () => {
 
     mediaRecorder.start()
     isRecording.value = true
+    
+    // 初始化音频分析
+    await initAudioAnalysis(stream)
   } catch (error) {
     console.error('开始录音失败:', error)
   }
@@ -360,6 +512,9 @@ const stopRecording = () => {
   if (mediaRecorder && isRecording.value) {
     mediaRecorder.stop()
     isRecording.value = false
+    
+    // 停止音频分析，但保持波形动画继续
+    stopAudioAnalysis()
   }
 }
 
@@ -431,146 +586,6 @@ const toggleVoiceRecording = () => {
     startVoiceRecording()
   }
 }
-
-// 初始化音频分析
-const initAudioAnalysis = async () => {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ 
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false
-      }
-    })
-    
-    audioContext = new AudioContext()
-    analyser = audioContext.createAnalyser()
-    microphone = audioContext.createMediaStreamSource(stream)
-    
-    // 提高分析精度和灵敏度
-    analyser.fftSize = 1024
-    analyser.smoothingTimeConstant = 0.3
-    analyser.minDecibels = -90
-    analyser.maxDecibels = -10
-    
-    const bufferLength = analyser.frequencyBinCount
-    dataArray = new Uint8Array(bufferLength)
-    
-    microphone.connect(analyser)
-    
-    startWaveformAnimation()
-  } catch (error) {
-    console.error('Error accessing microphone:', error)
-    // 如果无法访问麦克风，使用默认动画
-    startFallbackAnimation()
-  }
-}
-
-// 真实音频波形动画
-const startWaveformAnimation = () => {
-  const updateWaveform = () => {
-    if (!analyser || !dataArray) return
-    
-    analyser.getByteFrequencyData(dataArray)
-    
-    // 专注于语音频率范围 (85Hz - 3400Hz)
-    const speechStartIndex = Math.floor((85 / (audioContext!.sampleRate / 2)) * dataArray.length)
-    const speechEndIndex = Math.floor((3400 / (audioContext!.sampleRate / 2)) * dataArray.length)
-    
-    // 提取语音频段数据
-    const speechData = dataArray.slice(speechStartIndex, speechEndIndex)
-    
-    // 计算语音能量
-    const speechEnergy = speechData.reduce((sum, value) => sum + value * value, 0) / speechData.length
-    const normalizedEnergy = Math.sqrt(speechEnergy) / 255
-    
-    // 更新波形高度
-    waveformHeights.value = figmaWaveformBars.value.map((bar, i) => {
-      // 基础高度来自Figma设计
-      const baseHeight = bar.height
-      
-      // 计算当前条对应的频率索引
-      const frequencyIndex = speechStartIndex + Math.floor((i / figmaWaveformBars.value.length) * speechData.length)
-      const frequencyValue = dataArray![frequencyIndex] || 0
-      
-      // 增强灵敏度的计算
-      const localIntensity = (frequencyValue / 255) * (frequencyValue / 255) // 平方增强对比度
-      const energyBoost = normalizedEnergy * 2 // 增强整体能量影响
-      
-      // 添加一些随机变化模拟真实语音的复杂性
-      const randomVariation = (Math.random() - 0.5) * 0.2 * normalizedEnergy
-      
-      // 计算最终高度
-      const dynamicHeight = baseHeight + 
-                           localIntensity * 30 + 
-                           energyBoost * 20 + 
-                           randomVariation * 10
-      
-      // 限制高度范围并添加平滑过渡
-      const targetHeight = Math.max(baseHeight * 0.5, Math.min(dynamicHeight, baseHeight * 2))
-      const currentHeight = waveformHeights.value[i] || baseHeight
-      
-      // 平滑过渡
-      return currentHeight + (targetHeight - currentHeight) * 0.4
-    })
-    
-    animationFrameId = requestAnimationFrame(updateWaveform)
-  }
-  
-  updateWaveform()
-}
-
-// 备用动画（麦克风不可用时）
-const startFallbackAnimation = () => {
-  let time = 0
-  const animate = () => {
-    time += 0.05
-    waveformHeights.value = figmaWaveformBars.value.map((bar, i) => {
-      // 基础高度来自Figma设计
-      const baseHeight = bar.height
-      
-      // 创建更自然的波形模拟
-      const wave1 = Math.sin(time * 2 + i * 0.4) * (baseHeight * 0.2)
-      const wave2 = Math.sin(time * 3.2 + i * 0.6) * (baseHeight * 0.15)
-      const wave3 = Math.sin(time * 1.8 + i * 0.2) * (baseHeight * 0.1)
-      const randomNoise = (Math.random() - 0.5) * (baseHeight * 0.05)
-      
-      const height = baseHeight + wave1 + wave2 + wave3 + randomNoise
-      return Math.max(baseHeight * 0.5, Math.min(height, baseHeight * 1.5))
-    })
-    animationFrameId = requestAnimationFrame(animate)
-  }
-  animate()
-}
-
-// 停止音频分析
-const stopAudioAnalysis = () => {
-  if (animationFrameId) {
-    cancelAnimationFrame(animationFrameId)
-    animationFrameId = null
-  }
-  
-  if (microphone) {
-    microphone.disconnect()
-    microphone = null
-  }
-  
-  if (audioContext) {
-    audioContext.close()
-    audioContext = null
-  }
-  
-  analyser = null
-  dataArray = null
-  
-  // 重置波形高度为Figma设计的原始值
-  waveformHeights.value = figmaWaveformBars.value.map(bar => bar.height)
-}
-
-// 组件销毁时清理音频资源
-onUnmounted(() => {
-  stopAudioAnalysis()
-})
 
 const activeModel = ref({
   name: '',
@@ -1267,53 +1282,71 @@ const insertExample = (text: string) => {
   position: relative;
   width: 838px;
   height: 144px;
-  max-width: 100%;
   margin: 0 auto;
+  cursor: pointer;
   transition: all 0.3s ease;
-  padding: 20px;
-  border-radius: 20px;
+  overflow: hidden;
 }
 
-.figma-voice-waveform-bars:hover {
-  background: rgba(73, 90, 245, 0.1);
+/* 正弦波SVG容器 */
+.voice-sine-waves {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
-.figma-voice-waveform-bars.recording {
-  background: rgba(239, 68, 68, 0.1);
+/* 正弦波线条 */
+.sine-wave {
+  transition: all 0.3s ease;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.figma-voice-waveform-bars.transcribing {
-  background: rgba(59, 130, 246, 0.1);
+/* 录音状态下的正弦波效果 */
+.figma-voice-waveform-bars.recording .sine-wave {
+  filter: brightness(1.3) saturate(1.4);
 }
 
-.figma-voice-bar {
-  transition: all 0.1s ease-in-out;
-  min-height: 4px;
+.figma-voice-waveform-bars.recording .sine-wave.primary {
+  stroke-width: 4px;
 }
 
-/* Figma gradient styles */
-.figma-voice-bar-gradient1 {
-  background: linear-gradient(180deg, 
-    rgba(73, 94, 219, 0.05) 0%, 
-    rgba(0, 163, 255, 0.5) 100%);
+.figma-voice-waveform-bars.recording .sine-wave.secondary {
+  stroke-width: 3.5px;
 }
 
-.figma-voice-bar-gradient2 {
-  background: linear-gradient(180deg, 
-    rgba(93, 139, 250, 0) 0%, 
-    rgba(0, 163, 255, 0.5) 100%);
+.figma-voice-waveform-bars.recording .sine-wave.tertiary {
+  stroke-width: 3px;
 }
 
-.figma-voice-bar-gradient3 {
-  background: linear-gradient(180deg, 
-    rgba(0, 163, 255, 0.5) 0%, 
-    rgba(73, 94, 219, 0.05) 100%);
+.figma-voice-waveform-bars.recording .sine-wave.quaternary {
+  stroke-width: 2.5px;
 }
 
-.figma-voice-bar-gradient4 {
-  background: linear-gradient(180deg, 
-    rgba(73, 94, 219, 0.05) 0%, 
-    rgba(0, 163, 255, 0.5) 100%);
+.figma-voice-waveform-bars.transcribing .sine-wave {
+  filter: hue-rotate(30deg) brightness(1.2);
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .figma-voice-waveform-bars {
+    width: 90%;
+    max-width: 838px;
+  }
+}
+
+@media (max-width: 900px) {
+  .figma-voice-waveform-bars {
+    width: 95%;
+    height: 120px;
+  }
+}
+
+@media (max-width: 600px) {
+  .figma-voice-waveform-bars {
+    width: 100%;
+    height: 100px;
+  }
 }
 
 /* Voice input container */
