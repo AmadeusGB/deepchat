@@ -4,45 +4,7 @@
     @mouseenter="isDragging = false"
   >
     <TooltipProvider>
-      <!-- 语音界面 -->
-      <div v-if="showVoiceInterface" class="flex flex-col items-center justify-center h-64 bg-transparent">
-        <!-- 麦克风状态指示 -->
-        <div class="flex items-center gap-2 mb-4 text-xs text-muted-foreground">
-          <div 
-            class="w-2 h-2 rounded-full transition-colors"
-            :class="microphoneEnabled ? 'bg-green-500' : 'bg-red-500'"
-          ></div>
-          <span>{{ microphoneEnabled ? t('chat.input.micEnabled') : t('chat.input.micDisabled') }}</span>
-        </div>
-        
-        <!-- 语音波形动画 -->
-        <div class="flex items-center justify-center gap-1 h-32 mb-8">
-          <div 
-            v-for="(height, i) in waveformHeights" 
-            :key="i"
-            class="bg-primary rounded-full transition-all duration-100 ease-in-out"
-            :class="{
-              'w-1': true
-            }"
-            :style="{
-              height: `${height}px`
-            }"
-          ></div>
-        </div>
-        
-        <!-- 文字交流按钮 -->
-        <Button
-          variant="secondary"
-          class="px-6 py-2 rounded-xl text-sm hover:bg-accent"
-          @click="showVoiceInterface = false"
-        >
-          {{ t('chat.input.textChat') }}
-        </Button>
-      </div>
-      
       <!-- 正常聊天界面 -->
-      <div v-else>
-
       <div
         class="bg-card border border-border rounded-lg focus-within:border-primary p-2 flex flex-col gap-2 shadow-sm relative figma-chat-input-inner"
         :class="{
@@ -248,15 +210,7 @@
                 }}
               </TooltipContent>
             </Tooltip>
-            <!-- 语音交互按钮 -->
-            <Button
-              variant="outline"
-              size="icon"
-              class="w-7 h-7 rounded-lg border-2 hover:border-primary transition-colors"
-              @click="showVoiceInterface = true"
-            >
-              <Icon icon="lucide:audio-waveform" class="w-4 h-4" />
-            </Button>
+
             <Button
               variant="default"
               class="h-7 px-3 text-xs rounded-lg font-medium"
@@ -280,7 +234,6 @@
           </div>
         </div>
       </div>
-      </div> <!-- 关闭 v-else div -->
     </TooltipProvider>
   </div>
 </template>
@@ -710,13 +663,7 @@ const handleMicrophoneClick = () => {
   emit('voice-mode')
 }
 
-const toggleRecording = async () => {
-  if (isRecording.value) {
-    stopRecording()
-  } else {
-    await startRecording()
-  }
-}
+
 
 const startRecording = async () => {
   try {
@@ -1073,165 +1020,12 @@ const handleSearchMouseLeave = () => {
 // 添加工具栏显示/隐藏状态
 const showToolbar = ref(false)
 
-// 语音交互状态
-const showVoiceInterface = ref(false)
-const waveformHeights = ref<number[]>(Array.from({ length: 30 }, () => 4))
-const microphoneEnabled = ref(false)
-
-// 音频相关状态
-let audioContext: AudioContext | null = null
-let analyser: AnalyserNode | null = null
-let microphone: MediaStreamAudioSourceNode | null = null
-let dataArray: Uint8Array | null = null
-let animationFrameId: number | null = null
-
-// 初始化音频分析
-const initAudioAnalysis = async () => {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ 
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false
-      }
-    })
-    
-    audioContext = new AudioContext()
-    analyser = audioContext.createAnalyser()
-    microphone = audioContext.createMediaStreamSource(stream)
-    
-    // 提高分析精度和灵敏度
-    analyser.fftSize = 1024
-    analyser.smoothingTimeConstant = 0.3
-    analyser.minDecibels = -90
-    analyser.maxDecibels = -10
-    
-    const bufferLength = analyser.frequencyBinCount
-    dataArray = new Uint8Array(bufferLength)
-    
-    microphone.connect(analyser)
-    microphoneEnabled.value = true
-    
-    startWaveformAnimation()
-  } catch (error) {
-    console.error('Error accessing microphone:', error)
-    microphoneEnabled.value = false
-    // 如果无法访问麦克风，使用默认动画
-    startFallbackAnimation()
-  }
-}
-
-// 真实音频波形动画
-const startWaveformAnimation = () => {
-  const updateWaveform = () => {
-    if (!analyser || !dataArray) return
-    
-    analyser.getByteFrequencyData(dataArray)
-    
-    // 专注于语音频率范围 (85Hz - 3400Hz)
-    const speechStartIndex = Math.floor((85 / (audioContext!.sampleRate / 2)) * dataArray.length)
-    const speechEndIndex = Math.floor((3400 / (audioContext!.sampleRate / 2)) * dataArray.length)
-    
-    // 提取语音频段数据
-    const speechData = dataArray.slice(speechStartIndex, speechEndIndex)
-    
-    // 计算语音能量
-    const speechEnergy = speechData.reduce((sum, value) => sum + value * value, 0) / speechData.length
-    const normalizedEnergy = Math.sqrt(speechEnergy) / 255
-    
-    // 更新波形高度
-    waveformHeights.value = waveformHeights.value.map((_, i) => {
-      // 基础静态高度
-      const baseHeight = 4
-      
-      // 计算当前条对应的频率索引
-      const frequencyIndex = speechStartIndex + Math.floor((i / waveformHeights.value.length) * speechData.length)
-      const frequencyValue = dataArray![frequencyIndex] || 0
-      
-      // 增强灵敏度的计算
-      const localIntensity = (frequencyValue / 255) * (frequencyValue / 255) // 平方增强对比度
-      const energyBoost = normalizedEnergy * 3 // 增强整体能量影响
-      
-      // 添加一些随机变化模拟真实语音的复杂性
-      const randomVariation = (Math.random() - 0.5) * 0.3 * normalizedEnergy
-      
-      // 计算最终高度
-      const dynamicHeight = baseHeight + 
-                           localIntensity * 60 + 
-                           energyBoost * 40 + 
-                           randomVariation * 20
-      
-      // 限制高度范围并添加平滑过渡
-      const targetHeight = Math.max(baseHeight, Math.min(dynamicHeight, 100))
-      const currentHeight = waveformHeights.value[i] || baseHeight
-      
-      // 平滑过渡
-      return currentHeight + (targetHeight - currentHeight) * 0.4
-    })
-    
-    animationFrameId = requestAnimationFrame(updateWaveform)
-  }
-  
-  updateWaveform()
-}
-
-// 备用动画（麦克风不可用时）
-const startFallbackAnimation = () => {
-  let time = 0
-  const animate = () => {
-    time += 0.05
-    waveformHeights.value = waveformHeights.value.map((_, i) => {
-      // 创建更自然的波形模拟
-      const wave1 = Math.sin(time * 2 + i * 0.4) * 12
-      const wave2 = Math.sin(time * 3.2 + i * 0.6) * 8
-      const wave3 = Math.sin(time * 1.8 + i * 0.2) * 6
-      const randomNoise = (Math.random() - 0.5) * 4
-      
-      const height = 4 + wave1 + wave2 + wave3 + randomNoise
-      return Math.max(4, Math.min(height, 35))
-    })
-    animationFrameId = requestAnimationFrame(animate)
-  }
-  animate()
-}
-
-// 停止音频分析
-const stopAudioAnalysis = () => {
-  if (animationFrameId) {
-    cancelAnimationFrame(animationFrameId)
-    animationFrameId = null
-  }
-  
-  if (microphone) {
-    microphone.disconnect()
-    microphone = null
-  }
-  
-  if (audioContext) {
-    audioContext.close()
-    audioContext = null
-  }
-  
-  analyser = null
-  dataArray = null
-  microphoneEnabled.value = false
-  
-  // 重置波形高度
-  waveformHeights.value = Array.from({ length: 30 }, () => 4)
-}
-
-// 监听语音界面状态变化
-watch(showVoiceInterface, (newVal) => {
-  if (newVal) {
-    initAudioAnalysis()
-  } else {
-    stopAudioAnalysis()
-  }
-})
-
-// 组件销毁时清理音频资源
+// 组件销毁时清理资源
 onUnmounted(() => {
-  stopAudioAnalysis()
+  // 清理编辑器资源
+  if (editor) {
+    editor.destroy()
+  }
 })
 
 // 监听showToolbar变化并发射事件

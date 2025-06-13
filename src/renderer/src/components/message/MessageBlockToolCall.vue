@@ -4,9 +4,9 @@
     <div class="figma-tool-call-block" @click="toggleExpanded">
       <div class="figma-tool-call-content">
         <div class="figma-tool-call-left">
-          <!-- 特殊处理：如果是 playwright 相关工具，显示 Deeper AI 图标 -->
+          <!-- 特殊处理：如果是 playwright 相关工具，显示工具图标 -->
           <template v-if="block.tool_call?.server_name?.toLowerCase().includes('playwright') || block.tool_call?.name?.toLowerCase().includes('playwright')">
-            <img src="@/assets/deeper.png" alt="Deeper AI" class="figma-tool-icon" />
+            <img src="@/assets/figma-icons/tool.png" alt="Tool" class="figma-tool-icon" />
           </template>
           <!-- 默认逻辑：显示服务器图标或默认图标 -->
           <template v-else>
@@ -16,37 +16,39 @@
             <Icon v-else icon="lucide:hammer" class="figma-tool-icon" />
           </template>
           <span class="figma-tool-name">
-            {{ block.tool_call?.server_name ? `${block.tool_call?.server_name} · ` : ''
+            {{ block.tool_call?.server_name ? `${block.tool_call?.server_name} - ` : ''
             }}{{ block.tool_call?.name ?? '' }}
           </span>
         </div>
         <div class="figma-tool-call-right">
-          <span class="figma-tool-status">{{ getToolCallStatus() }}</span>
-          <Icon
-            v-if="block.status === 'loading'"
-            icon="lucide:loader-2"
-            class="figma-status-icon animate-spin"
-          />
-          <Icon
-            v-else-if="block.status === 'success'"
-            icon="lucide:check"
-            class="figma-status-icon-success"
-          />
-          <Icon
-            v-else-if="block.status === 'error'"
-            icon="lucide:x"
-            class="figma-status-icon-error"
-          />
-          <Icon
-            v-else-if="showPermissionIcon()"
-            icon="lucide:hand"
-            class="figma-status-icon-warning"
-          />
-          <Icon
-            v-else
-            :icon="isExpanded ? 'lucide:chevron-up' : 'lucide:chevron-down'"
-            class="figma-status-icon"
-          />
+          <div class="figma-status-capsule">
+            <span class="figma-status-text">{{ getToolCallStatus() }}</span>
+            <Icon
+              v-if="block.status === 'loading'"
+              icon="lucide:loader-2"
+              class="figma-status-icon animate-spin"
+            />
+            <Icon
+              v-else-if="block.status === 'success'"
+              icon="lucide:check"
+              class="figma-status-icon-success"
+            />
+            <Icon
+              v-else-if="block.status === 'error'"
+              icon="lucide:x"
+              class="figma-status-icon-error"
+            />
+            <Icon
+              v-else-if="showPermissionIcon()"
+              icon="lucide:hand"
+              class="figma-status-icon-warning"
+            />
+            <Icon
+              v-else
+              :icon="isExpanded ? 'lucide:chevron-up' : 'lucide:chevron-down'"
+              class="figma-status-icon"
+            />
+          </div>
         </div>
       </div>
     </div>

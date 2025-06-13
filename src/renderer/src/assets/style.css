@@ -508,10 +508,10 @@
   
   /* 工具调用样式 - 基于Figma设计 94-353 */
   .figma-tool-call-block {
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid #FFFFFF;
-    border-radius: 20px;
-    padding: 8px 24px;
+    background: #22C55E;
+    border: none;
+    border-radius: 25px;
+    padding: 8px 16px;
     height: 50px;
     display: flex;
     align-items: center;
@@ -519,10 +519,12 @@
     transition: all 0.2s ease;
     margin: 8px 0;
     max-width: 380px;
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.15);
   }
   
   .figma-tool-call-block:hover {
-    background: rgba(255, 255, 255, 0.6);
+    background: #16A34A;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
   }
   
   .figma-tool-call-content {
@@ -530,13 +532,13 @@
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    gap: 10px;
+    gap: 12px;
   }
   
   .figma-tool-call-left {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex: 1;
     min-width: 0;
   }
@@ -544,19 +546,29 @@
   .figma-tool-call-right {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
+  }
+
+  .figma-status-capsule {
+    background: #FFFFFF;
+    border-radius: 20px;
+    padding: 4px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
   }
   
   .figma-tool-icon {
-    width: 32px;
-    height: 32px;
-    color: #646466;
+    width: 24px;
+    height: 24px;
+    color: #FFFFFF;
     flex-shrink: 0;
   }
   
   .figma-tool-emoji {
-    font-size: 17px;
+    font-size: 20px;
     line-height: 1;
     flex-shrink: 0;
   }
@@ -564,36 +576,36 @@
   .figma-tool-name {
     font-family: 'Montserrat', sans-serif;
     font-weight: 600;
-    font-size: 12px;
-    line-height: 1.219;
-    color: #646466;
+    font-size: 13px;
+    line-height: 1.2;
+    color: #FFFFFF;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   
-  .figma-tool-status {
+  .figma-status-text {
     font-family: 'Montserrat', sans-serif;
     font-weight: 500;
-    font-size: 10px;
-    line-height: 1.219;
-    color: #646466;
+    font-size: 11px;
+    line-height: 1.2;
+    color: #22C55E;
     white-space: nowrap;
   }
   
   .figma-status-icon {
     width: 16px;
     height: 16px;
-    color: #646466;
+    color: #22C55E;
   }
   
   .figma-status-icon-success {
     width: 16px;
     height: 16px;
-    color: white;
-    background: #22c55e;
+    color: #22C55E;
+    background: transparent;
     border-radius: 50%;
-    padding: 2px;
+    padding: 0;
   }
   
   .figma-status-icon-error {
@@ -620,11 +632,12 @@
   }
   
   .dark .figma-tool-call-block {
-    background: rgba(255, 255, 255, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.6);
+    background: #22C55E;
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.2);
   }
   
   .dark .figma-tool-call-block:hover {
-    background: rgba(255, 255, 255, 0.5);
+    background: #16A34A;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
   }
 }
