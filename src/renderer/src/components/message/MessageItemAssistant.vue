@@ -292,10 +292,21 @@ defineExpose({
   handleAction
 })
 
-// 计算显示名称 - 特殊处理 claude-sonnet-4-20250514
+// 计算显示名称 - 特殊处理特定模型
 const displayName = computed(() => {
-  // 只对 claude-sonnet-4-20250514 模型进行特殊处理
+  // 对 claude-sonnet-4-20250514 模型进行特殊处理
   if (currentMessage.value.model_name === 'claude-sonnet-4-20250514') {
+    // 判断是否正在生成中：内容为空或状态为pending或会话正在生成
+    const isGenerating = 
+      currentContent.value.length === 0 || 
+      currentMessage.value.status === 'pending' ||
+      chatStore.generatingThreadIds.has(currentThreadId.value)
+    
+    return isGenerating ? 'Deeper Ai - Thinking...' : 'Deeper Ai'
+  }
+  
+  // 对 claude-3-5-haiku-20241022 模型进行特殊处理
+  if (currentMessage.value.model_name === 'claude-3-5-haiku-20241022') {
     // 判断是否正在生成中：内容为空或状态为pending或会话正在生成
     const isGenerating = 
       currentContent.value.length === 0 || 
