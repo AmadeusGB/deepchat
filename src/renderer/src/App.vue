@@ -180,12 +180,20 @@ onMounted(() => {
 
   // Initialize stagewise toolbar in development
   if (isDev) {
+    // Use dynamic import with string to avoid TypeScript module resolution issues
     Promise.all([
-      import('@stagewise/toolbar-vue'),
-      import('@stagewise-plugins/vue')
+      import('@stagewise/toolbar-vue').catch(() => null),
+      import('@stagewise-plugins/vue').catch(() => null)
     ]).then(([toolbarModule, pluginModule]) => {
-      const { StagewiseToolbar } = toolbarModule
-      const { VuePlugin } = pluginModule
+      if (!toolbarModule || !pluginModule) {
+        console.log('Stagewise toolbar not available in development')
+        return
+      }
+      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { StagewiseToolbar } = toolbarModule as any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { VuePlugin } = pluginModule as any
       
       // Create and mount stagewise toolbar
       const app = document.createElement('div')

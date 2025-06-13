@@ -2,7 +2,7 @@
   <div class="flex flex-row items-center gap-2 min-h-5">
     <!-- 特殊处理：如果名称以 "Deeper Ai" 开头，使用Figma设计样式 -->
     <template v-if="name.startsWith('Deeper Ai')">
-      <div class="figma-ai-message-header">
+      <div :class="isThinking ? 'figma-ai-thinking-header' : 'figma-ai-message-header'">
         <div class="figma-ai-header-content">
           <img src="@/assets/deeper.png" alt="Deeper AI" class="figma-ai-icon" />
           <span class="figma-ai-text">{{ name }}</span>
@@ -38,5 +38,9 @@ const formattedTime = computed(() => {
     hour: '2-digit',
     minute: '2-digit'
   })
+})
+
+const isThinking = computed(() => {
+  return props.name.includes('Thinking...')
 })
 </script>

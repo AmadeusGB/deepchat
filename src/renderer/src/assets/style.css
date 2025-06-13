@@ -469,23 +469,57 @@
   .figma-ai-message-header {
     background: #FFFFFF;
     border-radius: 20px;
-    padding: 8px 24px;
+    padding: 8px 20px 8px 6px;
     height: 40px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     min-width: fit-content;
+  }
+
+  /* AI Thinking状态样式 - 基于Figma设计 86-277 */
+  .figma-ai-thinking-header {
+    background: #F1F3F5;
+    border-radius: 20px;
+    padding: 8px 20px 8px 6px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-width: fit-content;
+  }
+
+  /* Thinking状态文字动效 */
+  .figma-ai-thinking-header .figma-ai-text {
+    background: linear-gradient(90deg, #495AF5 0%, #7C3AED 25%, #495AF5 50%, #7C3AED 75%, #495AF5 100%);
+    background-size: 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: thinkingTextGradient 2s ease-in-out infinite;
+  }
+
+  @keyframes thinkingTextGradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
   }
   
   .figma-ai-header-content {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 2px;
   }
   
   .figma-ai-icon {
-    width: 32px;
-    height: 32px;
+    width: 46px;
+    height: 46px;
   }
   
   .figma-ai-text {
@@ -626,6 +660,43 @@
     padding: 2px;
   }
   
+  /* 用户消息气泡样式 - 基于Figma设计 83-216 */
+  .figma-user-message-bubble {
+    background: #4F46E5;
+    border-radius: 20px;
+    padding: 12px 16px;
+    color: #FFFFFF;
+    font-size: 14px;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: none;
+    max-width: fit-content;
+  }
+
+  /* 确保用户消息气泡内的所有文本都是白色 */
+  .figma-user-message-bubble * {
+    color: #FFFFFF !important;
+  }
+
+  /* 用户消息编辑模式textarea样式 */
+  .figma-user-message-textarea {
+    background: #4F46E5;
+    border-radius: 20px;
+    padding: 12px 16px;
+    color: #FFFFFF;
+    font-size: 14px;
+    line-height: 1.5;
+    border: none;
+    resize: both;
+    outline: none;
+  }
+
+  .figma-user-message-textarea::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
   /* 深色模式适配 */
   .dark .figma-ai-message-header {
     background: rgba(255, 255, 255, 0.95);

@@ -12,7 +12,7 @@
     </div>
 
     <!-- 输入框区域 - 对话页面玻璃形态 -->
-    <div class="figma-chat-input-area relative flex-none p-5" style="margin-bottom: 0;">
+    <div class="figma-chat-input-area relative flex-none p-7.5" style="margin-bottom: 0;">
       <ChatInput
         :disabled="!chatStore.getActiveThreadId() || isGenerating"
         @send="handleSend"

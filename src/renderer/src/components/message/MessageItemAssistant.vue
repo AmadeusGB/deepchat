@@ -1,7 +1,7 @@
 <template>
   <div
     :data-message-id="message.id"
-    class="flex flex-row py-4 pl-4 pr-11 group gap-2 w-full justify-start assistant-message-item"
+    class="flex flex-row py-4 px-0 group gap-2 w-full justify-start assistant-message-item"
   >
     <!-- 移除模型图标 -->
 
