@@ -696,7 +696,7 @@
   .figma-user-message-textarea::placeholder {
     color: rgba(255, 255, 255, 0.7);
   }
-
+  
   /* 深色模式适配 */
   .dark .figma-ai-message-header {
     background: rgba(255, 255, 255, 0.95);

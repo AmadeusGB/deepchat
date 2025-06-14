@@ -39,12 +39,36 @@
       
       <!-- Voice waveform (shown when in voice mode) -->
       <div v-if="isVoiceMode" class="figma-voice-waveform-container flex items-center justify-center gap-1 mb-8">
+        <!-- AI Response Subtitle (字幕) -->
+        <div v-if="voiceResponseText || isWaitingResponse" class="figma-voice-subtitle mb-6 text-center">
+          <div class="text-lg font-medium text-foreground bg-background/80 rounded-xl px-6 py-3 backdrop-blur-md shadow-lg border border-border/50">
+            <div v-if="isWaitingResponse && !voiceResponseText" class="flex items-center justify-center gap-2">
+              <div class="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full"></div>
+              <span>{{ t('chat.input.voiceThinking') }}</span>
+            </div>
+            <div v-else>{{ voiceResponseText }}</div>
+          </div>
+        </div>
+        
+        <!-- Voice conversation history summary -->
+        <div v-if="voiceHistorySummary && !voiceResponseText" class="figma-voice-history-summary mb-4 text-center">
+          <div class="text-xs text-muted-foreground bg-background/50 rounded-lg px-3 py-2 backdrop-blur-sm">
+            {{ voiceHistorySummary }}
+          </div>
+        </div>
+        
         <!-- Recording status indicator -->
         <div class="figma-voice-status-container mb-4">
           <div class="flex items-center gap-2 text-sm text-muted-foreground">
             <div 
               class="w-3 h-3 rounded-full transition-colors"
-              :class="isRecording ? 'bg-red-500 animate-pulse' : isTranscribing ? 'bg-blue-500 animate-pulse' : 'bg-gray-400'"
+              :class="{
+                'bg-red-500 animate-pulse': isRecording,
+                'bg-blue-500 animate-pulse': isTranscribing,
+                'bg-yellow-500 animate-pulse': isWaitingResponse,
+                'bg-green-500 animate-pulse': isTTSPlaying,
+                'bg-gray-400': !isRecording && !isTranscribing && !isWaitingResponse && !isTTSPlaying
+              }"
             ></div>
             <span>
               {{ 
@@ -52,7 +76,11 @@
                   ? t('chat.input.voiceRecording') 
                   : isTranscribing 
                     ? t('chat.input.voiceTranscribing')
-                    : t('chat.input.spaceToRecord')
+                    : isWaitingResponse
+                      ? t('chat.input.voiceWaitingResponse')
+                      : isTTSPlaying
+                        ? t('chat.input.voiceTTSPlaying')
+                        : t('chat.input.spaceToRecord')
               }}
             </span>
           </div>
@@ -154,19 +182,21 @@
         
         <!-- Input area aligned with sidebar bottom -->
         <div class="figma-input-container w-full max-w-4xl">
-          <!-- Voice mode input (smaller) -->
+          <!-- Voice mode input (hidden in auto mode) -->
           <div v-if="isVoiceMode" class="figma-voice-input-container flex items-center gap-4">
-            <div class="figma-voice-input-box">
+            <div class="figma-voice-input-box opacity-50">
               <input 
                 v-model="voiceInputText"
                 type="text" 
                 class="figma-voice-input"
-                :placeholder="t('chat.input.placeholder')"
-                @keydown.enter="handleVoiceInputSend"
+                :placeholder="t('chat.input.voiceAutoMode')"
+                readonly
+                disabled
               />
             </div>
             <Button
-              class="figma-text-chat-button"
+              class="figma-text-chat-button opacity-50"
+              disabled
               @click="exitVoiceMode"
             >
               {{ t('chat.input.textChat') }}
@@ -275,6 +305,8 @@ import ChatConfig from './ChatConfig.vue'
 import { usePresenter } from '@/composables/usePresenter'
 import { useEventListener } from '@vueuse/core'
 import { useThemeStore } from '@/stores/theme'
+import { ttsService } from '@/lib/ttsService'
+import { useToast } from '@/components/ui/toast/use-toast'
 
 const configPresenter = usePresenter('configPresenter')
 const themeStore = useThemeStore()
@@ -294,6 +326,18 @@ const isVoiceMode = ref(false)
 const voiceInputText = ref('')
 const isRecording = ref(false)
 const isTranscribing = ref(false)
+const isTTSPlaying = ref(false)
+const isWaitingResponse = ref(false)
+const lastVoiceResponse = ref('')
+const voiceResponseText = ref('') // 当前显示的AI回复文本（字幕）
+const voiceConversationHistory = ref<Array<{
+  type: 'user' | 'assistant'
+  text: string
+  timestamp: number
+  summary?: string
+}>>([])
+
+// TTS服务将在后面导入
 
 // 录音相关变量
 let mediaRecorder: MediaRecorder | null = null
@@ -437,6 +481,18 @@ const exitVoiceMode = () => {
     stopRecording()
   }
   
+  // 停止TTS播放
+  if (isTTSPlaying.value) {
+    ttsService.stop()
+    isTTSPlaying.value = false
+  }
+  
+  // 重置所有状态
+  isTranscribing.value = false
+  isWaitingResponse.value = false
+  lastVoiceResponse.value = ''
+  voiceResponseText.value = '' // 清除字幕文本
+  
   // 停止正弦波动画
   stopWaveAnimation()
   
@@ -463,18 +519,12 @@ const handleKeyUp = (event: KeyboardEvent) => {
   }
 }
 
-// 处理语音输入发送
-const handleVoiceInputSend = () => {
-  if (voiceInputText.value.trim()) {
-    handleSend({
-      text: voiceInputText.value.trim(),
-      files: [],
-      links: [],
-      think: false,
-      search: false
-    })
-  }
-}
+// 语音对话历史摘要显示
+const voiceHistorySummary = computed(() => {
+  if (voiceConversationHistory.value.length === 0) return ''
+  const recent = voiceConversationHistory.value.slice(-3) // 显示最近3条
+  return recent.map(item => `${item.type === 'user' ? '👤' : '🤖'} ${item.summary || item.text}`).join(' • ')
+})
 
 // 开始语音录制
 const startVoiceRecording = async () => {
@@ -531,11 +581,22 @@ const processVoiceRecording = async () => {
     const transcription = await transcribeAudio(audioBlob)
     
     if (transcription.trim()) {
-      // 将转录结果添加到语音输入框
-      voiceInputText.value = transcription.trim()
+      // 在语音模式下，直接自动提交消息，不填入输入框
+      if (isVoiceMode.value) {
+        await autoSubmitVoiceMessage(transcription.trim())
+      } else {
+        // 非语音模式下，将转录结果添加到语音输入框
+        voiceInputText.value = transcription.trim()
+      }
     }
   } catch (error) {
     console.error('语音转文字失败:', error)
+    const { toast } = useToast()
+    toast({
+      title: t('chat.input.voiceError'),
+      description: t('chat.input.voiceTranscriptionError'),
+      variant: 'destructive'
+    })
   } finally {
     isTranscribing.value = false
     audioChunks = []
@@ -578,8 +639,615 @@ const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
   }
 }
 
+// 自动提交语音消息并等待回复（语音模式专用，使用传统聊天流程但不显示UI）
+const autoSubmitVoiceMessage = async (text: string) => {
+  try {
+    // 添加用户消息到语音对话历史
+    voiceConversationHistory.value.push({
+      type: 'user',
+      text: text,
+      timestamp: Date.now(),
+      summary: text.length > 50 ? text.substring(0, 50) + '...' : text
+    })
+
+    // 设置等待回复状态
+    isWaitingResponse.value = true
+    
+    // 语音模式下使用传统聊天流程（支持MCP工具调用），但不显示UI
+    await sendVoiceMessageWithMCP(text)
+    
+  } catch (error) {
+    console.error('自动提交语音消息失败:', error)
+    const { toast } = useToast()
+    toast({
+      title: t('chat.input.voiceError'),
+      description: '发送消息失败，请重试',
+      variant: 'destructive'
+    })
+    isWaitingResponse.value = false
+  }
+}
+
+// 从内容中提取纯文本
+const extractPlainTextFromContent = (content: string): string => {
+  if (!content) return ''
+  
+  // 移除各种标签
+  let cleanText = content
+    // 移除antThinking标签
+    .replace(/<antThinking>[\s\S]*?<\/antThinking>/g, '')
+    // 移除antArtifact标签
+    .replace(/<antArtifact[^>]*>[\s\S]*?<\/antArtifact>/g, '')
+    // 移除tool_call相关标签
+    .replace(/<tool_call[^>]*>/g, '')
+    .replace(/<tool_response[^>]*>/g, '')
+    .replace(/<tool_call_end[^>]*>/g, '')
+    .replace(/<tool_call_error[^>]*>/g, '')
+    .replace(/<maximum_tool_calls_reached[^>]*>/g, '')
+    // 移除其他HTML标签
+    .replace(/<[^>]*>/g, '')
+    // 移除markdown代码块标记
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`[^`]*`/g, '')
+    // 移除markdown链接格式 [text](url)
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    // 移除markdown粗体和斜体
+    .replace(/\*\*([^*]*)\*\*/g, '$1')
+    .replace(/\*([^*]*)\*/g, '$1')
+    // 移除多余的空白字符
+    .replace(/\s+/g, ' ')
+    .trim()
+  
+  return cleanText
+}
+
+// 智能分割文本，优先按句子分割，确保完整句子播放
+const smartSplitText = (text: string, minLength: number = 80): string => {
+  if (!text || text.length < minLength) return text
+  
+  console.log(`[智能分割] 处理文本长度: ${text.length}，最小长度: ${minLength}`)
+  
+  // 按句子分割，保留标点符号
+  const sentences = text.split(/([。！？；.!?;])/)
+  let result = ''
+  let currentLength = 0
+  
+  for (let i = 0; i < sentences.length; i += 2) {
+    const sentence = sentences[i] || ''
+    const punctuation = sentences[i + 1] || ''
+    const fullSentence = sentence + punctuation
+    
+    console.log(`[智能分割] 检查句子: "${fullSentence.substring(0, 20)}..." (${fullSentence.length}字符)`)
+    
+    // 如果已经有内容且加上新句子会超过合理长度，就停止
+    if (result && currentLength + fullSentence.length > minLength * 2) {
+      console.log(`[智能分割] 达到合理长度，停止添加`)
+      break
+    }
+    
+    result += fullSentence
+    currentLength += fullSentence.length
+    
+    console.log(`[智能分割] 添加句子，当前长度: ${currentLength}`)
+    
+    // 如果遇到强结束符且长度足够，可以结束
+    if (/[。！？；.!?;]/
+        .test(punctuation) && currentLength >= minLength) {
+      console.log(`[智能分割] 遇到强结束符且长度足够，结束分割`)
+      break
+    }
+  }
+  
+  // 如果没有找到合适的句子分割点，但有内容，就返回
+  if (result.trim()) {
+    console.log(`[智能分割] 返回完整句子组合: ${result.length}字符`)
+    return result.trim()
+  }
+  
+  // 如果还是没有内容，按字符截取，但尽量在标点处截断
+  if (text.length >= minLength) {
+    const substring = text.substring(0, minLength * 1.5)
+    // 尝试在最后一个标点符号处截断
+    const lastPunctuation = Math.max(
+      substring.lastIndexOf('。'),
+      substring.lastIndexOf('！'),
+      substring.lastIndexOf('？'),
+      substring.lastIndexOf('；'),
+      substring.lastIndexOf('.'),
+      substring.lastIndexOf('!'),
+      substring.lastIndexOf('?'),
+      substring.lastIndexOf(';'),
+      substring.lastIndexOf('，'),
+      substring.lastIndexOf(',')
+    )
+    
+    if (lastPunctuation > minLength * 0.8) {
+      const result = substring.substring(0, lastPunctuation + 1)
+      console.log(`[智能分割] 在标点处截断: ${result.length}字符`)
+      return result
+    } else {
+      console.log(`[智能分割] 按字符截断: ${substring.length}字符`)
+      return substring
+    }
+  }
+  
+  return text
+}
+
+// 语音模式专用：使用传统聊天流程发送消息（支持MCP工具调用）
+const sendVoiceMessageWithMCP = async (text: string) => {
+  try {
+    // 创建临时聊天线程（用于MCP工具调用）
+    const threadId = await chatStore.createThread(text, {
+      providerId: activeModel.value.providerId,
+      modelId: activeModel.value.id,
+      systemPrompt: systemPrompt.value,
+      temperature: temperature.value,
+      contextLength: contextLength.value,
+      maxTokens: maxTokens.value,
+      artifacts: artifacts.value as 0 | 1
+    })
+    
+    // 设置为活跃线程（但不跳转UI）
+    await chatStore.setActiveThread(threadId)
+    
+    // 构建消息内容
+    const messageContent: UserMessageContent = {
+      text: text,
+      files: [],
+      links: [],
+      think: false,
+      search: false
+    }
+    
+    // 跟踪已播放的内容块和位置
+    let playedContentBlocks = new Map<string, number>() // 存储每个块已播放的字符位置
+    let isStreamCompleted = false
+    
+    // 实时监听AI回复并播放TTS
+    const checkForStreamingResponse = async () => {
+      let attempts = 0
+      const maxAttempts = 120 // 增加到120秒，因为需要处理流式输出
+      
+      while (attempts < maxAttempts && !isStreamCompleted) {
+        await new Promise(resolve => setTimeout(resolve, 300)) // 减少到300ms，更快响应
+        attempts++
+        
+        const messages = chatStore.getMessages()
+        const lastMessage = messages[messages.length - 1]
+        const workingStatus = chatStore.getThreadWorkingStatus(threadId)
+        
+        if (lastMessage && lastMessage.role === 'assistant') {
+          const assistantContent = lastMessage.content
+          console.log(`[实时语音] 🔍 检查 ${attempts}/${maxAttempts}:`, {
+            messagesCount: messages.length,
+            workingStatus,
+            contentBlocks: Array.isArray(assistantContent) ? assistantContent.length : 0,
+            queueLength: ttsQueue.value.length,
+            isProcessing: isProcessingTTS.value,
+            isPlaying: isTTSPlaying.value
+          })
+          
+          // 检查新的内容块
+          if (assistantContent && Array.isArray(assistantContent)) {
+            console.log('[实时语音] 🧩 检查内容块数组，长度:', assistantContent.length)
+            
+            for (let i = 0; i < assistantContent.length; i++) {
+              const block = assistantContent[i]
+              const blockKey = `${lastMessage.id}-${i}`
+              
+              console.log(`[实时语音] 🧩 检查块 ${i}:`, {
+                blockType: block.type,
+                blockStatus: block.status,
+                hasContent: !!block.content,
+                contentLength: block.content?.length || 0,
+                blockKey,
+                playedPosition: playedContentBlocks.get(blockKey) || 0
+              })
+              
+              // 处理content类型的块，不再等待success状态
+              if (block.type === 'content' && block.content) {
+                const currentPlayedPosition = playedContentBlocks.get(blockKey) || 0
+                const cleanText = extractPlainTextFromContent(block.content)
+                
+                if (cleanText.length > currentPlayedPosition) {
+                  // 获取未播放的部分
+                  const unplayedText = cleanText.substring(currentPlayedPosition)
+                  console.log(`[实时语音] 📝 未播放文本长度: ${unplayedText.length}`)
+                  
+                  // 检查是否有足够的文本可以播放（至少80个字符或遇到强结束符）
+                  const shouldPlay = unplayedText.length >= 80 || 
+                                   /[。！？.!?]/.test(unplayedText) ||
+                                   block.status === 'success' // 如果块已完成，播放剩余内容
+                  
+                  if (shouldPlay) {
+                    // 使用智能分割函数获取要播放的文本
+                    const textToPlay = smartSplitText(unplayedText, 80)
+                    
+                    if (textToPlay.trim()) {
+                      console.log(`[实时语音] ✨ 准备播放片段 (${textToPlay.length}字符):`, textToPlay.substring(0, 50) + '...')
+                      
+                      // 更新已播放位置
+                      playedContentBlocks.set(blockKey, currentPlayedPosition + textToPlay.length)
+                      
+                      // 立即播放这段内容
+                      await playTTSResponse(textToPlay.trim())
+                    }
+                  }
+                }
+              } else {
+                // 只在调试模式下显示跳过信息，减少日志冗余
+                if (block.type !== 'tool_call') {
+                  console.log(`[实时语音] ⏭️ 跳过块 ${i}:`, {
+                    reason: block.type !== 'content' ? '类型不匹配' : '无内容',
+                    blockType: block.type
+                  })
+                }
+              }
+            }
+          } else {
+            console.log('[实时语音] 🚫 无内容块或不是数组')
+          }
+          
+          // 检查是否完成
+          if (!workingStatus) {
+            console.log('[实时语音] 🏁 AI回复完成，等待TTS队列播放完成')
+            console.log('[实时语音] 📊 完成时状态:', {
+              queueLength: ttsQueue.value.length,
+              isProcessing: isProcessingTTS.value,
+              isPlaying: isTTSPlaying.value,
+              playedBlocks: playedContentBlocks.size
+            })
+            isStreamCompleted = true
+            
+            // 等待TTS队列播放完成
+            let waitCount = 0
+            while (ttsQueue.value.length > 0 || isProcessingTTS.value || isTTSPlaying.value) {
+              waitCount++
+              await new Promise(resolve => setTimeout(resolve, 500))
+              console.log(`[实时语音] ⏳ 等待TTS队列完成 (${waitCount}):`, {
+                剩余: ttsQueue.value.length,
+                处理中: isProcessingTTS.value,
+                播放中: isTTSPlaying.value,
+                等待时间: waitCount * 0.5 + 's'
+              })
+              
+              // 防止无限等待
+              if (waitCount > 240) { // 2分钟超时
+                console.error('[实时语音] ⚠️ 等待TTS队列超时，强制结束')
+                break
+              }
+            }
+            
+            console.log('[实时语音] ✅ 所有语音播放完成，总等待次数:', waitCount)
+            isWaitingResponse.value = false
+            return
+          }
+        }
+      }
+      
+      // 超时处理
+      console.warn('[实时语音] 等待超时')
+      isWaitingResponse.value = false
+    }
+    
+    // 发送消息（使用传统聊天流程，支持MCP工具）
+    chatStore.sendMessage(messageContent)
+    
+    // 开始实时检查回复
+    checkForStreamingResponse()
+    
+  } catch (error) {
+    console.error('语音模式聊天流程失败:', error)
+    isWaitingResponse.value = false
+    throw error
+  }
+}
+
+// TTS播放队列
+const ttsQueue = ref<string[]>([])
+const isProcessingTTS = ref(false)
+
+// 添加到TTS队列
+const playTTSResponse = async (responseText: string) => {
+  if (!responseText.trim()) return
+  
+  const textPreview = responseText.substring(0, 50) + (responseText.length > 50 ? '...' : '')
+  console.log('[TTS队列] 📝 添加到队列:', textPreview)
+  console.log('[TTS队列] 📊 队列状态 - 当前长度:', ttsQueue.value.length, '处理中:', isProcessingTTS.value, '播放中:', isTTSPlaying.value)
+  
+  ttsQueue.value.push(responseText)
+  console.log('[TTS队列] 📝 添加完成，新长度:', ttsQueue.value.length)
+  
+  // 开始处理队列
+  processTTSQueue()
+}
+
+// 处理TTS队列
+const processTTSQueue = async () => {
+  if (isProcessingTTS.value || ttsQueue.value.length === 0) {
+    return
+  }
+  
+  isProcessingTTS.value = true
+  console.log('[TTS队列] 开始处理队列，剩余:', ttsQueue.value.length)
+  
+  while (ttsQueue.value.length > 0) {
+    const text = ttsQueue.value.shift()!
+    const textPreview = text.substring(0, 50) + (text.length > 50 ? '...' : '')
+    console.log('[TTS队列] 处理下一个项目:', textPreview)
+    
+    try {
+      await playTTSResponseDirect(text)
+      console.log('[TTS队列] 项目处理完成，剩余:', ttsQueue.value.length)
+    } catch (error) {
+      console.error('[TTS队列] 项目处理失败:', error)
+      // 继续处理下一个项目
+    }
+  }
+  
+  console.log('[TTS队列] 所有项目处理完成')
+  isProcessingTTS.value = false
+  
+  console.log('[TTS队列] 队列处理结束')
+}
+
+// 分割长文本为较短的段落
+function splitLongText(text: string, minLength: number = 100, maxLength: number = 400): string[] {
+  if (text.length <= maxLength) {
+    return [text]
+  }
+  
+  console.log(`[智能分段] 开始分段，文本长度: ${text.length}，最小: ${minLength}，最大: ${maxLength}`)
+  
+  const segments: string[] = []
+  
+  // 定义句子结束标点符号（中英文）
+  const sentenceEnders = /[。！？；.!?;]/
+  const strongEnders = /[。！？.!?]/  // 强结束符
+  
+  // 按句子分割，保留标点符号
+  const sentences = text.split(/(。|！|？|；|\.|!|\?|;)/).filter(part => part.trim())
+  
+  let currentSegment = ''
+  let i = 0
+  
+  while (i < sentences.length) {
+    const sentence = sentences[i]
+    const punctuation = sentences[i + 1] || ''
+    
+    // 构建完整句子
+    let fullSentence = sentence
+    if (punctuation && sentenceEnders.test(punctuation)) {
+      fullSentence += punctuation
+      i += 2 // 跳过标点符号
+    } else {
+      i += 1
+    }
+    
+    // 检查添加这个句子后的长度
+    const potentialSegment = currentSegment + fullSentence
+    
+    console.log(`[智能分段] 处理句子: "${fullSentence.substring(0, 30)}..." (${fullSentence.length}字符)`)
+    console.log(`[智能分段] 当前段落: ${currentSegment.length}字符，潜在长度: ${potentialSegment.length}字符`)
+    
+    if (potentialSegment.length <= maxLength) {
+      // 可以添加到当前段落
+      currentSegment = potentialSegment
+      console.log(`[智能分段] 添加到当前段落，新长度: ${currentSegment.length}`)
+      
+      // 如果遇到强结束符且长度足够，可以考虑分段
+      if (strongEnders.test(punctuation) && currentSegment.length >= minLength) {
+        // 检查下一个句子，如果加上会超长，就在这里分段
+        const nextSentence = sentences[i] || ''
+        const nextPunctuation = sentences[i + 1] || ''
+        const nextFullSentence = nextSentence + (sentenceEnders.test(nextPunctuation) ? nextPunctuation : '')
+        
+        if (currentSegment.length + nextFullSentence.length > maxLength) {
+          console.log(`[智能分段] 在强结束符处分段，段落长度: ${currentSegment.length}`)
+          segments.push(currentSegment.trim())
+          currentSegment = ''
+        }
+      }
+    } else {
+      // 添加会超长
+      if (currentSegment.length >= minLength) {
+        // 当前段落已经足够长，保存并开始新段落
+        console.log(`[智能分段] 段落已满，保存段落: ${currentSegment.length}字符`)
+        segments.push(currentSegment.trim())
+        currentSegment = fullSentence
+      } else if (fullSentence.length > maxLength) {
+        // 单个句子太长，需要特殊处理
+        console.log(`[智能分段] 单句过长(${fullSentence.length}字符)，需要特殊分割`)
+        
+        // 先保存当前段落（如果有）
+        if (currentSegment.trim()) {
+          segments.push(currentSegment.trim())
+        }
+        
+        // 对超长句子进行智能分割
+        const longSentenceParts = splitLongSentence(fullSentence, maxLength)
+        segments.push(...longSentenceParts)
+        currentSegment = ''
+      } else {
+        // 当前段落太短，但加上新句子会超长，强制添加
+        currentSegment = potentialSegment
+        console.log(`[智能分段] 强制添加句子，段落长度: ${currentSegment.length}`)
+      }
+    }
+  }
+  
+  // 添加最后的段落
+  if (currentSegment.trim()) {
+    console.log(`[智能分段] 添加最后段落: ${currentSegment.length}字符`)
+    segments.push(currentSegment.trim())
+  }
+  
+  // 过滤空段落并记录结果
+  const finalSegments = segments.filter(seg => seg.trim().length > 0)
+  console.log(`[智能分段] 分段完成，共${finalSegments.length}段:`)
+  finalSegments.forEach((seg, idx) => {
+    console.log(`[智能分段] 段落${idx + 1}: ${seg.length}字符 - "${seg.substring(0, 50)}..."`)
+  })
+  
+  return finalSegments
+}
+
+// 分割超长单句
+function splitLongSentence(sentence: string, maxLength: number): string[] {
+  console.log(`[超长句子分割] 处理长度: ${sentence.length}，最大: ${maxLength}`)
+  
+  const parts: string[] = []
+  
+  // 尝试按逗号、分号等弱标点分割
+  const weakPunctuations = /[，,、；;：:]/
+  const weakParts = sentence.split(/(，|,|、|；|;|：|:)/).filter(part => part.trim())
+  
+  let currentPart = ''
+  let i = 0
+  
+  while (i < weakParts.length) {
+    const part = weakParts[i]
+    const punctuation = weakParts[i + 1] || ''
+    
+    const fullPart = part + (weakPunctuations.test(punctuation) ? punctuation : '')
+    const potentialPart = currentPart + fullPart
+    
+    if (potentialPart.length <= maxLength) {
+      currentPart = potentialPart
+      i += weakPunctuations.test(punctuation) ? 2 : 1
+    } else {
+      if (currentPart) {
+        parts.push(currentPart.trim())
+        currentPart = fullPart
+      } else {
+        // 连一个小部分都太长，按字符强制分割
+        const charParts = splitByCharacters(fullPart, maxLength)
+        parts.push(...charParts)
+        currentPart = ''
+      }
+      i += weakPunctuations.test(punctuation) ? 2 : 1
+    }
+  }
+  
+  if (currentPart.trim()) {
+    parts.push(currentPart.trim())
+  }
+  
+  console.log(`[超长句子分割] 分割为${parts.length}部分`)
+  return parts.filter(part => part.trim().length > 0)
+}
+
+// 按字符强制分割（最后手段）
+function splitByCharacters(text: string, maxLength: number): string[] {
+  console.log(`[字符分割] 强制分割，长度: ${text.length}`)
+  const parts: string[] = []
+  
+  for (let i = 0; i < text.length; i += maxLength) {
+    const part = text.substring(i, i + maxLength)
+    parts.push(part)
+  }
+  
+  return parts
+}
+
+// 播放TTS响应（直接播放）
+async function playTTSResponseDirect(text: string) {
+  console.log(`[TTS播放] 开始播放: ${text}`)
+  
+  try {
+    // 设置播放状态
+    isTTSPlaying.value = true
+    lastVoiceResponse.value = text
+    voiceResponseText.value = text // 设置字幕文本
+    
+    console.log(`[TTS播放] 设置状态完成，开始添加到历史记录`)
+    
+    // 添加AI回复到语音对话历史
+    voiceConversationHistory.value.push({
+      type: 'assistant',
+      text: text,
+      timestamp: Date.now(),
+      summary: text.length > 50 ? text.substring(0, 50) + '...' : text
+    })
+    
+    console.log(`[TTS播放] 开始调用TTS服务`)
+    
+    // 检查文本长度，如果太长则分段处理
+    if (text.length > 400) {
+      console.log(`[TTS播放] 文本较长(${text.length}字符)，进行分段处理`)
+      const segments = splitLongText(text, 120, 400) // 最小120字符，最大400字符
+      console.log(`[TTS播放] 分割为${segments.length}段`)
+      
+      for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i]
+        console.log(`[TTS播放] 播放第${i + 1}/${segments.length}段: ${segment.substring(0, 50)}...`)
+        
+        try {
+          // 增加超时时间，适应更大的分段
+          await Promise.race([
+            ttsService.playWithGPTTTS(segment),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('TTS播放超时')), 45000) // 增加到45秒
+            )
+          ])
+          console.log(`[TTS播放] 第${i + 1}段播放完成`)
+        } catch (error) {
+          console.error(`[TTS播放] 第${i + 1}段播放失败:`, error)
+          // 继续播放下一段，不中断整个流程
+        }
+      }
+    } else {
+      // 短文本直接播放
+      try {
+        await Promise.race([
+          ttsService.playWithGPTTTS(text),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('TTS播放超时')), 30000) // 增加到30秒
+          )
+        ])
+      } catch (error) {
+        console.error(`[TTS播放] 短文本播放失败:`, error)
+        // 静默失败，不显示错误提示
+      }
+    }
+    
+    console.log(`[TTS播放] TTS播放完成`)
+  } catch (error) {
+    console.error(`[TTS播放] TTS播放失败:`, error)
+    
+    // 停止TTS播放
+    try {
+      ttsService.stop()
+    } catch (stopError) {
+      console.error(`[TTS播放] 停止TTS失败:`, stopError)
+    }
+    
+    // 移除错误提示，静默失败
+    console.log(`[TTS播放] TTS失败，静默处理`)
+  } finally {
+    // 清理状态
+    isTTSPlaying.value = false
+    
+    console.log(`[TTS播放] 清理状态完成`)
+    
+    // TTS播放完成后，延迟清除字幕
+    setTimeout(() => {
+      if (!isTTSPlaying.value) { // 只有在没有其他播放时才清除
+        voiceResponseText.value = ''
+      }
+    }, 1000)
+  }
+}
+
 // 切换录制状态（点击语音波浪时）
 const toggleVoiceRecording = () => {
+  // 如果正在播放TTS，先停止
+  if (isTTSPlaying.value) {
+    ttsService.stop()
+    isTTSPlaying.value = false
+  }
+  
   if (isRecording.value) {
     stopRecording()
   } else {
@@ -807,6 +1475,13 @@ watch(
 )
 
 const handleSend = async (content: UserMessageContent) => {
+  // 语音模式下不创建传统聊天线程，避免页面跳转
+  if (isVoiceMode.value) {
+    console.log('语音模式下跳过传统聊天线程创建')
+    return
+  }
+  
+  // 非语音模式下的传统处理逻辑
   const threadId = await chatStore.createThread(content.text, {
     providerId: activeModel.value.providerId,
     modelId: activeModel.value.id,
@@ -818,6 +1493,8 @@ const handleSend = async (content: UserMessageContent) => {
   })
   console.log('threadId', threadId, activeModel.value)
   await chatStore.setActiveThread(threadId)
+  
+  // 发送消息
   chatStore.sendMessage(content)
 }
 
@@ -1269,6 +1946,52 @@ const insertExample = (text: string) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+}
+
+/* AI Response Subtitle (字幕) */
+.figma-voice-subtitle {
+  position: absolute;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 90vw;
+  width: auto;
+  z-index: 20;
+  animation: subtitleFadeIn 0.5s ease-out;
+}
+
+@keyframes subtitleFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* 响应式字幕样式 */
+@media (max-width: 768px) {
+  .figma-voice-subtitle {
+    top: -60px;
+    max-width: 95vw;
+  }
+  
+  .figma-voice-subtitle .text-lg {
+    font-size: 1rem;
+    padding: 12px 16px;
+  }
+}
+
+/* Voice conversation history summary */
+.figma-voice-history-summary {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 600px;
+  z-index: 10;
 }
 
 .figma-voice-status-container {

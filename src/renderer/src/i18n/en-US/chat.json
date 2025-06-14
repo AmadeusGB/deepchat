@@ -28,7 +28,13 @@
     "micEnabled": "Microphone Enabled",
     "micDisabled": "Microphone Disabled",
     "clickWaveToRecord": "Click waveform to start recording",
-    "spaceToRecord": "Hold Space to record"
+    "spaceToRecord": "Hold Space to record",
+    "voiceTTSPlaying": "Playing AI response...",
+    "voiceWaitingResponse": "Waiting for AI response...",
+    "voiceAutoMode": "Voice Auto Mode",
+    "voiceTTSError": "TTS Playback Failed",
+    "voiceTTSErrorDesc": "Unable to play response, please check audio settings",
+    "voiceThinking": "AI is thinking..."
   },
   "features": {
     "deepThinking": "Deep Thinking",

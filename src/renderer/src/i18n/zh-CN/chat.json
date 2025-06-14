@@ -28,7 +28,13 @@
     "micEnabled": "麦克风已启用",
     "micDisabled": "麦克风未启用",
     "clickWaveToRecord": "点击波浪开始录音",
-    "spaceToRecord": "按住空格键录音"
+    "spaceToRecord": "按住空格键录音",
+    "voiceTTSPlaying": "正在播报回复...",
+    "voiceWaitingResponse": "等待AI回复...",
+    "voiceAutoMode": "语音自动模式",
+    "voiceTTSError": "语音播报失败",
+    "voiceTTSErrorDesc": "无法播报回复，请检查音频设置",
+    "voiceThinking": "AI正在思考中..."
   },
   "features": {
     "deepThinking": "深度思考",
