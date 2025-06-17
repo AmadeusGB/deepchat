@@ -287,7 +287,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
@@ -385,6 +385,27 @@ const generateSineWave = (waveId: number, amplitude: number, frequency: number, 
 // 语音录制状态
 const isSpacePressed = ref(false)
 
+// 防止重复处理的标记
+const isProcessingVoice = ref(false)
+const lastProcessedTranscription = ref('')
+
+// 组件卸载时清理
+onBeforeUnmount(() => {
+  console.log('[组件生命周期] NewThread组件即将卸载，清理语音相关资源')
+  
+  // 清理语音模式
+  if (isVoiceMode.value) {
+    exitVoiceMode()
+  }
+  
+  // 清理动画
+  stopWaveAnimation()
+  
+  // 确保移除事件监听器
+  document.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('keyup', handleKeyUp)
+})
+
 // 开始正弦波动画
 const startWaveAnimation = () => {
   const animate = () => {
@@ -460,29 +481,51 @@ const stopWaveAnimation = () => {
 
 // 进入语音模式
 const enterVoiceMode = () => {
+  console.log('[语音模式] 🎤 进入语音模式')
+  
+  // 如果已经在语音模式，先退出清理
+  if (isVoiceMode.value) {
+    console.log('[语音模式] ⚠️ 重复进入语音模式，先清理现有状态')
+    exitVoiceMode()
+  }
+  
   isVoiceMode.value = true
   voiceInputText.value = ''
+  
+  // 重置处理标记
+  isProcessingVoice.value = false
+  lastProcessedTranscription.value = ''
   
   // 开始静态波动动画
   startWaveAnimation()
   
+  // 移除可能存在的事件监听器（防止重复）
+  document.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('keyup', handleKeyUp)
+  
   // 添加键盘事件监听
   document.addEventListener('keydown', handleKeyDown)
   document.addEventListener('keyup', handleKeyUp)
+  
+  console.log('[语音模式] ✅ 语音模式初始化完成')
 }
 
 // 退出语音模式
 const exitVoiceMode = () => {
+  console.log('[语音模式] 🔇 退出语音模式')
+  
   isVoiceMode.value = false
   voiceInputText.value = ''
   
   // 停止录音
   if (isRecording.value) {
+    console.log('[语音模式] 停止录音')
     stopRecording()
   }
   
   // 停止TTS播放
   if (isTTSPlaying.value) {
+    console.log('[语音模式] 停止TTS播放')
     ttsService.stop()
     isTTSPlaying.value = false
   }
@@ -490,8 +533,14 @@ const exitVoiceMode = () => {
   // 重置所有状态
   isTranscribing.value = false
   isWaitingResponse.value = false
+  isProcessingVoice.value = false
   lastVoiceResponse.value = ''
   voiceResponseText.value = '' // 清除字幕文本
+  lastProcessedTranscription.value = '' // 清除重复检测缓存
+  
+  // 清空TTS队列
+  ttsQueue.value = []
+  isProcessingTTS.value = false
   
   // 停止正弦波动画
   stopWaveAnimation()
@@ -499,6 +548,8 @@ const exitVoiceMode = () => {
   // 移除键盘事件监听
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('keyup', handleKeyUp)
+  
+  console.log('[语音模式] ✅ 语音模式清理完成')
 }
 
 // 键盘按下事件
@@ -572,7 +623,15 @@ const stopRecording = () => {
 const processVoiceRecording = async () => {
   if (audioChunks.length === 0) return
 
+  // 防止重复处理
+  if (isProcessingVoice.value) {
+    console.log('[语音处理] 🚫 正在处理中，跳过重复处理')
+    return
+  }
+
+  isProcessingVoice.value = true
   isTranscribing.value = true
+  
   try {
     // 创建音频文件
     const audioBlob = new Blob(audioChunks, { type: 'audio/wav' })
@@ -581,12 +640,22 @@ const processVoiceRecording = async () => {
     const transcription = await transcribeAudio(audioBlob)
     
     if (transcription.trim()) {
+      // 检查是否与上次处理的转录相同，防止重复处理
+      const currentTranscription = transcription.trim()
+      if (currentTranscription === lastProcessedTranscription.value) {
+        console.log('[语音处理] 🔄 检测到重复转录内容，跳过处理:', currentTranscription.substring(0, 50) + '...')
+        return
+      }
+      
+      // 记录当前处理的转录
+      lastProcessedTranscription.value = currentTranscription
+      
       // 在语音模式下，直接自动提交消息，不填入输入框
       if (isVoiceMode.value) {
-        await autoSubmitVoiceMessage(transcription.trim())
+        await autoSubmitVoiceMessage(currentTranscription)
       } else {
         // 非语音模式下，将转录结果添加到语音输入框
-        voiceInputText.value = transcription.trim()
+        voiceInputText.value = currentTranscription
       }
     }
   } catch (error) {
@@ -599,6 +668,7 @@ const processVoiceRecording = async () => {
     })
   } finally {
     isTranscribing.value = false
+    isProcessingVoice.value = false
     audioChunks = []
   }
 }
@@ -606,6 +676,11 @@ const processVoiceRecording = async () => {
 // 语音转文字API调用
 const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
   try {
+    // 打印语音识别开始信息
+    console.log('\n[语音识别STT] 开始将用户语音转换为文字')
+    console.log(`音频大小: ${(audioBlob.size / 1024).toFixed(2)} KB`)
+    console.log(`识别开始时间: ${new Date().toLocaleString()}`)
+
     // 创建FormData
     const formData = new FormData()
     formData.append('file', audioBlob, 'audio.wav')
@@ -632,7 +707,16 @@ const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
     }
 
     const result = await response.json()
-    return result.text || ''
+    const transcribedText = result.text || ''
+    
+    // 详细打印语音识别结果
+    console.log('\n[语音识别STT] 用户语音转文字完成')
+    console.log('识别出的用户文字内容:')
+    console.log(transcribedText)
+    console.log(`文字长度: ${transcribedText.length} 字符`)
+    console.log(`识别完成时间: ${new Date().toLocaleString()}`)
+    
+    return transcribedText
   } catch (error) {
     console.error('语音转文字API调用失败:', error)
     throw error
@@ -641,7 +725,21 @@ const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
 
 // 自动提交语音消息并等待回复（语音模式专用，使用传统聊天流程但不显示UI）
 const autoSubmitVoiceMessage = async (text: string) => {
+  // 防止重复提交相同消息
+  if (isWaitingResponse.value) {
+    console.log('[语音消息提交] 🚫 正在等待AI回复中，跳过重复提交')
+    return
+  }
+  
   try {
+    // 详细打印用户语音输入的完整信息
+    console.log('\n[语音消息提交] 用户语音输入自动提交到AI')
+    console.log('用户语音输入的完整文字内容:')
+    console.log(text)
+    console.log(`输入字符数: ${text.length}`)
+    console.log(`提交时间: ${new Date().toLocaleString()}`)
+    console.log(`语音对话历史: 当前已有 ${voiceConversationHistory.value.length} 条记录`)
+    
     // 添加用户消息到语音对话历史
     voiceConversationHistory.value.push({
       type: 'user',
@@ -853,7 +951,7 @@ const sendVoiceMessageWithMCP = async (text: string) => {
                 if (cleanText.length > currentPlayedPosition) {
                   // 获取未播放的部分
                   const unplayedText = cleanText.substring(currentPlayedPosition)
-                  console.log(`[实时语音] 📝 未播放文本长度: ${unplayedText.length}`)
+                  console.log(`[实时语音] 未播放文本长度: ${unplayedText.length}`)
                   
                   // 检查是否有足够的文本可以播放（至少80个字符或遇到强结束符）
                   const shouldPlay = unplayedText.length >= 80 || 
@@ -865,7 +963,7 @@ const sendVoiceMessageWithMCP = async (text: string) => {
                     const textToPlay = smartSplitText(unplayedText, 80)
                     
                     if (textToPlay.trim()) {
-                      console.log(`[实时语音] ✨ 准备播放片段 (${textToPlay.length}字符):`, textToPlay.substring(0, 50) + '...')
+                      console.log(`[实时语音] 准备播放片段 (${textToPlay.length}字符):`, textToPlay.substring(0, 50) + '...')
                       
                       // 更新已播放位置
                       playedContentBlocks.set(blockKey, currentPlayedPosition + textToPlay.length)
@@ -891,8 +989,8 @@ const sendVoiceMessageWithMCP = async (text: string) => {
           
           // 检查是否完成
           if (!workingStatus) {
-            console.log('[实时语音] 🏁 AI回复完成，等待TTS队列播放完成')
-            console.log('[实时语音] 📊 完成时状态:', {
+            console.log('[实时语音] AI回复完成，等待TTS队列播放完成')
+            console.log('[实时语音] 完成时状态:', {
               queueLength: ttsQueue.value.length,
               isProcessing: isProcessingTTS.value,
               isPlaying: isTTSPlaying.value,
@@ -905,7 +1003,7 @@ const sendVoiceMessageWithMCP = async (text: string) => {
             while (ttsQueue.value.length > 0 || isProcessingTTS.value || isTTSPlaying.value) {
               waitCount++
               await new Promise(resolve => setTimeout(resolve, 500))
-              console.log(`[实时语音] ⏳ 等待TTS队列完成 (${waitCount}):`, {
+              console.log(`[实时语音] 等待TTS队列完成 (${waitCount}):`, {
                 剩余: ttsQueue.value.length,
                 处理中: isProcessingTTS.value,
                 播放中: isTTSPlaying.value,
@@ -919,7 +1017,7 @@ const sendVoiceMessageWithMCP = async (text: string) => {
               }
             }
             
-            console.log('[实时语音] ✅ 所有语音播放完成，总等待次数:', waitCount)
+            console.log('[实时语音] 所有语音播放完成，总等待次数:', waitCount)
             isWaitingResponse.value = false
             return
           }
@@ -952,12 +1050,15 @@ const isProcessingTTS = ref(false)
 const playTTSResponse = async (responseText: string) => {
   if (!responseText.trim()) return
   
+  // 简化队列日志
+  console.log(`[TTS队列] 添加文字到播放队列 (${responseText.length}字符)`)
+  
   const textPreview = responseText.substring(0, 50) + (responseText.length > 50 ? '...' : '')
-  console.log('[TTS队列] 📝 添加到队列:', textPreview)
-  console.log('[TTS队列] 📊 队列状态 - 当前长度:', ttsQueue.value.length, '处理中:', isProcessingTTS.value, '播放中:', isTTSPlaying.value)
+  console.log('[TTS队列] 添加到队列:', textPreview)
+  console.log('[TTS队列] 队列状态 - 当前长度:', ttsQueue.value.length, '处理中:', isProcessingTTS.value, '播放中:', isTTSPlaying.value)
   
   ttsQueue.value.push(responseText)
-  console.log('[TTS队列] 📝 添加完成，新长度:', ttsQueue.value.length)
+  console.log('[TTS队列] 添加完成，新长度:', ttsQueue.value.length)
   
   // 开始处理队列
   processTTSQueue()
@@ -1153,8 +1254,9 @@ function splitByCharacters(text: string, maxLength: number): string[] {
 
 // 播放TTS响应（直接播放）
 async function playTTSResponseDirect(text: string) {
-  console.log(`[TTS播放] 开始播放: ${text}`)
-  
+  // 只保留最简单的开始信息，详细信息由ttsService打印
+  console.log(`[TTS播放] 开始播放文字 (${text.length}字符)`)
+
   try {
     // 设置播放状态
     isTTSPlaying.value = true
@@ -1181,7 +1283,8 @@ async function playTTSResponseDirect(text: string) {
       
       for (let i = 0; i < segments.length; i++) {
         const segment = segments[i]
-        console.log(`[TTS播放] 播放第${i + 1}/${segments.length}段: ${segment.substring(0, 50)}...`)
+        
+        console.log(`[TTS分段播放] 播放第${i + 1}/${segments.length}段 (${segment.length}字符)`)
         
         try {
           // 增加超时时间，适应更大的分段
@@ -1198,6 +1301,8 @@ async function playTTSResponseDirect(text: string) {
         }
       }
     } else {
+      console.log(`[TTS短文本播放] 直接播放 (${text.length}字符)`)
+      
       // 短文本直接播放
       try {
         await Promise.race([

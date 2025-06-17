@@ -16,6 +16,11 @@ export class TTSService {
    * 使用GPT TTS API进行语音合成（带重试机制）
    */
   async playWithGPTTTS(text: string, options: TTSOptions = {}): Promise<void> {
+    // 打印TTS文字内容
+    console.log('\n[TTS文字转语音] 开始播放:')
+    console.log(text)
+    console.log(`[字符数: ${text.length}] [语言: ${this.detectLanguage(text) === 'zh' ? '中文' : '英文'}] [时间: ${new Date().toLocaleString()}]`)
+    
     // 使用队列确保请求按顺序执行，避免并发问题
     this.requestQueue = this.requestQueue.then(() => this.playWithGPTTTSInternal(text, options))
     return this.requestQueue
@@ -54,38 +59,31 @@ export class TTSService {
    * 单次TTS尝试
    */
   private async attemptGPTTTS(text: string, options: TTSOptions, attempt: number): Promise<void> {
-    const startTime = Date.now()
-    console.log(`[TTS服务] 🎵 开始GPT TTS播放 (尝试${attempt}): ${text.substring(0, 50)}...`)
-    console.log(`[TTS服务] 📊 当前状态 - isPlaying: ${this.isPlaying} currentAudio: ${!!this.currentAudio}`)
+    // 简化日志输出
+    if (attempt === 1) {
+      console.log(`[TTS服务] 开始播放 (${text.length}字符)`)
+    } else {
+      console.log(`[TTS服务] 重试第${attempt}次`)
+    }
 
     // 优化超时时间：基础20秒 + 每100字符增加8秒，最大90秒
     const baseTimeout = 20000
     const extraTimeout = Math.ceil(text.length / 100) * 8000
     const dynamicTimeout = Math.max(baseTimeout, Math.min(baseTimeout + extraTimeout, 90000))
-    
-    console.log(`[TTS服务] ⏰ 文本长度: ${text.length} 字符，尝试${attempt}，设置超时: ${dynamicTimeout/1000}秒`)
 
-    console.log(`[TTS服务] 🔑 获取OpenAI配置...`)
     const openaiProvider = await this.configPresenter.getProviderById('openai')
     
     if (!openaiProvider || !openaiProvider.apiKey) {
       throw new Error('OpenAI配置未找到或API密钥缺失')
     }
-
-    console.log(`[TTS服务] ✅ OpenAI配置已找到，开始调用API`)
     
     const language = this.detectLanguage(text)
     const voice = language === 'zh' ? 'alloy' : 'nova'
-    console.log(`[TTS服务] 🌐 语言检测结果: ${language} 选择语音: ${voice}`)
-    
-    console.log(`[TTS服务] 📡 发送API请求...`)
-    const apiStartTime = Date.now()
     
     // 根据尝试次数调整API超时时间
     const apiTimeout = 10000 + (attempt - 1) * 5000 // 每次重试增加5秒
     const controller = new AbortController()
     const timeoutId = setTimeout(() => {
-      console.warn(`[TTS服务] ⏰ API请求超时 (${apiTimeout}ms)，中止请求`)
       controller.abort()
     }, apiTimeout)
     
@@ -106,17 +104,13 @@ export class TTSService {
       })
 
       clearTimeout(timeoutId)
-      const apiDuration = Date.now() - apiStartTime
-      console.log(`[TTS服务] 📡 API响应状态: ${response.status} 耗时: ${apiDuration}ms`)
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error')
         throw new Error(`TTS API请求失败: ${response.status} - ${errorText}`)
       }
 
-      console.log(`[TTS服务] 📥 获取音频数据...`)
       const audioBuffer = await response.arrayBuffer()
-      console.log(`[TTS服务] 📥 音频数据大小: ${audioBuffer.byteLength} bytes`)
 
       if (audioBuffer.byteLength === 0) {
         throw new Error('收到空的音频数据')
@@ -124,14 +118,10 @@ export class TTSService {
 
       const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' })
       const audioUrl = URL.createObjectURL(audioBlob)
-      console.log(`[TTS服务] 🎵 创建音频URL: ${audioUrl}`)
-      console.log(`[TTS服务] 🎵 开始播放音频，API总耗时: ${Date.now() - startTime}ms`)
 
       await this.playAudioFromUrl(audioUrl, dynamicTimeout)
-      console.log(`[TTS服务] ✅ 音频播放完成，总耗时: ${Date.now() - startTime}ms`)
       
       URL.revokeObjectURL(audioUrl)
-      console.log(`[TTS服务] 🧹 URL已清理`)
     } catch (fetchError) {
       clearTimeout(timeoutId)
       throw fetchError
@@ -142,7 +132,10 @@ export class TTSService {
    * 使用浏览器原生SpeechSynthesis API
    */
   async playWithBrowserTTS(text: string, options: TTSOptions = {}): Promise<void> {
-    console.log(`[TTS服务] 开始浏览器TTS播放: ${text}`)
+    // 打印TTS文字内容
+    console.log('\n[TTS文字转语音-浏览器] 开始播放:')
+    console.log(text)
+    console.log(`[字符数: ${text.length}] [语言: ${this.detectLanguage(text) === 'zh' ? '中文' : '英文'}] [时间: ${new Date().toLocaleString()}]`)
     
     return new Promise((resolve, reject) => {
       if (!('speechSynthesis' in window)) {
@@ -222,16 +215,13 @@ export class TTSService {
    */
   private async playAudioFromUrl(url: string, timeout: number): Promise<void> {
     const playStartTime = Date.now()
-    console.log(`[TTS服务] 🎧 创建音频对象，URL: ${url}`)
-    console.log(`[TTS服务] 🎧 播放前状态 - isPlaying: ${this.isPlaying} currentAudio: ${!!this.currentAudio}`)
     
     return new Promise((resolve, reject) => {
       this.currentAudio = new Audio(url)
-      console.log(`[TTS服务] 🎧 音频对象已创建`)
       
       // 添加超时机制，防止音频播放卡住
       const timeoutHandle = setTimeout(() => {
-        console.error(`[TTS服务] ⏰ 音频播放超时 (${timeout/1000}秒)`)
+        console.error(`[TTS服务] 音频播放超时 (${timeout/1000}秒)`)
         this.isPlaying = false
         if (this.currentAudio) {
           this.currentAudio.pause()
@@ -242,85 +232,41 @@ export class TTSService {
       
       const cleanup = () => {
         const playDuration = Date.now() - playStartTime
-        console.log(`[TTS服务] 🧹 清理音频资源，播放耗时: ${playDuration}ms`)
+        console.log(`[TTS服务] 清理音频资源，播放耗时: ${playDuration}ms`)
+        
+        // 添加播放完成的详细信息
+        console.log(`[TTS播放完成] 耗时: ${(playDuration/1000).toFixed(2)}秒 完成时间: ${new Date().toLocaleString()}`)
+        
         clearTimeout(timeoutHandle)
         this.isPlaying = false
         this.currentAudio = null
       }
       
-      this.currentAudio.onloadstart = () => {
-        console.log(`[TTS服务] 📡 开始加载音频`)
-      }
-
       this.currentAudio.onloadeddata = () => {
-        const loadDuration = Date.now() - playStartTime
-        console.log(`[TTS服务] 📥 音频数据加载完成，耗时: ${loadDuration}ms`)
-        console.log(`[TTS服务] 🎵 设置播放状态并开始播放`)
         this.isPlaying = true
         this.currentAudio!.play().then(() => {
-          console.log(`[TTS服务] ✅ 音频播放开始成功`)
+          // 播放开始成功
         }).catch((error) => {
-          console.error(`[TTS服务] ❌ 音频播放开始失败:`, error)
+          console.error(`[TTS服务] 音频播放开始失败:`, error)
           cleanup()
           reject(error)
         })
       }
 
-      this.currentAudio.oncanplay = () => {
-        console.log(`[TTS服务] 🎵 音频可以播放`)
-      }
-
-      this.currentAudio.onplaying = () => {
-        console.log(`[TTS服务] 🎵 音频正在播放`)
-      }
-
       this.currentAudio.onended = () => {
-        const playDuration = Date.now() - playStartTime
-        console.log(`[TTS服务] 🏁 音频播放结束，总耗时: ${playDuration}ms`)
         cleanup()
         resolve()
       }
 
       this.currentAudio.onerror = (event) => {
-        console.error(`[TTS服务] ❌ 音频播放错误:`, event)
-        console.error(`[TTS服务] ❌ 音频对象状态:`, {
-          readyState: this.currentAudio?.readyState,
-          networkState: this.currentAudio?.networkState,
-          src: this.currentAudio?.src
-        })
+        console.error(`[TTS服务] 音频播放错误:`, event)
         cleanup()
         reject(new Error('音频播放失败'))
       }
 
       this.currentAudio.onabort = () => {
-        console.log(`[TTS服务] 🛑 音频播放被中止`)
         cleanup()
         resolve() // 中止不算错误，正常结束
-      }
-
-      this.currentAudio.onstalled = () => {
-        console.warn(`[TTS服务] ⚠️ 音频播放停滞`)
-      }
-
-      this.currentAudio.onwaiting = () => {
-        console.log(`[TTS服务] ⏳ 音频播放等待数据`)
-      }
-
-      this.currentAudio.onsuspend = () => {
-        console.log(`[TTS服务] ⏸️ 音频播放暂停`)
-      }
-
-      this.currentAudio.onpause = () => {
-        console.log(`[TTS服务] ⏸️ 音频播放已暂停`)
-      }
-
-      this.currentAudio.ontimeupdate = () => {
-        if (this.currentAudio) {
-          const progress = (this.currentAudio.currentTime / this.currentAudio.duration * 100).toFixed(1)
-          console.log(`[TTS服务] 📊 播放进度: ${progress}%`, 
-                     `当前时间: ${this.currentAudio.currentTime.toFixed(1)}s`,
-                     `总时长: ${this.currentAudio.duration?.toFixed(1)}s`)
-        }
       }
     })
   }
