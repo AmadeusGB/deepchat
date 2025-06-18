@@ -28,17 +28,36 @@ export class ParallelTtsService {
   private nextPosition = 0
   private activeRequests = 0
   
+  // Web Audio API 相关属性
+  private audioContext: AudioContext | null = null
+  private nextPlayTime = 0 // 下一个音频片段的开始时间
+  private currentSourceNodes: AudioBufferSourceNode[] = []
+
   private config: TtsConfig = {
-    maxConcurrent: 8, // 增加并发数
-    chunkSize: { min: 300, max: 600 }, // 更大的块
+    maxConcurrent: 3,
+    chunkSize: { min: 100, max: 300 },
     maxRetries: 2,
-    timeoutMs: 20000,
+    timeoutMs: 15000,
     enablePreloading: true
   }
 
   constructor(customConfig?: Partial<TtsConfig>) {
     if (customConfig) {
       this.config = { ...this.config, ...customConfig }
+    }
+    
+    // 初始化Web Audio API
+    this.initAudioContext()
+  }
+
+  // 初始化音频上下文
+  private initAudioContext(): void {
+    try {
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      this.audioContext = new AudioContextClass()
+    } catch {
+      console.warn('[并行TTS] Web Audio API 不支持，回退到HTMLAudioElement')
+      this.audioContext = null
     }
   }
 
@@ -251,6 +270,87 @@ export class ParallelTtsService {
 
   // 播放单个块
   private async playChunk(chunk: AudioChunk): Promise<void> {
+    if (!chunk.audioBlob) {
+      throw new Error('音频数据不存在')
+    }
+
+    console.log(`[并行TTS] 开始播放块 ${chunk.position}: ${chunk.text.length}字符`)
+    chunk.status = 'playing'
+
+    // 优先使用Web Audio API实现无缝播放
+    if (this.audioContext) {
+      return this.playChunkWithWebAudio(chunk)
+    } else {
+      // 回退到HTMLAudioElement
+      return this.playChunkWithHTMLAudio(chunk)
+    }
+  }
+
+  // 使用Web Audio API播放音频（无缝衔接）
+  private async playChunkWithWebAudio(chunk: AudioChunk): Promise<void> {
+    try {
+      if (!this.audioContext || !chunk.audioBlob) {
+        throw new Error('AudioContext或音频数据不存在')
+      }
+
+      // 将Blob转换为AudioBuffer
+      const audioBuffer = await this.blobToAudioBuffer(chunk.audioBlob)
+      
+      return new Promise((resolve, reject) => {
+        if (!this.audioContext) {
+          reject(new Error('AudioContext不存在'))
+          return
+        }
+
+        // 创建音频源节点
+        const sourceNode = this.audioContext.createBufferSource()
+        sourceNode.buffer = audioBuffer
+        sourceNode.connect(this.audioContext.destination)
+
+        // 计算播放时间
+        const currentTime = this.audioContext.currentTime
+        const startTime = Math.max(currentTime, this.nextPlayTime)
+        
+        // 更新下次播放时间
+        this.nextPlayTime = startTime + audioBuffer.duration
+        
+        console.log(`[并行TTS] 无缝播放块 ${chunk.position}: 开始时间=${startTime.toFixed(3)}s, 时长=${audioBuffer.duration.toFixed(3)}s`)
+
+        // 播放结束回调
+        sourceNode.onended = () => {
+          console.log(`[并行TTS] 块 ${chunk.position} 播放完成`)
+          const index = this.currentSourceNodes.indexOf(sourceNode)
+          if (index > -1) {
+            this.currentSourceNodes.splice(index, 1)
+          }
+          resolve()
+        }
+
+        // 记录当前播放的节点
+        this.currentSourceNodes.push(sourceNode)
+        
+        // 开始播放
+        sourceNode.start(startTime)
+      })
+
+    } catch (error) {
+      console.error(`[并行TTS] Web Audio播放块 ${chunk.position} 失败:`, error)
+      throw error
+    }
+  }
+
+  // 将Blob转换为AudioBuffer
+  private async blobToAudioBuffer(blob: Blob): Promise<AudioBuffer> {
+    if (!this.audioContext) {
+      throw new Error('AudioContext未初始化')
+    }
+
+    const arrayBuffer = await blob.arrayBuffer()
+    return await this.audioContext.decodeAudioData(arrayBuffer)
+  }
+
+  // 使用HTMLAudioElement播放音频（回退方案）
+  private async playChunkWithHTMLAudio(chunk: AudioChunk): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!chunk.audioBlob) {
         reject(new Error('音频数据不存在'))
@@ -260,7 +360,6 @@ export class ParallelTtsService {
       const audioUrl = URL.createObjectURL(chunk.audioBlob)
       const audio = new Audio(audioUrl)
       
-      chunk.status = 'playing'
       this.currentAudio = audio
 
       audio.onended = () => {
@@ -277,17 +376,31 @@ export class ParallelTtsService {
         reject(error)
       }
 
-      console.log(`[并行TTS] 开始播放块 ${chunk.position}: ${chunk.text.length}字符`)
       audio.play().catch(reject)
     })
   }
 
   // 停止播放
   stop(): void {
+    // 停止HTMLAudioElement
     if (this.currentAudio) {
       this.currentAudio.pause()
       this.currentAudio = null
     }
+    
+    // 停止所有Web Audio API源节点
+    this.currentSourceNodes.forEach(sourceNode => {
+      try {
+        sourceNode.stop()
+        sourceNode.disconnect()
+      } catch {
+        // 忽略已经停止的节点错误
+      }
+    })
+    this.currentSourceNodes.length = 0
+    
+    // 重置播放时间
+    this.nextPlayTime = 0
     
     this.isPlaying = false
     this.playQueue.length = 0
