@@ -283,6 +283,9 @@
         </div>
       </div>
     </div>
+    
+    <!-- 并行TTS监控组件 -->
+    <ParallelTtsMonitor />
   </div>
 </template>
 
@@ -306,10 +309,14 @@ import { usePresenter } from '@/composables/usePresenter'
 import { useEventListener } from '@vueuse/core'
 import { useThemeStore } from '@/stores/theme'
 import { ttsService } from '@/lib/ttsService'
+import { parallelTtsService } from '@/lib/parallelTtsService'
 import { useToast } from '@/components/ui/toast/use-toast'
+import { useTtsOptimizer } from '@/composables/useTtsOptimizer'
+import ParallelTtsMonitor from './ParallelTtsMonitor.vue'
 
 const configPresenter = usePresenter('configPresenter')
 const themeStore = useThemeStore()
+const ttsOptimizer = useTtsOptimizer()
 
 // 定义偏好模型的类型
 interface PreferredModel {
@@ -538,9 +545,9 @@ const exitVoiceMode = () => {
   voiceResponseText.value = '' // 清除字幕文本
   lastProcessedTranscription.value = '' // 清除重复检测缓存
   
-  // 清空TTS队列
-  ttsQueue.value = []
-  isProcessingTTS.value = false
+      // 停止并行TTS服务
+    parallelTtsService.stop()
+    isParallelTTSActive.value = false
   
   // 停止正弦波动画
   stopWaveAnimation()
@@ -799,11 +806,17 @@ const extractPlainTextFromContent = (content: string): string => {
   return cleanText
 }
 
-// 智能分割文本，优先按句子分割，确保完整句子播放
-const smartSplitText = (text: string, minLength: number = 80): string => {
-  if (!text || text.length < minLength) return text
+// 智能分割文本，优化大块处理以减少TTS开销
+const smartSplitText = (text: string, minLength: number = 200): string => {
+  if (!text || text.length < 50) return text
   
   console.log(`[智能分割] 处理文本长度: ${text.length}，最小长度: ${minLength}`)
+  
+  // 如果文本长度小于最小长度的一半，直接返回（避免过小片段）
+  if (text.length < minLength / 2) {
+    console.log(`[智能分割] 文本过短，直接返回: ${text.length}字符`)
+    return text
+  }
   
   // 按句子分割，保留标点符号
   const sentences = text.split(/([。！？；.!?;])/)
@@ -817,9 +830,9 @@ const smartSplitText = (text: string, minLength: number = 80): string => {
     
     console.log(`[智能分割] 检查句子: "${fullSentence.substring(0, 20)}..." (${fullSentence.length}字符)`)
     
-    // 如果已经有内容且加上新句子会超过合理长度，就停止
+    // 如果已经有内容且加上新句子会超过理想长度，就停止
     if (result && currentLength + fullSentence.length > minLength * 2) {
-      console.log(`[智能分割] 达到合理长度，停止添加`)
+      console.log(`[智能分割] 达到理想长度，停止添加`)
       break
     }
     
@@ -829,8 +842,7 @@ const smartSplitText = (text: string, minLength: number = 80): string => {
     console.log(`[智能分割] 添加句子，当前长度: ${currentLength}`)
     
     // 如果遇到强结束符且长度足够，可以结束
-    if (/[。！？；.!?;]/
-        .test(punctuation) && currentLength >= minLength) {
+    if (/[。！？；.!?;]/.test(punctuation) && currentLength >= minLength) {
       console.log(`[智能分割] 遇到强结束符且长度足够，结束分割`)
       break
     }
@@ -921,8 +933,8 @@ const sendVoiceMessageWithMCP = async (text: string) => {
             messagesCount: messages.length,
             workingStatus,
             contentBlocks: Array.isArray(assistantContent) ? assistantContent.length : 0,
-            queueLength: ttsQueue.value.length,
-            isProcessing: isProcessingTTS.value,
+            queueLength: parallelTtsService.getStatus().queueLength,
+            isProcessing: parallelTtsService.getStatus().processingChunks > 0,
             isPlaying: isTTSPlaying.value
           })
           
@@ -953,14 +965,17 @@ const sendVoiceMessageWithMCP = async (text: string) => {
                   const unplayedText = cleanText.substring(currentPlayedPosition)
                   console.log(`[实时语音] 未播放文本长度: ${unplayedText.length}`)
                   
-                  // 检查是否有足够的文本可以播放（至少80个字符或遇到强结束符）
-                  const shouldPlay = unplayedText.length >= 80 || 
-                                   /[。！？.!?]/.test(unplayedText) ||
-                                   block.status === 'success' // 如果块已完成，播放剩余内容
+                  // 检查是否有足够的文本可以播放（进一步优化大块处理）
+                  const hasStrongEnding = /[。！？.!?]/.test(unplayedText)
+                  const isBlockComplete = block.status === 'success'
+                  const hasMinimumLength = unplayedText.length >= 200 // 进一步增加最小长度
+                  const hasReasonableLength = unplayedText.length >= 100 && hasStrongEnding
+                  
+                  const shouldPlay = hasMinimumLength || hasReasonableLength || isBlockComplete
                   
                   if (shouldPlay) {
-                    // 使用智能分割函数获取要播放的文本
-                    const textToPlay = smartSplitText(unplayedText, 80)
+                    // 使用智能分割函数获取要播放的文本（更大的块）
+                    const textToPlay = smartSplitText(unplayedText, 200)
                     
                     if (textToPlay.trim()) {
                       console.log(`[实时语音] 准备播放片段 (${textToPlay.length}字符):`, textToPlay.substring(0, 50) + '...')
@@ -968,8 +983,8 @@ const sendVoiceMessageWithMCP = async (text: string) => {
                       // 更新已播放位置
                       playedContentBlocks.set(blockKey, currentPlayedPosition + textToPlay.length)
                       
-                      // 立即播放这段内容
-                      await playTTSResponse(textToPlay.trim())
+                      // 使用并行TTS服务播放
+                      await playTTSWithParallelService(textToPlay.trim())
                     }
                   }
                 }
@@ -989,26 +1004,36 @@ const sendVoiceMessageWithMCP = async (text: string) => {
           
           // 检查是否完成
           if (!workingStatus) {
-            console.log('[实时语音] AI回复完成，等待TTS队列播放完成')
+            console.log('[实时语音] AI回复完成，等待并行TTS播放完成')
+            const status = parallelTtsService.getStatus()
             console.log('[实时语音] 完成时状态:', {
-              queueLength: ttsQueue.value.length,
-              isProcessing: isProcessingTTS.value,
-              isPlaying: isTTSPlaying.value,
+              queueLength: status.queueLength,
+              processingChunks: status.processingChunks,
+              readyChunks: status.readyChunks,
+              isPlaying: status.isPlaying,
               playedBlocks: playedContentBlocks.size
             })
             isStreamCompleted = true
             
-            // 等待TTS队列播放完成
+            // 等待并行TTS完成
             let waitCount = 0
-            while (ttsQueue.value.length > 0 || isProcessingTTS.value || isTTSPlaying.value) {
+            while (isParallelTTSActive.value || isTTSPlaying.value) {
               waitCount++
               await new Promise(resolve => setTimeout(resolve, 500))
-              console.log(`[实时语音] 等待TTS队列完成 (${waitCount}):`, {
-                剩余: ttsQueue.value.length,
-                处理中: isProcessingTTS.value,
-                播放中: isTTSPlaying.value,
+              
+              const status = parallelTtsService.getStatus()
+              console.log(`[实时语音] 等待并行TTS完成 (${waitCount}):`, {
+                队列剩余: status.queueLength,
+                处理中: status.processingChunks,
+                就绪: status.readyChunks,
+                播放中: status.isPlaying,
                 等待时间: waitCount * 0.5 + 's'
               })
+              
+              // 更新状态
+              if (status.queueLength === 0 && !status.isPlaying) {
+                isParallelTTSActive.value = false
+              }
               
               // 防止无限等待
               if (waitCount > 240) { // 2分钟超时
@@ -1042,308 +1067,38 @@ const sendVoiceMessageWithMCP = async (text: string) => {
   }
 }
 
-// TTS播放队列
-const ttsQueue = ref<string[]>([])
-const isProcessingTTS = ref(false)
+// 并行TTS服务状态
+const isParallelTTSActive = ref(false)
 
-// 添加到TTS队列
-const playTTSResponse = async (responseText: string) => {
+// 使用并行TTS服务播放
+const playTTSWithParallelService = async (responseText: string) => {
   if (!responseText.trim()) return
   
-  // 简化队列日志
-  console.log(`[TTS队列] 添加文字到播放队列 (${responseText.length}字符)`)
+  console.log(`[并行TTS] 添加文字到播放队列 (${responseText.length}字符)`)
   
-  const textPreview = responseText.substring(0, 50) + (responseText.length > 50 ? '...' : '')
-  console.log('[TTS队列] 添加到队列:', textPreview)
-  console.log('[TTS队列] 队列状态 - 当前长度:', ttsQueue.value.length, '处理中:', isProcessingTTS.value, '播放中:', isTTSPlaying.value)
-  
-  ttsQueue.value.push(responseText)
-  console.log('[TTS队列] 添加完成，新长度:', ttsQueue.value.length)
-  
-  // 开始处理队列
-  processTTSQueue()
-}
-
-// 处理TTS队列
-const processTTSQueue = async () => {
-  if (isProcessingTTS.value || ttsQueue.value.length === 0) {
-    return
-  }
-  
-  isProcessingTTS.value = true
-  console.log('[TTS队列] 开始处理队列，剩余:', ttsQueue.value.length)
-  
-  while (ttsQueue.value.length > 0) {
-    const text = ttsQueue.value.shift()!
-    const textPreview = text.substring(0, 50) + (text.length > 50 ? '...' : '')
-    console.log('[TTS队列] 处理下一个项目:', textPreview)
-    
-    try {
-      await playTTSResponseDirect(text)
-      console.log('[TTS队列] 项目处理完成，剩余:', ttsQueue.value.length)
-    } catch (error) {
-      console.error('[TTS队列] 项目处理失败:', error)
-      // 继续处理下一个项目
-    }
-  }
-  
-  console.log('[TTS队列] 所有项目处理完成')
-  isProcessingTTS.value = false
-  
-  console.log('[TTS队列] 队列处理结束')
-}
-
-// 分割长文本为较短的段落
-function splitLongText(text: string, minLength: number = 100, maxLength: number = 400): string[] {
-  if (text.length <= maxLength) {
-    return [text]
-  }
-  
-  console.log(`[智能分段] 开始分段，文本长度: ${text.length}，最小: ${minLength}，最大: ${maxLength}`)
-  
-  const segments: string[] = []
-  
-  // 定义句子结束标点符号（中英文）
-  const sentenceEnders = /[。！？；.!?;]/
-  const strongEnders = /[。！？.!?]/  // 强结束符
-  
-  // 按句子分割，保留标点符号
-  const sentences = text.split(/(。|！|？|；|\.|!|\?|;)/).filter(part => part.trim())
-  
-  let currentSegment = ''
-  let i = 0
-  
-  while (i < sentences.length) {
-    const sentence = sentences[i]
-    const punctuation = sentences[i + 1] || ''
-    
-    // 构建完整句子
-    let fullSentence = sentence
-    if (punctuation && sentenceEnders.test(punctuation)) {
-      fullSentence += punctuation
-      i += 2 // 跳过标点符号
-    } else {
-      i += 1
-    }
-    
-    // 检查添加这个句子后的长度
-    const potentialSegment = currentSegment + fullSentence
-    
-    console.log(`[智能分段] 处理句子: "${fullSentence.substring(0, 30)}..." (${fullSentence.length}字符)`)
-    console.log(`[智能分段] 当前段落: ${currentSegment.length}字符，潜在长度: ${potentialSegment.length}字符`)
-    
-    if (potentialSegment.length <= maxLength) {
-      // 可以添加到当前段落
-      currentSegment = potentialSegment
-      console.log(`[智能分段] 添加到当前段落，新长度: ${currentSegment.length}`)
-      
-      // 如果遇到强结束符且长度足够，可以考虑分段
-      if (strongEnders.test(punctuation) && currentSegment.length >= minLength) {
-        // 检查下一个句子，如果加上会超长，就在这里分段
-        const nextSentence = sentences[i] || ''
-        const nextPunctuation = sentences[i + 1] || ''
-        const nextFullSentence = nextSentence + (sentenceEnders.test(nextPunctuation) ? nextPunctuation : '')
-        
-        if (currentSegment.length + nextFullSentence.length > maxLength) {
-          console.log(`[智能分段] 在强结束符处分段，段落长度: ${currentSegment.length}`)
-          segments.push(currentSegment.trim())
-          currentSegment = ''
-        }
-      }
-    } else {
-      // 添加会超长
-      if (currentSegment.length >= minLength) {
-        // 当前段落已经足够长，保存并开始新段落
-        console.log(`[智能分段] 段落已满，保存段落: ${currentSegment.length}字符`)
-        segments.push(currentSegment.trim())
-        currentSegment = fullSentence
-      } else if (fullSentence.length > maxLength) {
-        // 单个句子太长，需要特殊处理
-        console.log(`[智能分段] 单句过长(${fullSentence.length}字符)，需要特殊分割`)
-        
-        // 先保存当前段落（如果有）
-        if (currentSegment.trim()) {
-          segments.push(currentSegment.trim())
-        }
-        
-        // 对超长句子进行智能分割
-        const longSentenceParts = splitLongSentence(fullSentence, maxLength)
-        segments.push(...longSentenceParts)
-        currentSegment = ''
-      } else {
-        // 当前段落太短，但加上新句子会超长，强制添加
-        currentSegment = potentialSegment
-        console.log(`[智能分段] 强制添加句子，段落长度: ${currentSegment.length}`)
-      }
-    }
-  }
-  
-  // 添加最后的段落
-  if (currentSegment.trim()) {
-    console.log(`[智能分段] 添加最后段落: ${currentSegment.length}字符`)
-    segments.push(currentSegment.trim())
-  }
-  
-  // 过滤空段落并记录结果
-  const finalSegments = segments.filter(seg => seg.trim().length > 0)
-  console.log(`[智能分段] 分段完成，共${finalSegments.length}段:`)
-  finalSegments.forEach((seg, idx) => {
-    console.log(`[智能分段] 段落${idx + 1}: ${seg.length}字符 - "${seg.substring(0, 50)}..."`)
-  })
-  
-  return finalSegments
-}
-
-// 分割超长单句
-function splitLongSentence(sentence: string, maxLength: number): string[] {
-  console.log(`[超长句子分割] 处理长度: ${sentence.length}，最大: ${maxLength}`)
-  
-  const parts: string[] = []
-  
-  // 尝试按逗号、分号等弱标点分割
-  const weakPunctuations = /[，,、；;：:]/
-  const weakParts = sentence.split(/(，|,|、|；|;|：|:)/).filter(part => part.trim())
-  
-  let currentPart = ''
-  let i = 0
-  
-  while (i < weakParts.length) {
-    const part = weakParts[i]
-    const punctuation = weakParts[i + 1] || ''
-    
-    const fullPart = part + (weakPunctuations.test(punctuation) ? punctuation : '')
-    const potentialPart = currentPart + fullPart
-    
-    if (potentialPart.length <= maxLength) {
-      currentPart = potentialPart
-      i += weakPunctuations.test(punctuation) ? 2 : 1
-    } else {
-      if (currentPart) {
-        parts.push(currentPart.trim())
-        currentPart = fullPart
-      } else {
-        // 连一个小部分都太长，按字符强制分割
-        const charParts = splitByCharacters(fullPart, maxLength)
-        parts.push(...charParts)
-        currentPart = ''
-      }
-      i += weakPunctuations.test(punctuation) ? 2 : 1
-    }
-  }
-  
-  if (currentPart.trim()) {
-    parts.push(currentPart.trim())
-  }
-  
-  console.log(`[超长句子分割] 分割为${parts.length}部分`)
-  return parts.filter(part => part.trim().length > 0)
-}
-
-// 按字符强制分割（最后手段）
-function splitByCharacters(text: string, maxLength: number): string[] {
-  console.log(`[字符分割] 强制分割，长度: ${text.length}`)
-  const parts: string[] = []
-  
-  for (let i = 0; i < text.length; i += maxLength) {
-    const part = text.substring(i, i + maxLength)
-    parts.push(part)
-  }
-  
-  return parts
-}
-
-// 播放TTS响应（直接播放）
-async function playTTSResponseDirect(text: string) {
-  // 只保留最简单的开始信息，详细信息由ttsService打印
-  console.log(`[TTS播放] 开始播放文字 (${text.length}字符)`)
-
   try {
-    // 设置播放状态
-    isTTSPlaying.value = true
-    lastVoiceResponse.value = text
-    voiceResponseText.value = text // 设置字幕文本
+    // 直接添加到并行TTS服务
+    await parallelTtsService.addText(responseText)
     
-    console.log(`[TTS播放] 设置状态完成，开始添加到历史记录`)
+    // 更新状态
+    isParallelTTSActive.value = true
     
-    // 添加AI回复到语音对话历史
-    voiceConversationHistory.value.push({
-      type: 'assistant',
-      text: text,
-      timestamp: Date.now(),
-      summary: text.length > 50 ? text.substring(0, 50) + '...' : text
-    })
+    // 更新优化器状态
+    const status = parallelTtsService.getStatus()
+    ttsOptimizer.updateQueueLength(status.queueLength)
     
-    console.log(`[TTS播放] 开始调用TTS服务`)
-    
-    // 检查文本长度，如果太长则分段处理
-    if (text.length > 400) {
-      console.log(`[TTS播放] 文本较长(${text.length}字符)，进行分段处理`)
-      const segments = splitLongText(text, 120, 400) // 最小120字符，最大400字符
-      console.log(`[TTS播放] 分割为${segments.length}段`)
-      
-      for (let i = 0; i < segments.length; i++) {
-        const segment = segments[i]
-        
-        console.log(`[TTS分段播放] 播放第${i + 1}/${segments.length}段 (${segment.length}字符)`)
-        
-        try {
-          // 增加超时时间，适应更大的分段
-          await Promise.race([
-            ttsService.playWithGPTTTS(segment),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('TTS播放超时')), 45000) // 增加到45秒
-            )
-          ])
-          console.log(`[TTS播放] 第${i + 1}段播放完成`)
-        } catch (error) {
-          console.error(`[TTS播放] 第${i + 1}段播放失败:`, error)
-          // 继续播放下一段，不中断整个流程
-        }
-      }
-    } else {
-      console.log(`[TTS短文本播放] 直接播放 (${text.length}字符)`)
-      
-      // 短文本直接播放
-      try {
-        await Promise.race([
-          ttsService.playWithGPTTTS(text),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('TTS播放超时')), 30000) // 增加到30秒
-          )
-        ])
-      } catch (error) {
-        console.error(`[TTS播放] 短文本播放失败:`, error)
-        // 静默失败，不显示错误提示
-      }
-    }
-    
-    console.log(`[TTS播放] TTS播放完成`)
+    console.log(`[并行TTS] 文字已添加到并行处理队列`)
   } catch (error) {
-    console.error(`[TTS播放] TTS播放失败:`, error)
-    
-    // 停止TTS播放
-    try {
-      ttsService.stop()
-    } catch (stopError) {
-      console.error(`[TTS播放] 停止TTS失败:`, stopError)
-    }
-    
-    // 移除错误提示，静默失败
-    console.log(`[TTS播放] TTS失败，静默处理`)
-  } finally {
-    // 清理状态
-    isTTSPlaying.value = false
-    
-    console.log(`[TTS播放] 清理状态完成`)
-    
-    // TTS播放完成后，延迟清除字幕
-    setTimeout(() => {
-      if (!isTTSPlaying.value) { // 只有在没有其他播放时才清除
-        voiceResponseText.value = ''
-      }
-    }, 1000)
+    console.error('[并行TTS] 添加文字失败:', error)
+    throw error
   }
 }
+
+// 旧的TTS队列处理已被并行TTS服务替代
+
+// 旧的文本分割函数已被并行TTS服务的智能分块替代
+
+// 旧的直接TTS播放函数已被并行TTS服务替代
 
 // 切换录制状态（点击语音波浪时）
 const toggleVoiceRecording = () => {

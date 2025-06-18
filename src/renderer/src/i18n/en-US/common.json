@@ -39,6 +39,8 @@
     "error502": "Gateway error, the service might be unstable, please try again later",
     "error503": "Service unavailable, the service might be unstable, please try again later",
     "error504": "Request timeout, the service might be unstable or there might be network issues, please check proxy settings and try again",
+    "overloaded_error": "Server overloaded, too many requests, please try again later",
+    "overloaded": "Server overloaded, please try again later",
     "operationFailed": "Operation failed"
   },
   "resetDataConfirmTitle": "Reset All Data?",

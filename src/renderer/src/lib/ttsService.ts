@@ -302,6 +302,55 @@ export class TTSService {
   getPlayingStatus(): boolean {
     return this.isPlaying
   }
+
+  // 添加新方法：生成音频数据但不播放
+  async generateAudioBlob(text: string): Promise<Blob> {
+    console.log(`[TTS服务] 生成音频数据: ${text.length}字符`)
+    
+    const openaiProvider = await this.configPresenter.getProviderById('openai')
+    
+    if (!openaiProvider || !openaiProvider.apiKey) {
+      throw new Error('OpenAI配置未找到或API密钥缺失')
+    }
+    
+    const language = this.detectLanguage(text)
+    const voice = language === 'zh' ? 'alloy' : 'nova'
+    
+    try {
+      const response = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiProvider.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'tts-1',
+          input: text,
+          voice: voice,
+          speed: 1.2
+        })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error')
+        throw new Error(`TTS API请求失败: ${response.status} - ${errorText}`)
+      }
+
+      const audioBuffer = await response.arrayBuffer()
+
+      if (audioBuffer.byteLength === 0) {
+        throw new Error('收到空的音频数据')
+      }
+
+      const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' })
+      console.log(`[TTS服务] 音频生成完成: ${audioBlob.size}字节`)
+      
+      return audioBlob
+    } catch (error) {
+      console.error('[TTS服务] 音频生成失败:', error)
+      throw error
+    }
+  }
 }
 
 // 创建单例实例

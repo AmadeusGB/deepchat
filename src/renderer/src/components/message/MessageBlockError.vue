@@ -7,7 +7,7 @@
       <span class="flex-grow">{{ t('common.error.requestFailed') }}</span>
     </div>
     <div class="prose prose-sm max-w-full break-all whitespace-pre-wrap leading-7">
-      {{ t(block.content || '') }}
+      {{ formatErrorMessage(block.content || '') }}
     </div>
     <div v-if="errorExplanation" class="mt-2 text-red-400 font-medium">
       {{ t('common.error.causeOfError') }} {{ t(errorExplanation) }}
@@ -26,6 +26,25 @@ const props = defineProps<{
   block: AssistantMessageBlock
 }>()
 
+const formatErrorMessage = (content: string): string => {
+  try {
+    // Try to parse as JSON first
+    const errorObj = JSON.parse(content)
+    if (errorObj?.error?.message) {
+      return errorObj.error.message
+    }
+    if (errorObj?.message) {
+      return errorObj.message
+    }
+    if (errorObj?.error?.type) {
+      return t(`common.error.${errorObj.error.type}`) || errorObj.error.type
+    }
+  } catch {
+    // If not JSON, return as is
+  }
+  return content
+}
+
 const errorExplanation = computed(() => {
   const content = props.block.content || ''
 
@@ -38,6 +57,7 @@ const errorExplanation = computed(() => {
   if (content.includes('502')) return 'common.error.error502'
   if (content.includes('503')) return 'common.error.error503'
   if (content.includes('504')) return 'common.error.error504'
+  if (content.includes('overloaded_error')) return 'common.error.overloaded'
 
   return ''
 })

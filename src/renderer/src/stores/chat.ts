@@ -13,6 +13,7 @@ import { CONVERSATION_EVENTS, DEEPLINK_EVENTS } from '@/events'
 import router from '@/router'
 import { useI18n } from 'vue-i18n'
 import { useSoundStore } from './sound'
+import { useTTS } from '@/lib/enhancedTtsIntegration'
 
 // 定义会话工作状态类型
 export type WorkingStatus = 'working' | 'error' | 'completed' | 'none'
@@ -24,6 +25,7 @@ export const useChatStore = defineStore('chat', () => {
   const { t } = useI18n()
 
   const soundStore = useSoundStore()
+  const tts = useTTS()
 
   // 状态
   const activeThreadIdMap = ref<Map<number, string | null>>(new Map())
@@ -562,6 +564,8 @@ export const useChatStore = defineStore('chat', () => {
             lastContentBlock.content += msg.content
             // 打字机音效，与实际数据流同步
             playTypewriterSound()
+            // 增强TTS：处理流式文本
+            tts.processStreamText(msg.content)
           } else {
             if (lastContentBlock) {
               lastContentBlock.status = 'success'
@@ -574,6 +578,8 @@ export const useChatStore = defineStore('chat', () => {
             })
             // 如果是新块的第一个字符，也播放声音
             playTypewriterSound()
+            // 增强TTS：处理流式文本
+            tts.processStreamText(msg.content)
           }
         }
 
@@ -626,6 +632,10 @@ export const useChatStore = defineStore('chat', () => {
 
       getGeneratingMessagesCache().delete(msg.eventId)
       generatingThreadIds.value.delete(cached.threadId)
+      
+      // 增强TTS：完成文本输入
+      tts.finishTextInput()
+      
       // 设置会话的workingStatus为completed
       // 如果是当前活跃的会话，则直接从Map中移除
       if (getActiveThreadId() === cached.threadId) {
@@ -1140,6 +1150,8 @@ export const useChatStore = defineStore('chat', () => {
     toggleThreadPinned,
     getActiveThreadId,
     getGeneratingMessagesCache,
-    getMessages
+    getMessages,
+    // 增强TTS相关
+    tts
   }
 })
