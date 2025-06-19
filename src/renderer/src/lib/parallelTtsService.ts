@@ -33,6 +33,9 @@ export class ParallelTtsService {
   private nextPlayTime = 0 // 下一个音频片段的开始时间
   private currentSourceNodes: AudioBufferSourceNode[] = []
 
+  // 添加文本去重机制
+  private textHashCache: Set<string> = new Set()
+  
   private config: TtsConfig = {
     maxConcurrent: 3,
     chunkSize: { min: 100, max: 300 },
@@ -120,9 +123,61 @@ export class ParallelTtsService {
     return chunks
   }
 
+  // 生成文本哈希，用于去重
+  private generateTextHash(text: string): string {
+    // 简单的文本哈希，去除空格和标点后生成
+    const cleanText = text.replace(/[\s\n\r\t\u3000]/g, '').toLowerCase()
+    return btoa(encodeURIComponent(cleanText)).replace(/[=+/]/g, '')
+  }
+
+  // 检查文本是否已经在队列中
+  private isTextDuplicate(text: string): boolean {
+    const hash = this.generateTextHash(text)
+    return this.textHashCache.has(hash)
+  }
+
+  // 添加文本哈希到缓存
+  private addTextHash(text: string): string {
+    const hash = this.generateTextHash(text)
+    this.textHashCache.add(hash)
+    return hash
+  }
+
+  // 清理已完成文本的哈希
+  private cleanupTextHash(text: string): void {
+    const hash = this.generateTextHash(text)
+    this.textHashCache.delete(hash)
+  }
+
   // 添加文本到处理队列
   async addText(text: string): Promise<void> {
-    const textChunks = this.intelligentChunking(text)
+    if (!text || !text.trim()) {
+      console.log('[并行TTS] 跳过空文本')
+      return
+    }
+
+    const trimmedText = text.trim()
+    
+    // 检查重复文本
+    if (this.isTextDuplicate(trimmedText)) {
+      console.log(`[并行TTS] 跳过重复文本 (${trimmedText.length}字符): "${trimmedText.substring(0, 30)}..."`)
+      return
+    }
+
+    // 检查是否与现有队列中的文本重叠
+    const existingOverlap = this.findTextOverlap(trimmedText)
+    if (existingOverlap) {
+      console.log(`[并行TTS] 检测到文本重叠，跳过重复部分 (${existingOverlap.overlapLength}字符)`)
+      const newText = trimmedText.substring(existingOverlap.overlapLength)
+      if (newText.length < 10) {
+        console.log('[并行TTS] 去重后文本过短，跳过')
+        return
+      }
+      // 递归处理去重后的文本
+      return this.addText(newText)
+    }
+
+    const textChunks = this.intelligentChunking(trimmedText)
     
     for (const chunkText of textChunks) {
       const chunk: AudioChunk = {
@@ -136,6 +191,9 @@ export class ParallelTtsService {
       this.chunks.set(chunk.id, chunk)
       this.playQueue.push(chunk)
       
+      // 添加文本哈希到缓存
+      this.addTextHash(chunkText)
+      
       console.log(`[并行TTS] 添加块 ${chunk.position}: ${chunk.text.length}字符`)
     }
 
@@ -146,6 +204,32 @@ export class ParallelTtsService {
     if (!this.isPlaying) {
       this.startPlayback()
     }
+  }
+
+  // 查找文本重叠
+  private findTextOverlap(newText: string): { overlapLength: number } | null {
+    for (const chunk of this.playQueue) {
+      if (chunk.status === 'completed') continue
+      
+      // 检查新文本是否以现有文本开头（表示重复）
+      if (newText.startsWith(chunk.text)) {
+        return { overlapLength: chunk.text.length }
+      }
+      
+      // 检查现有文本是否以新文本开头（表示新文本是已有文本的子集）
+      if (chunk.text.startsWith(newText)) {
+        return { overlapLength: newText.length }
+      }
+      
+      // 检查部分重叠（至少20字符重叠才认为是重复）
+      const minOverlap = Math.min(20, Math.min(newText.length, chunk.text.length) * 0.3)
+      for (let i = minOverlap; i <= Math.min(newText.length, chunk.text.length); i++) {
+        if (newText.substring(0, i) === chunk.text.substring(chunk.text.length - i)) {
+          return { overlapLength: i }
+        }
+      }
+    }
+    return null
   }
 
   // 并行处理TTS请求
@@ -238,14 +322,26 @@ export class ParallelTtsService {
         try {
           await this.playChunk(chunk)
           chunk.status = 'completed'
+          
+          // 清理已播放文本的哈希
+          this.cleanupTextHash(chunk.text)
+          
           this.playQueue.shift() // 移除已播放的块
         } catch (error) {
           console.error(`[并行TTS] 播放块 ${chunk.position} 失败:`, error)
           chunk.status = 'error'
+          
+          // 即使播放失败也清理哈希，避免永久阻塞
+          this.cleanupTextHash(chunk.text)
+          
           this.playQueue.shift() // 跳过错误的块
         }
       } else {
         console.warn(`[并行TTS] 跳过错误块 ${chunk.position}`)
+        
+        // 清理错误块的哈希
+        this.cleanupTextHash(chunk.text)
+        
         this.playQueue.shift()
       }
     }
@@ -407,6 +503,9 @@ export class ParallelTtsService {
     this.chunks.clear()
     this.activeRequests = 0
     this.nextPosition = 0
+    
+    // 清理文本哈希缓存
+    this.textHashCache.clear()
     
     console.log(`[并行TTS] 停止播放`)
   }

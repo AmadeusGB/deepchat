@@ -773,116 +773,35 @@ const autoSubmitVoiceMessage = async (text: string) => {
   }
 }
 
-// 从内容中提取纯文本
+// 去除智能分割文字函数，改为依赖parallelTtsService的智能分块
 const extractPlainTextFromContent = (content: string): string => {
   if (!content) return ''
   
-  // 移除各种标签
-  let cleanText = content
-    // 移除antThinking标签
-    .replace(/<antThinking>[\s\S]*?<\/antThinking>/g, '')
-    // 移除antArtifact标签
-    .replace(/<antArtifact[^>]*>[\s\S]*?<\/antArtifact>/g, '')
-    // 移除tool_call相关标签
-    .replace(/<tool_call[^>]*>/g, '')
-    .replace(/<tool_response[^>]*>/g, '')
-    .replace(/<tool_call_end[^>]*>/g, '')
-    .replace(/<tool_call_error[^>]*>/g, '')
-    .replace(/<maximum_tool_calls_reached[^>]*>/g, '')
-    // 移除其他HTML标签
-    .replace(/<[^>]*>/g, '')
-    // 移除markdown代码块标记
+  // 移除 markdown 标记和特殊格式
+  let plainText = content
+    // 移除代码块
     .replace(/```[\s\S]*?```/g, '')
+    // 移除行内代码
     .replace(/`[^`]*`/g, '')
-    // 移除markdown链接格式 [text](url)
+    // 移除链接
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-    // 移除markdown粗体和斜体
+    // 移除加粗和斜体
     .replace(/\*\*([^*]*)\*\*/g, '$1')
     .replace(/\*([^*]*)\*/g, '$1')
+    // 移除标题标记
+    .replace(/^#+\s*/gm, '')
+    // 移除列表标记
+    .replace(/^[-*+]\s*/gm, '')
+    // 移除引用标记
+    .replace(/^>\s*/gm, '')
     // 移除多余的空白字符
     .replace(/\s+/g, ' ')
     .trim()
   
-  return cleanText
+  return plainText
 }
 
-// 智能分割文本，优化大块处理以减少TTS开销
-const smartSplitText = (text: string, minLength: number = 200): string => {
-  if (!text || text.length < 50) return text
-  
-  console.log(`[智能分割] 处理文本长度: ${text.length}，最小长度: ${minLength}`)
-  
-  // 如果文本长度小于最小长度的一半，直接返回（避免过小片段）
-  if (text.length < minLength / 2) {
-    console.log(`[智能分割] 文本过短，直接返回: ${text.length}字符`)
-    return text
-  }
-  
-  // 按句子分割，保留标点符号
-  const sentences = text.split(/([。！？；.!?;])/)
-  let result = ''
-  let currentLength = 0
-  
-  for (let i = 0; i < sentences.length; i += 2) {
-    const sentence = sentences[i] || ''
-    const punctuation = sentences[i + 1] || ''
-    const fullSentence = sentence + punctuation
-    
-    console.log(`[智能分割] 检查句子: "${fullSentence.substring(0, 20)}..." (${fullSentence.length}字符)`)
-    
-    // 如果已经有内容且加上新句子会超过理想长度，就停止
-    if (result && currentLength + fullSentence.length > minLength * 2) {
-      console.log(`[智能分割] 达到理想长度，停止添加`)
-      break
-    }
-    
-    result += fullSentence
-    currentLength += fullSentence.length
-    
-    console.log(`[智能分割] 添加句子，当前长度: ${currentLength}`)
-    
-    // 如果遇到强结束符且长度足够，可以结束
-    if (/[。！？；.!?;]/.test(punctuation) && currentLength >= minLength) {
-      console.log(`[智能分割] 遇到强结束符且长度足够，结束分割`)
-      break
-    }
-  }
-  
-  // 如果没有找到合适的句子分割点，但有内容，就返回
-  if (result.trim()) {
-    console.log(`[智能分割] 返回完整句子组合: ${result.length}字符`)
-    return result.trim()
-  }
-  
-  // 如果还是没有内容，按字符截取，但尽量在标点处截断
-  if (text.length >= minLength) {
-    const substring = text.substring(0, minLength * 1.5)
-    // 尝试在最后一个标点符号处截断
-    const lastPunctuation = Math.max(
-      substring.lastIndexOf('。'),
-      substring.lastIndexOf('！'),
-      substring.lastIndexOf('？'),
-      substring.lastIndexOf('；'),
-      substring.lastIndexOf('.'),
-      substring.lastIndexOf('!'),
-      substring.lastIndexOf('?'),
-      substring.lastIndexOf(';'),
-      substring.lastIndexOf('，'),
-      substring.lastIndexOf(',')
-    )
-    
-    if (lastPunctuation > minLength * 0.8) {
-      const result = substring.substring(0, lastPunctuation + 1)
-      console.log(`[智能分割] 在标点处截断: ${result.length}字符`)
-      return result
-    } else {
-      console.log(`[智能分割] 按字符截断: ${substring.length}字符`)
-      return substring
-    }
-  }
-  
-  return text
-}
+
 
 // 语音模式专用：使用传统聊天流程发送消息（支持MCP工具调用）
 const sendVoiceMessageWithMCP = async (text: string) => {
@@ -914,13 +833,189 @@ const sendVoiceMessageWithMCP = async (text: string) => {
     let playedContentBlocks = new Map<string, number>() // 存储每个块已播放的字符位置
     let isStreamCompleted = false
     
+    // 智能轮询优化器类
+    class SmartPollingOptimizer {
+      public baseDelay: number
+      public maxDelay: number
+      public currentDelay: number
+      public stableCount: number
+      public lastStateHash: string | null
+      public performanceMetrics: {
+        totalChecks: number
+        stateChanges: number
+        totalWaitTime: number
+        startTime: number
+      }
+      
+      constructor() {
+        this.baseDelay = 50         // 基础延迟50ms（快速响应）
+        this.maxDelay = 1000        // 最大延迟1000ms（节能模式）
+        this.currentDelay = 50      // 当前延迟
+        this.stableCount = 0        // 连续稳定计数
+        this.lastStateHash = null   // 上次状态哈希
+        this.performanceMetrics = {
+          totalChecks: 0,
+          stateChanges: 0,
+          totalWaitTime: 0,
+          startTime: Date.now()
+        }
+      }
+      
+      // 计算下次轮询延迟
+      calculateNextDelay(currentState) {
+        const stateHash = this.generateStateHash(currentState)
+        const hasChanged = stateHash !== this.lastStateHash
+        
+        this.performanceMetrics.totalChecks++
+        
+        if (hasChanged) {
+          // 状态变化：重置为快速轮询
+          this.currentDelay = this.baseDelay
+          this.stableCount = 0
+          this.performanceMetrics.stateChanges++
+        } else {
+          // 状态稳定：逐渐降低频率
+          this.stableCount++
+          if (this.stableCount > 3) {
+            this.currentDelay = Math.min(this.currentDelay * 1.2, this.maxDelay)
+          }
+        }
+        
+        this.lastStateHash = stateHash
+        this.performanceMetrics.totalWaitTime += this.currentDelay
+        
+        return Math.round(this.currentDelay)
+      }
+      
+      // 生成状态哈希用于变化检测
+      generateStateHash(state) {
+        return `${state.workingStatus}-${state.contentBlocks}-${state.toolCallBlocks}-${state.queueLength}-${state.isPlaying}`
+      }
+      
+      // 判断是否需要输出详细日志
+      shouldLogDetails() {
+        // 状态变化时或每15次检查输出一次详细日志
+        return this.stableCount === 0 || this.performanceMetrics.totalChecks % 15 === 0
+      }
+      
+      // 获取性能报告
+      getPerformanceReport() {
+        const elapsedTime = Date.now() - this.performanceMetrics.startTime
+        return {
+          totalChecks: this.performanceMetrics.totalChecks,
+          stateChanges: this.performanceMetrics.stateChanges,
+          totalWaitTime: this.performanceMetrics.totalWaitTime,
+          actualElapsedTime: elapsedTime,
+          efficiency: (this.performanceMetrics.totalWaitTime / elapsedTime * 100).toFixed(1) + '%',
+          avgDelay: (this.performanceMetrics.totalWaitTime / this.performanceMetrics.totalChecks).toFixed(0) + 'ms'
+        }
+      }
+    }
+
     // 实时监听AI回复并播放TTS
     const checkForStreamingResponse = async () => {
       let attempts = 0
-      const maxAttempts = 120 // 增加到120秒，因为需要处理流式输出
+      const maxAttempts = 300 // 基础循环检查限制
+      
+      // 智能分阶段超时配置
+      const timeoutConfig = {
+        baseTimeout: 120000,        // 基础超时：2分钟
+        mcpToolPhaseTimeout: 300000, // MCP工具调用阶段：5分钟
+        contentGenPhaseTimeout: 900000, // 内容生成阶段：15分钟
+        titleGenPhaseTimeout: 60000    // 标题生成阶段：1分钟额外时间
+      }
+      
+      const startTime = Date.now() // 开始时间记录
+             let currentPhase: string = 'initial' // 当前阶段: initial, mcp_tools, content_generation, title_generation
+       let phaseStartTime = startTime
+      
+      // 初始化智能轮询优化器
+      const pollingOptimizer = new SmartPollingOptimizer()
+      
+      // 内容稳定性追踪
+      let stableContentChecks = 0
+      let lastContentBlockCount = 0
+      let lastTotalPlayableContent = 0
+      let lastContentHash = ''
+      
+             // 智能阶段检测函数
+       const detectAndSwitchPhase = (assistantContent: Array<{type: string, content?: string, status?: string}>, workingStatus: string): string => {
+         const contentBlocks = assistantContent.filter(block => block.type === 'content')
+         const toolCallBlocks = assistantContent.filter(block => block.type === 'tool_call')
+         const allToolCallsCompleted = toolCallBlocks.length > 0 && toolCallBlocks.every(block => block.status === 'success')
+         
+         let newPhase: string = currentPhase
+         
+         if (currentPhase === 'initial' && toolCallBlocks.length > 0) {
+           newPhase = 'mcp_tools'
+         } else if (currentPhase === 'mcp_tools' && allToolCallsCompleted && workingStatus === 'working') {
+           newPhase = 'content_generation'
+         } else if (currentPhase === 'content_generation' && workingStatus !== 'working') {
+           newPhase = 'title_generation'
+         }
+         
+         if (newPhase !== currentPhase) {
+           const phaseDuration = Date.now() - phaseStartTime
+           console.log(`[阶段切换] 🔄 从 "${currentPhase}" 切换到 "${newPhase}"，上阶段耗时: ${phaseDuration}ms`)
+           currentPhase = newPhase
+           phaseStartTime = Date.now()
+           
+           // 根据新阶段调整检查策略
+           if (currentPhase === 'content_generation') {
+             console.log(`[阶段切换] 📝 进入内容生成阶段，所有工具调用已完成，等待AI生成总结内容...`)
+             // 重置稳定检测，因为可能会有新内容生成
+             stableContentChecks = 0
+             lastContentBlockCount = contentBlocks.length
+           }
+         }
+         
+         return newPhase
+       }
+      
+      // 获取当前阶段的超时限制
+      const getCurrentPhaseTimeout = () => {
+        switch (currentPhase) {
+          case 'mcp_tools': return timeoutConfig.mcpToolPhaseTimeout
+          case 'content_generation': return timeoutConfig.contentGenPhaseTimeout
+          case 'title_generation': return timeoutConfig.titleGenPhaseTimeout
+          default: return timeoutConfig.baseTimeout
+        }
+      }
+      
+      // 获取当前阶段的检查间隔
+      const getCurrentPhaseDelay = (defaultDelay: number) => {
+        switch (currentPhase) {
+          case 'mcp_tools': return Math.max(defaultDelay, 200) // 工具调用阶段稍慢
+          case 'content_generation': return Math.max(defaultDelay * 2, 500) // 内容生成阶段更慢，节省资源
+          case 'title_generation': return Math.max(defaultDelay, 100) // 标题生成阶段较快
+          default: return defaultDelay
+        }
+      }
       
       while (attempts < maxAttempts && !isStreamCompleted) {
-        await new Promise(resolve => setTimeout(resolve, 300)) // 减少到300ms，更快响应
+        // 智能分阶段超时检查
+        const elapsedTime = Date.now() - startTime
+        const phaseElapsedTime = Date.now() - phaseStartTime
+        const currentPhaseTimeout = getCurrentPhaseTimeout()
+        
+        if (phaseElapsedTime > currentPhaseTimeout) {
+          console.warn(`[阶段超时] ⏰ 阶段"${currentPhase}"超时 (${phaseElapsedTime}ms > ${currentPhaseTimeout}ms)，进入内容完整播放模式`)
+          break
+        }
+        
+        // 智能动态轮询延迟计算
+        const ttsStatus = parallelTtsService.getStatus()
+        const currentState = {
+          workingStatus: chatStore.getThreadWorkingStatus(threadId),
+          contentBlocks: 0, // 临时值，下面会更新
+          toolCallBlocks: 0, // 临时值，下面会更新
+          queueLength: ttsStatus.queueLength,
+          isPlaying: isTTSPlaying.value
+        }
+        
+        const baseDelay = pollingOptimizer.calculateNextDelay(currentState)
+        const dynamicDelay = getCurrentPhaseDelay(baseDelay)
+        await new Promise(resolve => setTimeout(resolve, dynamicDelay))
         attempts++
         
         const messages = chatStore.getMessages()
@@ -928,90 +1023,238 @@ const sendVoiceMessageWithMCP = async (text: string) => {
         const workingStatus = chatStore.getThreadWorkingStatus(threadId)
         
         if (lastMessage && lastMessage.role === 'assistant') {
-          const assistantContent = lastMessage.content
-          console.log(`[实时语音] 🔍 检查 ${attempts}/${maxAttempts}:`, {
-            messagesCount: messages.length,
-            workingStatus,
-            contentBlocks: Array.isArray(assistantContent) ? assistantContent.length : 0,
-            queueLength: parallelTtsService.getStatus().queueLength,
-            isProcessing: parallelTtsService.getStatus().processingChunks > 0,
-            isPlaying: isTTSPlaying.value
-          })
+          // 获取最新的消息内容
+          const latestMessages = chatStore.getMessages() // 强制重新获取最新消息
+          const latestLastMessage = latestMessages[latestMessages.length - 1]
+          
+          // 实时重新获取assistant content
+          let assistantContent: Array<{type: string, content?: string, status?: string}> = []
+          if (latestLastMessage && latestLastMessage.role === 'assistant' && Array.isArray(latestLastMessage.content)) {
+            assistantContent = latestLastMessage.content
+          }
+          
+          // 智能阶段检测和切换
+          const previousPhase = currentPhase
+          currentPhase = detectAndSwitchPhase(assistantContent, workingStatus)
+          
+          // 实时计算content和tool_call块
+          const contentBlocks = assistantContent.filter(block => block.type === 'content')
+          const toolCallBlocks = assistantContent.filter(block => block.type === 'tool_call')
+          
+          // 计算关键阶段状态
+          const allToolCallsCompleted = toolCallBlocks.length > 0 && toolCallBlocks.every(block => block.status === 'success')
+          const isInCriticalPhase = allToolCallsCompleted && workingStatus === 'working'
+          const isInContentGenPhase = currentPhase === 'content_generation'
+          
+          
+          
+          // 计算总的可播放内容
+          const totalPlayableContent = contentBlocks.reduce((total, block) => {
+            if (block.status === 'success' || (block.status === 'loading' && block.content && extractPlainTextFromContent(block.content).length >= 30)) {
+              return total + extractPlainTextFromContent(block.content || '').length
+            }
+            return total
+          }, 0)
+          
+          // 敏感的内容变化检测 - 在内容生成阶段提高敏感性
+          const contentGrowthRate = totalPlayableContent - lastTotalPlayableContent
+          const growthThreshold = isInContentGenPhase ? 20 : 30 // 内容生成阶段降低阈值
+          if (contentGrowthRate > growthThreshold) {
+            console.log(`[实时语音] 🚀 ${currentPhase}阶段检测到内容快速增长 (+${contentGrowthRate}字符)，立即检查新内容`)
+            lastTotalPlayableContent = totalPlayableContent
+            stableContentChecks = 0
+          }
+          
+          // 更新状态用于下次轮询优化
+          currentState.contentBlocks = contentBlocks.length
+          currentState.toolCallBlocks = toolCallBlocks.length
+          
+          // 智能日志输出：根据阶段调整日志频率
+          const shouldLogDetails = pollingOptimizer.shouldLogDetails() || 
+            (isInContentGenPhase && attempts % 10 === 0) || // 内容生成阶段每10次检查输出一次
+            (currentPhase !== previousPhase) // 阶段切换时必定输出
+          
+          if (shouldLogDetails) {
+            const phaseInfo = `阶段:${currentPhase}(${phaseElapsedTime}ms/${currentPhaseTimeout}ms)`
+            console.log(`[实时语音] 🔍 检查 ${attempts}/${maxAttempts} (延迟:${dynamicDelay}ms, ${phaseInfo}):`, {
+              messagesCount: messages.length,
+              workingStatus,
+              totalBlocks: Array.isArray(assistantContent) ? assistantContent.length : 0,
+              contentBlocks: contentBlocks.length,
+              toolCallBlocks: toolCallBlocks.length,
+              queueLength: ttsStatus.queueLength,
+              isProcessing: ttsStatus.processingChunks > 0,
+              isPlaying: isTTSPlaying.value,
+              performance: pollingOptimizer.getPerformanceReport()
+            })
+          } else {
+            // 简化日志
+            console.log(`[实时语音] ⚡ ${currentPhase}阶段检查 ${attempts} (${dynamicDelay}ms): 内容块=${contentBlocks.length}, 工具=${toolCallBlocks.length}, 队列=${ttsStatus.queueLength}`)
+          }
           
           // 检查新的内容块
           if (assistantContent && Array.isArray(assistantContent)) {
-            console.log('[实时语音] 🧩 检查内容块数组，长度:', assistantContent.length)
+                         // 更精确的内容稳定性检测
+             const currentContentBlockCount = contentBlocks.length
+             const currentContentHash = contentBlocks.map(block => block.content || '').join('|')
             
-            for (let i = 0; i < assistantContent.length; i++) {
-              const block = assistantContent[i]
-              const blockKey = `${lastMessage.id}-${i}`
+            if (currentContentBlockCount === lastContentBlockCount && currentContentHash === lastContentHash) {
+              stableContentChecks++
+            } else {
+              stableContentChecks = 0
+              lastContentBlockCount = currentContentBlockCount
+              lastContentHash = currentContentHash
+            }
+            
+            // 遍历所有content块并播放未播放的内容
+            for (let i = 0; i < contentBlocks.length; i++) {
+              const block = contentBlocks[i]
+              const blockKey = generateBlockKey(latestLastMessage.id, i)
               
-              console.log(`[实时语音] 🧩 检查块 ${i}:`, {
-                blockType: block.type,
-                blockStatus: block.status,
-                hasContent: !!block.content,
-                contentLength: block.content?.length || 0,
-                blockKey,
-                playedPosition: playedContentBlocks.get(blockKey) || 0
-              })
-              
-              // 处理content类型的块，不再等待success状态
-              if (block.type === 'content' && block.content) {
-                const currentPlayedPosition = playedContentBlocks.get(blockKey) || 0
-                const cleanText = extractPlainTextFromContent(block.content)
+              if (block.content && (block.status === 'success' || 
+                  (block.status === 'loading' && extractPlainTextFromContent(block.content).length >= 30))) {
                 
-                if (cleanText.length > currentPlayedPosition) {
-                  // 获取未播放的部分
-                  const unplayedText = cleanText.substring(currentPlayedPosition)
-                  console.log(`[实时语音] 未播放文本长度: ${unplayedText.length}`)
+                const playedLength = playedContentBlocks.get(blockKey) || 0
+                const blockContent = extractPlainTextFromContent(block.content)
+                
+                if (blockContent.length > playedLength) {
+                  const unplayedContent = blockContent.substring(playedLength)
                   
-                  // 检查是否有足够的文本可以播放（进一步优化大块处理）
-                  const hasStrongEnding = /[。！？.!?]/.test(unplayedText)
-                  const isBlockComplete = block.status === 'success'
-                  const hasMinimumLength = unplayedText.length >= 200 // 进一步增加最小长度
-                  const hasReasonableLength = unplayedText.length >= 100 && hasStrongEnding
-                  
-                  const shouldPlay = hasMinimumLength || hasReasonableLength || isBlockComplete
-                  
-                  if (shouldPlay) {
-                    // 使用智能分割函数获取要播放的文本（更大的块）
-                    const textToPlay = smartSplitText(unplayedText, 200)
+                  // 根据阶段调整播放策略
+                  let contentToPlay = unplayedContent
+                  if (block.status === 'loading') {
+                    const sentenceEndings = [
+                      unplayedContent.lastIndexOf('。'),
+                      unplayedContent.lastIndexOf('！'),
+                      unplayedContent.lastIndexOf('？'),
+                      unplayedContent.lastIndexOf('.'),
+                      unplayedContent.lastIndexOf('!'),
+                      unplayedContent.lastIndexOf('?'),
+                      unplayedContent.lastIndexOf('；'),
+                      unplayedContent.lastIndexOf(';'),
+                      unplayedContent.lastIndexOf('，'),
+                      unplayedContent.lastIndexOf(',')
+                    ]
                     
-                    if (textToPlay.trim()) {
-                      console.log(`[实时语音] 准备播放片段 (${textToPlay.length}字符):`, textToPlay.substring(0, 50) + '...')
-                      
-                      // 更新已播放位置
-                      playedContentBlocks.set(blockKey, currentPlayedPosition + textToPlay.length)
-                      
-                      // 使用并行TTS服务播放
-                      await playTTSWithParallelService(textToPlay.trim())
+                    const lastSentenceEnd = Math.max(...sentenceEndings)
+                    
+                    // 根据阶段调整播放策略
+                    if (lastSentenceEnd > 0) {
+                      contentToPlay = unplayedContent.substring(0, lastSentenceEnd + 1)
+                      console.log(`[实时语音] 📝 ${currentPhase}阶段策略1：播放到断句点 (${contentToPlay.length}字符)`)
+                    } else if (unplayedContent.length >= 150) {
+                      const lastSpaceIndex = unplayedContent.lastIndexOf(' ', 120)
+                      const lastChineseSpaceIndex = unplayedContent.lastIndexOf('　', 120)
+                      const breakPoint = Math.max(lastSpaceIndex, lastChineseSpaceIndex, 100)
+                      contentToPlay = unplayedContent.substring(0, breakPoint)
+                      console.log(`[实时语音] 🚀 ${currentPhase}阶段策略2：强制播放到空格 (${contentToPlay.length}字符)`)
+                    } else if (unplayedContent.length >= 80 && (isInCriticalPhase || isInContentGenPhase)) {
+                      contentToPlay = unplayedContent.substring(0, Math.floor(unplayedContent.length * 0.8))
+                      console.log(`[实时语音] ⚡ ${currentPhase}阶段策略3：关键阶段播放 (${contentToPlay.length}字符)`)
+                    } else if (unplayedContent.length < (isInContentGenPhase ? 40 : 60)) {
+                      // 内容生成阶段降低播放阈值
+                      console.log(`[实时语音] ⏳ ${currentPhase}阶段策略4：内容过短暂不播放 (${unplayedContent.length}字符)`)
+                      continue
+                    } else {
+                      contentToPlay = unplayedContent.substring(0, Math.floor(unplayedContent.length * 0.6))
+                      console.log(`[实时语音] 📊 ${currentPhase}阶段策略5：播放部分内容 (${contentToPlay.length}字符)`)
+                    }
+                  }
+                  
+                  if (contentToPlay.length > 0) {
+                    console.log(`[实时语音] 💬 ${currentPhase}阶段播放${block.status}状态块 ${i} (${contentToPlay.length}字符): ${contentToPlay.substring(0, 50)}...`)
+                    
+                    try {
+                      await playTTSWithParallelService(contentToPlay.trim())
+                      playedContentBlocks.set(blockKey, playedLength + contentToPlay.length)
+                      console.log(`[实时语音] ✅ 块${i}播放完成, 更新已播放位置: ${playedLength + contentToPlay.length}`)
+                    } catch (error) {
+                      console.error(`[实时语音] ❌ 块${i}播放失败:`, error)
+                      playedContentBlocks.set(blockKey, playedLength + contentToPlay.length)
                     }
                   }
                 }
-              } else {
-                // 只在调试模式下显示跳过信息，减少日志冗余
-                if (block.type !== 'tool_call') {
-                  console.log(`[实时语音] ⏭️ 跳过块 ${i}:`, {
-                    reason: block.type !== 'content' ? '类型不匹配' : '无内容',
-                    blockType: block.type
-                  })
-                }
               }
             }
-          } else {
-            console.log('[实时语音] 🚫 无内容块或不是数组')
           }
           
+          // 在内容生成阶段提高检测敏感性
+          if (isInContentGenPhase) {
+            console.log(`[实时语音] 🎯 内容生成阶段：AI正在处理工具调用结果并生成总结内容...`)
+            if (stableContentChecks > 2) {
+              stableContentChecks = Math.max(0, stableContentChecks - 2)
+            }
+          }
+          
+          // 更新lastTotalPlayableContent用于下次比较
+          lastTotalPlayableContent = totalPlayableContent
+          
+          // 智能完成判断 - 根据阶段调整判断逻辑
+          const shouldCompleteEarly = (() => {
+            // 如果workingStatus不是working，说明AI已完成
+            if (workingStatus !== 'working') {
+              console.log(`[实时语音] 🎯 ${currentPhase}阶段智能判断：AI工作状态已完成，允许提前结束`)
+              return true
+            }
+            
+            // 内容生成阶段的特殊判断
+            if (isInContentGenPhase) {
+              // 在内容生成阶段，需要更谨慎的完成判断
+              if (stableContentChecks >= 20 && contentBlocks.length > 0) { // 提高稳定检查要求
+                console.log(`[实时语音] 📝 内容生成阶段：内容长时间稳定，可能已生成完毕`)
+                return true
+              }
+              return false // 在内容生成阶段默认继续等待
+            }
+            
+            // 其他阶段的标准判断逻辑
+            if (contentBlocks.length === 0) {
+              return false
+            }
+            
+            const activeToolCalls = toolCallBlocks.filter(block => 
+              block.status === 'loading' || block.status === 'pending'
+            )
+            
+            if (activeToolCalls.length > 0) {
+              return false
+            }
+            
+            if (stableContentChecks >= 5 && assistantContent.length > 0) {
+              const allContentPlayed = contentBlocks.every((block, blockIndex) => {
+                const blockKey = generateBlockKey(latestLastMessage.id, blockIndex)
+                const playedLength = playedContentBlocks.get(blockKey) || 0
+                const blockContent = extractPlainTextFromContent(block.content || '')
+                return playedLength >= blockContent.length - 10
+              })
+              
+              if (allContentPlayed) {
+                console.log(`[实时语音] 🎯 ${currentPhase}阶段智能判断：所有内容已播放，提前完成等待`)
+                return true
+              }
+            }
+            
+            return false
+          })()
+          
           // 检查是否完成
-          if (!workingStatus) {
-            console.log('[实时语音] AI回复完成，等待并行TTS播放完成')
+          if (!workingStatus && (contentBlocks.length === 0 || shouldCompleteEarly)) {
+            const completionReason = !workingStatus ? 'AI工作完成' : '智能提前完成'
+            console.log(`[实时语音] ${completionReason}，当前阶段: ${currentPhase}，等待并行TTS播放完成`)
             const status = parallelTtsService.getStatus()
             console.log('[实时语音] 完成时状态:', {
+              currentPhase,
+              totalElapsedTime: elapsedTime + 'ms',
+              phaseElapsedTime: phaseElapsedTime + 'ms',
               queueLength: status.queueLength,
               processingChunks: status.processingChunks,
               readyChunks: status.readyChunks,
               isPlaying: status.isPlaying,
-              playedBlocks: playedContentBlocks.size
+              playedBlocks: playedContentBlocks.size,
+              stableChecks: stableContentChecks,
+              contentBlocks: contentBlocks.length,
+              toolCallBlocks: toolCallBlocks.length,
+              completionReason
             })
             isStreamCompleted = true
             
@@ -1042,16 +1285,181 @@ const sendVoiceMessageWithMCP = async (text: string) => {
               }
             }
             
-            console.log('[实时语音] 所有语音播放完成，总等待次数:', waitCount)
+            console.log(`[实时语音] 🎉 所有语音播放完成，总计用时: ${Date.now() - startTime}ms，播放块数: ${playedContentBlocks.size}`)
             isWaitingResponse.value = false
             return
           }
         }
       }
       
-      // 超时处理
-      console.warn('[实时语音] 等待超时')
+      // 阶段超时处理 - 根据当前阶段提供不同的处理策略
+      console.warn(`[阶段超时] 🚨 ${currentPhase}阶段超时，进入优雅降级模式`)
+      
+      await handlePhaseTimeoutWithCompletePlayback(startTime, currentPhase)
+      
+      // 即使超时也继续播放已有的TTS内容
       isWaitingResponse.value = false
+    }
+
+    // 统一的blockKey生成函数
+    const generateBlockKey = (messageId: string, blockIndex: number): string => {
+      return `${messageId}-${blockIndex}`
+    }
+
+    // 安全的文本提取函数，避免重复处理
+    const extractUniquePlayableText = (contentBlocks: Array<{content?: string, status?: string}>, messageId: string): Map<string, {content: string, status: string}> => {
+      const playableTexts = new Map<string, {content: string, status: string}>()
+      
+      contentBlocks.forEach((block, index) => {
+        if (block.content && (block.status === 'success' || 
+            (block.status === 'loading' && extractPlainTextFromContent(block.content).length >= 30))) {
+          const blockKey = generateBlockKey(messageId, index)
+          const content = extractPlainTextFromContent(block.content)
+          playableTexts.set(blockKey, {
+            content,
+            status: block.status
+          })
+        }
+      })
+      
+      return playableTexts
+    }
+
+    // 使用并行TTS服务播放
+    const playTTSWithParallelService = async (responseText: string) => {
+      if (!responseText.trim()) {
+        console.log('[并行TTS] 跳过空文本')
+        return
+      }
+      
+      console.log(`[并行TTS] 添加文字到播放队列 (${responseText.length}字符)`)
+      
+      try {
+        // 直接添加到并行TTS服务（现在有去重机制）
+        await parallelTtsService.addText(responseText)
+        
+        // 更新状态
+        isParallelTTSActive.value = true
+        
+        // 更新优化器状态
+        const status = parallelTtsService.getStatus()
+        ttsOptimizer.updateQueueLength(status.queueLength)
+        
+        console.log(`[并行TTS] 文字已添加到并行处理队列, 当前队列长度: ${status.queueLength}`)
+      } catch (error) {
+        console.error('[并行TTS] 添加文字失败:', error)
+        throw error
+      }
+    }
+
+    // 新增：超时后的完整内容播放处理函数
+    const handlePhaseTimeoutWithCompletePlayback = async (startTime: number, currentPhase: string) => {
+      const elapsedTime = Date.now() - startTime
+      console.log(`[实时语音] 🎯 开始处理${currentPhase}阶段超时后的完整内容播放，已耗时: ${elapsedTime}ms`)
+      
+      // 给AI额外的时间完成生成（最多30秒）
+      const maxAdditionalWait = 30000
+      const additionalWaitStart = Date.now()
+      let aiCompletionChecks = 0
+      
+      console.log(`[实时语音] ⏳ 给AI额外 ${maxAdditionalWait/1000} 秒时间完成内容生成...`)
+      
+      while (Date.now() - additionalWaitStart < maxAdditionalWait) {
+        aiCompletionChecks++
+        const workingStatus = chatStore.getThreadWorkingStatus(threadId)
+        
+        // 如果AI已完成工作，立即处理内容
+        if (!workingStatus || workingStatus !== 'working') {
+          console.log(`[实时语音] ✅ AI在额外等待期内完成工作 (${aiCompletionChecks} 次检查)`)
+          break
+        }
+        
+        // 继续检查新内容并播放
+        const messages = chatStore.getMessages()
+        const lastMessage = messages[messages.length - 1]
+        
+        if (lastMessage && lastMessage.role === 'assistant' && Array.isArray(lastMessage.content)) {
+          const contentBlocks = lastMessage.content.filter(block => block.type === 'content')
+          
+          // 播放任何新生成的内容
+          for (let i = 0; i < contentBlocks.length; i++) {
+            const block = contentBlocks[i]
+            const blockKey = generateBlockKey(lastMessage.id, i)
+            
+            if (block.content && (block.status === 'success' || block.status === 'loading')) {
+              const playedLength = playedContentBlocks.get(blockKey) || 0
+              const blockContent = extractPlainTextFromContent(block.content)
+              
+              if (blockContent.length > playedLength) {
+                const unplayedContent = blockContent.substring(playedLength)
+                
+                // 在超时模式下，更激进地播放内容
+                if (unplayedContent.trim().length >= 10) {
+                  console.log(`[实时语音] 🔄 超时模式播放块 ${i} (${unplayedContent.length}字符): ${unplayedContent.substring(0, 30)}...`)
+                  
+                  try {
+                    await playTTSWithParallelService(unplayedContent.trim())
+                    playedContentBlocks.set(blockKey, blockContent.length)
+                  } catch (error) {
+                    console.error(`[实时语音] ❌ 超时模式播放失败:`, error)
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        // 每秒检查一次
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+      
+      // 最终内容收集和播放
+      const finalMessages = chatStore.getMessages()
+      const finalLastMessage = finalMessages[finalMessages.length - 1]
+      const finalStatus = parallelTtsService.getStatus()
+      
+      const finalContentBlocks = finalLastMessage && Array.isArray(finalLastMessage.content) 
+        ? finalLastMessage.content.filter(block => block.type === 'content') 
+        : []
+      
+      // 输出完整的超时报告
+      const totalElapsedTime = Date.now() - startTime
+      console.warn('[实时语音] 📊 超时处理完整报告:', {
+        totalElapsedTime: totalElapsedTime + 'ms',
+        aiCompletionChecks,
+        finalContentBlocks: finalContentBlocks.length,
+        queueLength: finalStatus.queueLength,
+        totalTTSPlayed: playedContentBlocks.size,
+        finalWorkingStatus: chatStore.getThreadWorkingStatus(threadId)
+      })
+      
+      // 最后一次全面扫描，确保没有遗漏的内容
+      if (finalContentBlocks.length > 0) {
+        console.log('[实时语音] 🔍 最终扫描：确保所有内容都已播放')
+        
+        const playableTexts = extractUniquePlayableText(finalContentBlocks, finalLastMessage.id)
+        
+        for (const [blockKey, {content}] of playableTexts) {
+          const currentPlayedPosition = playedContentBlocks.get(blockKey) || 0
+          
+          if (content.length > currentPlayedPosition) {
+            const remainingText = content.substring(currentPlayedPosition)
+            if (remainingText.trim() && remainingText.length >= 5) { // 降低阈值到5字符
+              console.log(`[实时语音] 🎯 最终播放遗漏内容 (${remainingText.length}字符): ${remainingText.substring(0, 50)}...`)
+              
+              try {
+                await playTTSWithParallelService(remainingText.trim())
+                playedContentBlocks.set(blockKey, content.length)
+                console.log(`[实时语音] ✅ 最终播放完成: ${blockKey}`)
+              } catch (error) {
+                console.error(`[实时语音] ❌ 最终播放失败: ${blockKey}`, error)
+              }
+            }
+          }
+        }
+      }
+      
+      console.log(`[实时语音] 🎉 超时处理完成，总计播放了 ${playedContentBlocks.size} 个内容块`)
     }
     
     // 发送消息（使用传统聊天流程，支持MCP工具）
@@ -1070,29 +1478,7 @@ const sendVoiceMessageWithMCP = async (text: string) => {
 // 并行TTS服务状态
 const isParallelTTSActive = ref(false)
 
-// 使用并行TTS服务播放
-const playTTSWithParallelService = async (responseText: string) => {
-  if (!responseText.trim()) return
-  
-  console.log(`[并行TTS] 添加文字到播放队列 (${responseText.length}字符)`)
-  
-  try {
-    // 直接添加到并行TTS服务
-    await parallelTtsService.addText(responseText)
-    
-    // 更新状态
-    isParallelTTSActive.value = true
-    
-    // 更新优化器状态
-    const status = parallelTtsService.getStatus()
-    ttsOptimizer.updateQueueLength(status.queueLength)
-    
-    console.log(`[并行TTS] 文字已添加到并行处理队列`)
-  } catch (error) {
-    console.error('[并行TTS] 添加文字失败:', error)
-    throw error
-  }
-}
+
 
 // 旧的TTS队列处理已被并行TTS服务替代
 
@@ -2087,3 +2473,4 @@ const insertExample = (text: string) => {
   }
 }
 </style>
+
