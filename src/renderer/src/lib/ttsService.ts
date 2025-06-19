@@ -78,7 +78,7 @@ export class TTSService {
     }
     
     const language = this.detectLanguage(text)
-    const voice = language === 'zh' ? 'alloy' : 'nova'
+    const voice = this.selectVoiceForLanguage(language)
     
     // 根据尝试次数调整API超时时间
     const apiTimeout = 10000 + (attempt - 1) * 5000 // 每次重试增加5秒
@@ -272,12 +272,109 @@ export class TTSService {
   }
 
   /**
-   * 检测文本语言
+   * 统一语音选择 - 所有语言使用同一个声音确保一致性
+   */
+  private selectVoiceForLanguage(language: string): string {
+    // 用户需求：所有语言都使用同一个人的声音，确保语音对话的一致性
+    // 选择 'alloy' 作为统一语音，因为它对多种语言的发音都比较自然
+    const unifiedVoice = 'alloy'
+    
+    console.log(`[TTS服务] 统一语音策略 - 语言: ${language} → 统一语音: ${unifiedVoice}`)
+    return unifiedVoice
+  }
+
+  /**
+   * 智能检测文本语言
    */
   private detectLanguage(text: string): string {
-    // 简单的中文检测
-    const chineseRegex = /[\u4e00-\u9fff]/
-    return chineseRegex.test(text) ? 'zh' : 'en'
+    if (!text || !text.trim()) return 'en'
+    
+    const cleanText = text.trim().toLowerCase()
+    
+    // 中文检测（包括繁体和简体）
+    if (/[\u4e00-\u9fff]/.test(text)) {
+      return 'zh'
+    }
+    
+    // 日文检测（平假名、片假名、汉字）
+    if (/[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/.test(text) && /[\u3040-\u309f\u30a0-\u30ff]/.test(text)) {
+      return 'ja'
+    }
+    
+    // 韩文检测
+    if (/[\uac00-\ud7af]/.test(text)) {
+      return 'ko'
+    }
+    
+    // 阿拉伯文检测
+    if (/[\u0600-\u06ff\u0750-\u077f]/.test(text)) {
+      return 'ar'
+    }
+    
+    // 俄文检测
+    if (/[\u0400-\u04ff]/.test(text)) {
+      return 'ru'
+    }
+    
+    // 印地语检测
+    if (/[\u0900-\u097f]/.test(text)) {
+      return 'hi'
+    }
+    
+    // 欧洲语言检测（基于常见词汇和字符特征）
+    
+    // 法语检测
+    const frenchPatterns = [
+      /[àâäéèêëïîôöùûüÿç]/,
+      /\b(le|la|les|un|une|des|et|ou|de|du|dans|avec|pour|par|sur|sous|être|avoir|faire|aller|dire|voir|savoir|pouvoir|vouloir|venir|prendre|donner|mettre|tenir|parler|porter|laisser|suivre|trouver|montrer|demander|passer|rester|tomber|sentir|partir|sortir|entrer|regarder|aimer|croire|comprendre|attendre|vivre|mourir|naître|devenir|ouvrir|fermer|commencer|finir|gagner|perdre|réussir|échouer|choisir|décider|accepter|refuser|aider|servir|utiliser|jouer|travailler|étudier|apprendre|enseigner|lire|écrire|écouter|entendre|répondre|appeler|téléphoner|acheter|vendre|payer|coûter|valoir|préférer|détester|espérer|rêver|réveiller|dormir|manger|boire|cuisiner|préparer|nettoyer|laver|habiter|déménager|voyager|conduire|marcher|courir|nager|voler|chanter|danser|rire|pleurer|sourire|rencontrer|connaître|présenter|saluer|remercier|excuser|pardonner|inviter|visiter|organiser|planifier|réserver|annuler|confirmer|rappeler|oublier|souvenir|reconnaître|identifier|expliquer|décrire|raconter|mentionner|suggérer|proposer|recommander|conseiller|interdire|permettre|autoriser|défendre|protéger|sauver|aider|soutenir|encourager|féliciter|critiquer|juger|évaluer|mesurer|compter|calculer|résoudre|réparer|construire|détruire|créer|inventer|découvrir|chercher|examiner|observer|regarder|surveiller|contrôler|vérifier|tester|essayer|réessayer|continuer|arrêter|cesser|pause|reprendre|recommencer|terminer|achever|réaliser|accomplir|atteindre|obtenir|recevoir|envoyer|livrer|distribuer|partager|diviser|séparer|joindre|connecter|relier|attacher|détacher|fixer|installer|enlever|retirer|ajouter|inclure|exclure|remplacer|changer|modifier|améliorer|empirer|augmenter|diminuer|réduire|élever|baisser|monter|descendre|avancer|reculer|approcher|éloigner|rapprocher|distancer|accélérer|ralentir|dépêcher|retarder|presser|calmer|rassurer|inquiéter|effrayer|surprendre|choquer|impressionner|intéresser|ennuyer|amuser|divertir|occuper|libérer|capturer|emprisonner|échapper|fuir|poursuivre|suivre|guider|diriger|mener|conduire|commander|obéir|respecter|honorer|admirer|envieux|jaloux|fier|honteux|coupable|innocent|responsable|irresponsable|sérieux|drôle|amusant|triste|heureux|content|satisfait|mécontent|déçu|surpris|étonné|confus|clair|sombre|lumineux|brillant|terne|coloré|noir|blanc|rouge|bleu|vert|jaune|orange|violet|rose|marron|gris|grand|petit|gros|mince|épais|fin|large|étroit|long|court|haut|bas|profond|superficiel|lourd|léger|dur|mou|chaud|froid|tiède|frais|sec|humide|mouillé|propre|sale|neuf|vieux|jeune|âgé|rapide|lent|fort|faible|facile|difficile|simple|compliqué|possible|impossible|probable|improbable|certain|incertain|sûr|dangereux|sécurisé|libre|occupé|disponible|indisponible|ouvert|fermé|public|privé|personnel|professionnel|officiel|informel|formel|naturel|artificiel|réel|faux|vrai|correct|incorrect|bon|mauvais|meilleur|pire|parfait|imparfait|complet|incomplet|entier|partiel|total|final|initial|premier|dernier|suivant|précédent)\b/
+    ]
+    
+    if (frenchPatterns.some(pattern => pattern.test(cleanText))) {
+      return 'fr'
+    }
+    
+    // 德语检测
+    const germanPatterns = [
+      /[äöüß]/,
+      /\b(der|die|das|den|dem|des|ein|eine|eines|einem|einer|und|oder|aber|doch|sondern|denn|weil|da|obwohl|wenn|falls|als|während|bevor|nachdem|bis|seit|seitdem|sein|haben|werden|können|dürfen|mögen|müssen|sollen|wollen|lassen|gehen|kommen|machen|tun|sagen|sprechen|reden|hören|sehen|schauen|wissen|kennen|verstehen|lernen|lehren|studieren|arbeiten|spielen|leben|wohnen|bleiben|fahren|fliegen|reisen|laufen|rennen|springen|fallen|stehen|sitzen|liegen|schlafen|aufwachen|essen|trinken|kochen|kaufen|verkaufen|bezahlen|kosten|geben|nehmen|bekommen|bringen|holen|suchen|finden|verlieren|gewinnen|beginnen|anfangen|aufhören|enden|beenden|öffnen|schließen|helfen|danken|entschuldigen|bitten|fragen|antworten|rufen|telefonieren|schreiben|lesen|denken|glauben|hoffen|wünschen|träumen|lieben|mögen|hassen|freuen|ärgern|wundern|interessieren|langweilen|lachen|weinen|lächeln|schreien|flüstern|singen|tanzen|fotografieren|malen|zeichnen|bauen|reparieren|putzen|waschen|anziehen|ausziehen|tragen|ziehen|drücken|stoßen|werfen|fangen|halten|loslassen|berühren|küssen|umarmen|schlagen|verletzen|heilen|krank|gesund|müde|wach|hungrig|durstig|satt|warm|kalt|heiß|kühl|groß|klein|dick|dünn|lang|kurz|hoch|niedrig|breit|schmal|tief|flach|schwer|leicht|stark|schwach|schnell|langsam|alt|jung|neu|gut|schlecht|schön|hässlich|interessant|langweilig|wichtig|unwichtig|richtig|falsch|einfach|schwierig|leicht|schwer|möglich|unmöglich|sicher|unsicher|gefährlich|ruhig|laut|leise|hell|dunkel|klar|unklar|sauber|schmutzig|ordentlich|unordentlich|pünktlich|unpünktlich|früh|spät|heute|gestern|morgen|jetzt|gleich|später|immer|nie|manchmal|oft|selten|hier|dort|da|wo|wohin|woher|wie|was|wer|wen|wem|wessen|warum|weshalb|wieso|wann|wie)\b/
+    ]
+    
+    if (germanPatterns.some(pattern => pattern.test(cleanText))) {
+      return 'de'
+    }
+    
+    // 西班牙语检测
+    const spanishPatterns = [
+      /[ñáéíóúü]/,
+      /\b(el|la|los|las|un|una|unos|unas|y|o|pero|sino|porque|que|de|del|al|en|con|por|para|sin|sobre|bajo|ante|tras|durante|mediante|según|entre|hasta|desde|hacia|contra|ser|estar|haber|tener|hacer|poder|decir|ir|ver|dar|saber|querer|llegar|pasar|deber|poner|parecer|quedar|creer|hablar|llevar|dejar|seguir|encontrar|llamar|venir|pensar|salir|volver|tomar|conocer|vivir|sentir|tratar|mirar|contar|empezar|esperar|buscar|existir|entrar|trabajar|escribir|perder|producir|acontecer|entender|pedir|recibir|recordar|terminar|permitir|aparecer|conseguir|comenzar|servir|sacar|necesitar|mantener|resultar|ler|cair|cambiar|apresentar|criar|abrir|considerar|ouvir|acabar|tornar|ganhar|formar|trazer|partir|morrer|aceitar|realizar|supor|compreender|conseguir|explicar|perguntar|tocar|reconhecer|estudar|alcançar|nascer|dirigir|correr|usar|pagar|ajudar|gustar|jogar|escutar|cumprir|oferecer|descobrir|levantar|tentar|decidir|repetir|construir|dormir|mover|continuar|aumentar|aprender|acontecer|desejar|aproximar|fugir|funcionar|quebrar|escolher|importar|valer|cortar|arrancar|coger|subir|bajar|encender|apagar|limpiar|cocinar|planchar|barrer|fregar|plantar|regar|cosechar|sembrar|crecer|morrer|nascer|envelhecer|cansar|descansar|dormir|despertar|soñar|pesadilla|recordar|olvidar|perdonar|disculpar|agradecer|felicitar|saludar|despedir|invitar|rifiutare|accettare|decidere|scegliere|preferire|desiderare|sperare|credere|pensare|ricordare|dimenticare|imparare|insegnare|spiegare|capire|sbagliare|riuscire|provare|tentare|cercare|controllare|verificare|dimostrare|mostrare|nascondere|coprire|scoprire|inventare|creare|costruire|distruggere|rompere|aggiustare|riparare|funzionare|accendere|spegnere|salire|scendere|cadere|saltare|nuotare|cucinare|preparare|servire|ordinare|prenotare|cancellare|confermare|chiamare|telefonare|rispondere|domandare|chiedere|raccontare|spiegare|descrivere|presentare|organizzare|pianificare|programmare|festeggiare|celebrare|ricordare|commemorare|dimenticare|perdonare)\b/
+    ]
+    
+    if (spanishPatterns.some(pattern => pattern.test(cleanText))) {
+      return 'es'
+    }
+    
+    // 意大利语检测
+    const italianPatterns = [
+      /[àèéìíîòóù]/,
+      /\b(il|lo|la|i|gli|le|un|uno|una|e|o|ma|però|anche|se|che|di|del|della|dei|delle|dello|degli|a|al|alla|ai|alle|allo|agli|in|nel|nella|nei|nelle|nello|negli|con|per|da|dal|dalla|dai|dalle|dallo|dagli|su|sul|sulla|sui|sulle|sullo|sugli|essere|avere|fare|dire|andare|potere|dovere|volere|sapere|dare|stare|vedere|uscire|parlare|arrivare|portare|mettere|prendere|venire|bere|mangiare|lavorare|studiare|giocare|dormire|svegliarsi|alzarsi|lavarsi|vestirsi|tornare|partire|entrare|rimanere|diventare|nascere|morire|vivere|abitare|sentire|guardare|ascoltare|leggere|scrivere|aprire|chiudere|cominciare|finire|continuare|smettere|aiutare|cercare|trovare|perdere|vincere|comprare|vendere|pagare|costare|spendere|guadagnare|lavorare|riposare|viaggiare|guidare|camminare|correre|volare|cantare|ballare|ridere|piangere|sorridere|incontrare|conoscere|sposare|amare|odiare|piacere|interessare|preoccupare|annoiare|divertire|sorprendere|aiutare|ringraziare|scusare|invitare|rifiutare|accettare|decidere|scegliere|preferire|desiderare|sperare|credere|pensare|ricordare|dimenticare|imparare|insegnare|spiegare|capire|sbagliare|riuscire|provare|tentare|cercare|controllare|verificare|dimostrare|mostrare|nascondere|coprire|scoprire|inventare|creare|costruire|distruggere|rompere|aggiustare|riparare|funzionare|accendere|spegnere|salire|scendere|cadere|saltare|nuotare|cucinare|preparare|servire|ordinare|prenotare|cancellare|confermare|chiamare|telefonare|rispondere|domandare|chiedere|raccontare|spiegare|descrivere|presentare|organizzare|pianificare|programmare|festeggiare|celebrare|ricordare|commemorare|dimenticare|perdonare)\b/
+    ]
+    
+    if (italianPatterns.some(pattern => pattern.test(cleanText))) {
+      return 'it'
+    }
+    
+    // 葡萄牙语检测
+    const portuguesePatterns = [
+      /[ãâáàçéêíóôõú]/,
+      /\b(o|a|os|as|um|uma|uns|umas|e|ou|mas|porém|contudo|todavia|entretanto|no|na|nos|nas|do|da|dos|das|ao|à|aos|às|em|com|por|para|de|desde|até|sobre|sob|entre|contra|sem|ser|estar|ter|haver|fazer|poder|dizer|ir|ver|dar|saber|querer|chegar|passar|dever|pôr|parecer|ficar|acreditar|falar|levar|deixar|seguir|encontrar|chamar|vir|pensar|sair|voltar|tomar|conhecer|viver|sentir|tratar|olhar|contar|começar|esperar|buscar|existir|entrar|trabalhar|escrever|perder|produzir|acontecer|entender|pedir|receber|lembrar|terminar|permitir|aparecer|conseguir|servir|tirar|precisar|manter|resultar|ler|cair|mudar|apresentar|criar|abrir|considerar|ouvir|acabar|tornar|ganhar|formar|trazer|partir|morrer|aceitar|realizar|supor|compreender|conseguir|explicar|perguntar|tocar|reconhecer|estudar|alcançar|nascer|dirigir|correr|usar|pagar|ajudar|gostar|jogar|escutar|cumprir|oferecer|descobrir|levantar|tentar|decidir|repetir|construir|dormir|mover|continuar|aumentar|aprender|acontecer|desejar|aproximar|fugir|funcionar|quebrar|escolher|importar|valer|cortar|pegar|subir|descer|acender|apagar|limpar|cozinhar|varrer|lavar|plantar|regar|colher|plantar|crescer|morrer|nascer|envelhecer|cansar|descansar|dormir|acordar|sonhar|lembrar|esquecer|perdoar|desculpar|agradecer|parabenizar|cumprimentar|despedir|convidar|recusar|aceitar|negar|afirmar|mentir|verdade|mentira|enganar|confiar|duvidar|acreditar|esperar|iludir|apaixonar|odiar|amar|querer|desejar|precisar|faltar|sobrar|bastar|alcançar|chegar|partir|voltar|ficar|estabelecer|instalar|sentar|levantar|deitar|banhar|lavar|secar|pentear|maquiar|vestir|despir|provar|comprar|vender|alugar|emprestar|devolver|dar|receber|enviar|mandar|entregar|pegar|guardar|tirar|pôr|retirar|adicionar|eliminar|apagar|escrever|ler|estudar|aprender|ensinar|explicar|entender|compreender|saber|conhecer|ignorar|descobrir|inventar|criar|construir|destruir|quebrar|consertar|reparar|funcionar|estragar|acender|apagar|abrir|fechar|entrar|sair|subir|descer|ir|vir|chegar|partir|ficar|estar|ser|ter|haver|fazer|dizer|ver|ouvir|tocar|cheirar|provar|sentir|pensar|lembrar|esquecer|sonhar|imaginar|acreditar|supor|opinar|considerar|julgar|criticar|elogiar|parabenizar|agradecer|desculpar|perdoar|pedir|rogar|suplicar|exigir|ordenar|mandar|proibir|permitir|autorizar|negar|recusar|aceitar|aprovar|desaprovar|gostar|adorar|fascinar|odiar|detestar|incomodar|preocupar|tranquilizar|acalmar|relaxar|estressar|divertir|aborrecer|entreter|interessar|desinteressar|surpreender|impressionar|decepcionar|satisfazer|agradar|desagradar|irritar|alegrar|entristecer|emocionar|comover|tocar|mover)\b/
+    ]
+    
+    if (portuguesePatterns.some(pattern => pattern.test(cleanText))) {
+      return 'pt'
+    }
+    
+    // 默认英语
+    return 'en'
   }
 
   /**
@@ -314,7 +411,7 @@ export class TTSService {
     }
     
     const language = this.detectLanguage(text)
-    const voice = language === 'zh' ? 'alloy' : 'nova'
+    const voice = this.selectVoiceForLanguage(language)
     
     try {
       const response = await fetch('https://api.openai.com/v1/audio/speech', {
@@ -343,11 +440,11 @@ export class TTSService {
       }
 
       const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' })
-      console.log(`[TTS服务] 音频生成完成: ${audioBlob.size}字节`)
+      console.log(`[TTS服务] 音频生成完成: ${audioBlob.size}字节, 语言: ${language}, 语音: ${voice}`)
       
       return audioBlob
     } catch (error) {
-      console.error('[TTS服务] 音频生成失败:', error)
+      console.error(`[TTS服务] 音频生成失败 (语言: ${language}, 语音: ${voice}):`, error)
       throw error
     }
   }

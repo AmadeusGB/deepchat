@@ -342,6 +342,7 @@ const voiceConversationHistory = ref<Array<{
   text: string
   timestamp: number
   summary?: string
+  detectedLanguage?: string
 }>>([])
 
 // TTS服务将在后面导入
@@ -644,11 +645,11 @@ const processVoiceRecording = async () => {
     const audioBlob = new Blob(audioChunks, { type: 'audio/wav' })
     
     // 调用语音转文字
-    const transcription = await transcribeAudio(audioBlob)
+    const transcriptionResult = await transcribeAudio(audioBlob)
     
-    if (transcription.trim()) {
+    if (transcriptionResult.text.trim()) {
       // 检查是否与上次处理的转录相同，防止重复处理
-      const currentTranscription = transcription.trim()
+      const currentTranscription = transcriptionResult.text.trim()
       if (currentTranscription === lastProcessedTranscription.value) {
         console.log('[语音处理] 🔄 检测到重复转录内容，跳过处理:', currentTranscription.substring(0, 50) + '...')
         return
@@ -659,7 +660,7 @@ const processVoiceRecording = async () => {
       
       // 在语音模式下，直接自动提交消息，不填入输入框
       if (isVoiceMode.value) {
-        await autoSubmitVoiceMessage(currentTranscription)
+        await autoSubmitVoiceMessage(currentTranscription, transcriptionResult.detectedLanguage)
       } else {
         // 非语音模式下，将转录结果添加到语音输入框
         voiceInputText.value = currentTranscription
@@ -681,7 +682,7 @@ const processVoiceRecording = async () => {
 }
 
 // 语音转文字API调用
-const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
+const transcribeAudio = async (audioBlob: Blob): Promise<{text: string, detectedLanguage: string}> => {
   try {
     // 打印语音识别开始信息
     console.log('\n[语音识别STT] 开始将用户语音转换为文字')
@@ -692,7 +693,8 @@ const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
     const formData = new FormData()
     formData.append('file', audioBlob, 'audio.wav')
     formData.append('model', 'whisper-1')
-    formData.append('language', 'zh') // 默认中文，也可以让模型自动检测
+    // 移除硬编码的语言设置，让Whisper自动检测语言
+    // formData.append('language', 'zh') // 删除此行，改为自动检测
 
     // 获取OpenAI Provider配置
     const openaiProvider = await configPresenter.getProviderById('openai')
@@ -715,15 +717,17 @@ const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
 
     const result = await response.json()
     const transcribedText = result.text || ''
+    const detectedLanguage = result.language || 'unknown'
     
     // 详细打印语音识别结果
     console.log('\n[语音识别STT] 用户语音转文字完成')
+    console.log(`检测到的语言: ${detectedLanguage}`)
     console.log('识别出的用户文字内容:')
     console.log(transcribedText)
     console.log(`文字长度: ${transcribedText.length} 字符`)
     console.log(`识别完成时间: ${new Date().toLocaleString()}`)
     
-    return transcribedText
+    return { text: transcribedText, detectedLanguage }
   } catch (error) {
     console.error('语音转文字API调用失败:', error)
     throw error
@@ -731,7 +735,7 @@ const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
 }
 
 // 自动提交语音消息并等待回复（语音模式专用，使用传统聊天流程但不显示UI）
-const autoSubmitVoiceMessage = async (text: string) => {
+const autoSubmitVoiceMessage = async (text: string, detectedLanguage?: string) => {
   // 防止重复提交相同消息
   if (isWaitingResponse.value) {
     console.log('[语音消息提交] 🚫 正在等待AI回复中，跳过重复提交')
@@ -741,6 +745,7 @@ const autoSubmitVoiceMessage = async (text: string) => {
   try {
     // 详细打印用户语音输入的完整信息
     console.log('\n[语音消息提交] 用户语音输入自动提交到AI')
+    console.log(`检测到的语言: ${detectedLanguage || 'unknown'}`)
     console.log('用户语音输入的完整文字内容:')
     console.log(text)
     console.log(`输入字符数: ${text.length}`)
@@ -752,14 +757,15 @@ const autoSubmitVoiceMessage = async (text: string) => {
       type: 'user',
       text: text,
       timestamp: Date.now(),
-      summary: text.length > 50 ? text.substring(0, 50) + '...' : text
+      summary: text.length > 50 ? text.substring(0, 50) + '...' : text,
+      detectedLanguage: detectedLanguage || 'unknown'
     })
 
     // 设置等待回复状态
     isWaitingResponse.value = true
     
     // 语音模式下使用传统聊天流程（支持MCP工具调用），但不显示UI
-    await sendVoiceMessageWithMCP(text)
+    await sendVoiceMessageWithMCP(text, detectedLanguage)
     
   } catch (error) {
     console.error('自动提交语音消息失败:', error)
@@ -804,13 +810,44 @@ const extractPlainTextFromContent = (content: string): string => {
 
 
 // 语音模式专用：使用传统聊天流程发送消息（支持MCP工具调用）
-const sendVoiceMessageWithMCP = async (text: string) => {
+const sendVoiceMessageWithMCP = async (text: string, detectedLanguage?: string) => {
   try {
+    // 构建多语言系统提示词
+    const languageMapping = {
+      'zh': '中文',
+      'en': 'English',
+      'fr': 'français',
+      'de': 'Deutsch',
+      'es': 'español',
+      'it': 'italiano',
+      'ja': '日本語',
+      'ko': '한국어',
+      'ru': 'русский',
+      'pt': 'português',
+      'ar': 'العربية',
+      'hi': 'हिन्दी'
+    }
+    
+    const detectedLangName = detectedLanguage ? (languageMapping[detectedLanguage] || detectedLanguage) : '未知语言'
+    const multilingualSystemPrompt = `${systemPrompt.value || ''}
+
+重要语言规则：
+- 用户语音识别的语言：${detectedLangName} (${detectedLanguage || 'unknown'})
+- 你必须用与用户输入相同的语言回复
+- 如果用户说中文，你必须用中文回复
+- 如果用户说英文，你必须用英文回复
+- 如果用户说法文，你必须用法文回复
+- 如果用户说任何其他语言，你必须用该语言回复
+- 保持对话的语言一致性，不要混用不同语言
+- 这是语音对话模式，回复要自然流畅，适合语音播放`.trim()
+
+    console.log(`[多语言系统] 构建系统提示词，检测语言: ${detectedLangName}`)
+    
     // 创建临时聊天线程（用于MCP工具调用）
     const threadId = await chatStore.createThread(text, {
       providerId: activeModel.value.providerId,
       modelId: activeModel.value.id,
-      systemPrompt: systemPrompt.value,
+      systemPrompt: multilingualSystemPrompt,
       temperature: temperature.value,
       contextLength: contextLength.value,
       maxTokens: maxTokens.value,
@@ -1035,7 +1072,7 @@ const sendVoiceMessageWithMCP = async (text: string) => {
           
           // 智能阶段检测和切换
           const previousPhase = currentPhase
-          currentPhase = detectAndSwitchPhase(assistantContent, workingStatus)
+          currentPhase = detectAndSwitchPhase(assistantContent, workingStatus || 'unknown')
           
           // 实时计算content和tool_call块
           const contentBlocks = assistantContent.filter(block => block.type === 'content')
