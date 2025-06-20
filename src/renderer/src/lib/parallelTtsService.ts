@@ -37,10 +37,10 @@ export class ParallelTtsService {
   private textHashCache: Set<string> = new Set()
   
   private config: TtsConfig = {
-    maxConcurrent: 3,
-    chunkSize: { min: 100, max: 300 },
-    maxRetries: 2,
-    timeoutMs: 15000,
+    maxConcurrent: 5,         // 提高并发度从3→5
+    chunkSize: { min: 15, max: 180 },  // 与新的分块器保持一致
+    maxRetries: 1,            // 减少重试次数从2→1，避免重试循环
+    timeoutMs: 8000,          // 减少超时时间从15s→8s，提高响应性
     enablePreloading: true
   }
 
@@ -64,14 +64,28 @@ export class ParallelTtsService {
     }
   }
 
-  // 智能文本分块 - 更激进的大块策略
+  // 智能文本分块 - 专业级句子完整性保护版本
   private intelligentChunking(text: string): string[] {
+    console.log(`\n🔄 [并行TTS-分块开始] 原始文本 (${text.length}字符):`)
+    console.log(`📝 "${text}"`)
+    console.log(`➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖`)
+    
     if (text.length <= this.config.chunkSize.min) {
+      console.log(`✅ [并行TTS-分块] 文本过短，无需分块`)
+      console.log(`📤 输出: 1块 - "${text}"`)
+      console.log(`🔚 [并行TTS-分块结束]\n`)
       return [text]
     }
 
     const chunks: string[] = []
-    const sentences = text.split(/([。！？；.!?;])/g).filter(s => s.trim())
+    
+    // 修正：只有真正的句末标点才分割句子（移除分号；）
+    const sentences = text.split(/([。！？.!?])/g).filter(s => s.trim())
+    
+    console.log(`🔍 [并行TTS-分块] 句子分析:`)
+    sentences.forEach((part, index) => {
+      console.log(`   ${index}: "${part}"`)
+    })
     
     let currentChunk = ''
     let i = 0
@@ -81,31 +95,40 @@ export class ParallelTtsService {
       const punctuation = sentences[i + 1] || ''
       const fullSentence = sentence + punctuation
       
+      console.log(`\n🧩 [处理句子${Math.floor(i/2) + 1}] "${fullSentence}" (${fullSentence.length}字符)`)
+      
       // 如果当前块为空，直接添加句子
       if (!currentChunk) {
         currentChunk = fullSentence
+        console.log(`   ➕ 新块开始: "${currentChunk}"`)
         i += punctuation ? 2 : 1
         continue
       }
 
       // 检查添加后的长度
       const potentialLength = currentChunk.length + fullSentence.length
+      console.log(`   📏 当前块: ${currentChunk.length}字符, 新句子: ${fullSentence.length}字符, 合并后: ${potentialLength}字符`)
+      console.log(`   📊 限制: 最小${this.config.chunkSize.min}, 最大${this.config.chunkSize.max}`)
       
       if (potentialLength <= this.config.chunkSize.max) {
         currentChunk += fullSentence
+        console.log(`   ✅ 可以合并: "${currentChunk}"`)
         i += punctuation ? 2 : 1
         
-        // 如果达到理想大小且有句号，可以分块
+        // 修正：只有真正的句末标点才考虑分块（移除分号；）
         if (potentialLength >= this.config.chunkSize.min && /[。！？.!?]/.test(punctuation)) {
           chunks.push(currentChunk.trim())
+          console.log(`   🎯 达到理想大小，输出块${chunks.length}: "${currentChunk.trim()}"`)
           currentChunk = ''
         }
       } else {
         // 当前块已满，保存并开始新块
         if (currentChunk.trim()) {
           chunks.push(currentChunk.trim())
+          console.log(`   🚫 无法合并，输出当前块${chunks.length}: "${currentChunk.trim()}"`)
         }
         currentChunk = fullSentence
+        console.log(`   🆕 开始新块: "${currentChunk}"`)
         i += punctuation ? 2 : 1
       }
     }
@@ -113,12 +136,14 @@ export class ParallelTtsService {
     // 添加最后的块
     if (currentChunk.trim()) {
       chunks.push(currentChunk.trim())
+      console.log(`   🏁 最后一块${chunks.length}: "${currentChunk.trim()}"`)
     }
 
-    console.log(`[并行TTS] 智能分块完成: ${text.length}字符 → ${chunks.length}块`)
+    console.log(`\n📊 [并行TTS-分块结果] ${text.length}字符 → ${chunks.length}块`)
     chunks.forEach((chunk, idx) => {
-      console.log(`[并行TTS] 块${idx + 1}: ${chunk.length}字符 - "${chunk.substring(0, 30)}..."`)
+      console.log(`📦 块${idx + 1} (${chunk.length}字符): "${chunk}"`)
     })
+    console.log(`🔚 [并行TTS-分块结束]\n`)
 
     return chunks
   }
@@ -279,11 +304,11 @@ export class ParallelTtsService {
       if (chunk.retryCount < this.config.maxRetries) {
         console.log(`[并行TTS] 重试块 ${chunk.position} (${chunk.retryCount}/${this.config.maxRetries})`)
         chunk.status = 'pending'
-        // 延迟重试
-        setTimeout(() => this.processChunk(chunk), 1000 * chunk.retryCount)
+        // 减少重试延迟从1000ms→500ms，提高响应性
+        setTimeout(() => this.processChunk(chunk), 500)
       } else {
         chunk.status = 'error'
-        console.error(`[并行TTS] 块 ${chunk.position} 最终失败`)
+        console.error(`[并行TTS] 块 ${chunk.position} 最终失败，跳过继续处理`)
       }
     } finally {
       this.activeRequests--
@@ -350,17 +375,26 @@ export class ParallelTtsService {
     console.log(`[并行TTS] 播放队列完成`)
   }
 
-  // 等待块准备就绪
-  private async waitForChunkReady(chunk: AudioChunk, maxWait = 30000): Promise<void> {
+  // 等待块准备就绪 - 优化超时和轮询间隔
+  private async waitForChunkReady(chunk: AudioChunk, maxWait = 12000): Promise<void> {
     const startTime = Date.now()
+    let logCount = 0
     
     while (chunk.status === 'pending' || chunk.status === 'processing') {
       if (Date.now() - startTime > maxWait) {
-        throw new Error(`等待块 ${chunk.position} 超时`)
+        console.error(`[并行TTS] 等待块 ${chunk.position} 超时(${maxWait}ms)，跳过处理`)
+        chunk.status = 'error'
+        return
       }
       
-      console.log(`[并行TTS] 等待块 ${chunk.position} 准备就绪... (状态: ${chunk.status})`)
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // 减少日志频率，避免日志污染
+      if (logCount % 4 === 0) {
+        console.log(`[并行TTS] 等待块 ${chunk.position} 准备就绪... (状态: ${chunk.status}, 已等待: ${Date.now() - startTime}ms)`)
+      }
+      logCount++
+      
+      // 减少轮询间隔从500ms→200ms，提高响应性
+      await new Promise(resolve => setTimeout(resolve, 200))
     }
   }
 

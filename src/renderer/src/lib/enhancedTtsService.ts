@@ -62,13 +62,17 @@ export interface AudioChunk {
 export type TTSStatus = 'idle' | 'processing' | 'playing' | 'paused' | 'error' | 'stopped'
 
 /**
- * 智能文本分块器
- * 根据不同策略和内容特点进行最优分块
+ * 智能文本分块器 - 专业级句子完整性保护版本
+ * 根据不同策略和内容特点进行最优分块，始终保持句子完整性
  */
 class SmartTextChunker {
   private config: TTSConfig
   private textBuffer = ''
   private position = 0
+  
+  // 句子完整性保护缓冲区
+  // private sentenceBuffer = ''
+  private pendingCompleteChunks: TextChunk[] = []
   
   constructor(config: TTSConfig) {
     this.config = config
@@ -78,162 +82,234 @@ class SmartTextChunker {
     if (!newText) return []
     
     this.textBuffer += newText
-    return this.processBuffer()
+    return this.processBufferWithSentenceProtection()
   }
 
   finalize(): TextChunk[] {
-    if (!this.textBuffer.trim()) return []
+    const chunks: TextChunk[] = [...this.pendingCompleteChunks]
     
-    const chunk = this.createChunk(this.textBuffer.trim(), 1)
-    this.textBuffer = ''
-    return [chunk]
+    // 处理剩余的完整句子
+    const finalSentences = this.extractCompleteSentences(this.textBuffer)
+    chunks.push(...finalSentences.map(text => this.createChunk(text.trim())))
+    
+    // 处理最后的不完整片段（如果有实际内容）
+    const remainingText = this.textBuffer.trim()
+    if (remainingText && remainingText.length >= 10) { // 至少10字符才处理不完整片段
+      chunks.push(this.createChunk(remainingText))
+    }
+    
+    this.reset()
+    this.pendingCompleteChunks = []
+    return chunks
   }
 
-  private processBuffer(): TextChunk[] {
+  private processBufferWithSentenceProtection(): TextChunk[] {
+    const chunks: TextChunk[] = [...this.pendingCompleteChunks]
+    this.pendingCompleteChunks = []
+    
+    // 提取完整句子
+    const completeSentences = this.extractCompleteSentences(this.textBuffer)
+    
+    if (completeSentences.length > 0) {
+      // 根据策略处理完整句子
+      const processedChunks = this.processCompleteSentences(completeSentences)
+      chunks.push(...processedChunks)
+    }
+    
+    return chunks
+  }
+
+  /**
+   * 提取完整句子 - 核心句子识别算法
+   */
+  private extractCompleteSentences(text: string): string[] {
+    const completeSentences: string[] = []
+    
+    // 真正的句末标点符号（不包括逗号、分号、冒号等）
+    const sentenceEndPattern = /[。！？.!?]/g
+    
+    let lastIndex = 0
+    let match: RegExpExecArray | null
+    
+    while ((match = sentenceEndPattern.exec(text)) !== null) {
+      const sentenceEnd = match.index + 1
+      const sentence = text.substring(lastIndex, sentenceEnd).trim()
+      
+      if (sentence) {
+        completeSentences.push(sentence)
+        lastIndex = sentenceEnd
+      }
+    }
+    
+    // 更新textBuffer，移除已提取的完整句子
+    this.textBuffer = text.substring(lastIndex)
+    
+    return completeSentences
+  }
+
+  /**
+   * 处理完整句子的分块策略
+   */
+  private processCompleteSentences(sentences: string[]): TextChunk[] {
     const chunks: TextChunk[] = []
     
-    while (this.textBuffer.length > 0) {
-      const chunkResult = this.findNextChunk()
-      if (!chunkResult) break
-      
-      const { text, shouldProcess } = chunkResult
-      if (shouldProcess && text.trim()) {
-        chunks.push(this.createChunk(text.trim()))
-        this.textBuffer = this.textBuffer.substring(text.length).trim()
-      } else {
+    switch (this.config.chunkingStrategy) {
+      case 'realtime':
+        // 超低延迟：但保持句子完整性
+        chunks.push(...this.realtimeSentenceChunking(sentences))
         break
+      case 'balanced':
+        // 平衡策略：合并句子到理想长度
+        chunks.push(...this.balancedSentenceChunking(sentences))
+        break
+      case 'precise':
+        // 精确策略：等待更多句子或段落
+        chunks.push(...this.preciseSentenceChunking(sentences))
+        break
+      default:
+        chunks.push(...this.balancedSentenceChunking(sentences))
+    }
+    
+    return chunks
+  }
+
+  /**
+   * 超低延迟句子分块 - 保持句子完整性
+   */
+  private realtimeSentenceChunking(sentences: string[]): TextChunk[] {
+    const chunks: TextChunk[] = []
+    
+    for (const sentence of sentences) {
+      // 即使是实时策略，也要保证句子完整性
+      if (sentence.length <= this.config.maxChunkSize) {
+        chunks.push(this.createChunk(sentence))
+      } else {
+        // 超长句子需要在合适位置分割（保持子句完整性）
+        const subChunks = this.splitLongSentence(sentence)
+        chunks.push(...subChunks.map(text => this.createChunk(text)))
       }
     }
     
     return chunks
   }
 
-  private findNextChunk(): { text: string; shouldProcess: boolean } | null {
-    const strategy = this.config.chunkingStrategy
+  /**
+   * 平衡句子分块 - 合并句子到理想长度
+   */
+  private balancedSentenceChunking(sentences: string[]): TextChunk[] {
+    const chunks: TextChunk[] = []
+    let currentChunk = ''
     
-    switch (strategy) {
-      case 'realtime':
-        return this.realtimeChunking()
-      case 'balanced':
-        return this.balancedChunking()
-      case 'precise':
-        return this.preciseChunking()
-      default:
-        return this.balancedChunking()
-    }
-  }
-
-  private realtimeChunking(): { text: string; shouldProcess: boolean } | null {
-    // 超低延迟：遇到任何标点或达到最小长度就处理
-    const quickBreakMatch = this.textBuffer.match(/^([^，。！？；：,.:!?;]*[，。！？；：,.:!?;])/)
-    
-    if (quickBreakMatch) {
-      return { text: quickBreakMatch[1], shouldProcess: true }
-    }
-    
-    if (this.textBuffer.length >= this.config.minChunkSize) {
-      const cutPoint = this.findOptimalCutPoint(this.config.minChunkSize)
-      return { text: this.textBuffer.substring(0, cutPoint), shouldProcess: true }
-    }
-    
-    return null
-  }
-
-  private balancedChunking(): { text: string; shouldProcess: boolean } | null {
-    // 平衡策略：优化大块处理，减少TTS开销
-    
-    // 优先处理完整句子，但要达到最小长度
-    const sentenceMatch = this.textBuffer.match(/^([^。！？.!?]*[。！？.!?]\s*)/)
-    
-    if (sentenceMatch && sentenceMatch[1].length >= this.config.minChunkSize) {
-      return { text: sentenceMatch[1], shouldProcess: true }
-    }
-    
-    // 尝试合并多个句子直到达到理想长度
-    if (sentenceMatch && this.textBuffer.length >= this.config.minChunkSize) {
-      const multiSentenceMatch = this.textBuffer.match(/^([^。！？.!?]*[。！？.!?]\s*){1,3}/)
-      if (multiSentenceMatch && multiSentenceMatch[0].length >= this.config.minChunkSize) {
-        return { text: multiSentenceMatch[0], shouldProcess: true }
+    for (const sentence of sentences) {
+      const potentialLength = currentChunk.length + sentence.length
+      
+      if (!currentChunk) {
+        // 第一个句子
+        currentChunk = sentence
+      } else if (potentialLength <= this.config.maxChunkSize) {
+        // 可以合并
+        currentChunk += sentence
+        
+        // 如果达到理想长度，立即输出
+        if (potentialLength >= this.config.minChunkSize) {
+          chunks.push(this.createChunk(currentChunk))
+          currentChunk = ''
+        }
+      } else {
+        // 无法合并，输出当前块
+        if (currentChunk) {
+          chunks.push(this.createChunk(currentChunk))
+        }
+        currentChunk = sentence
       }
     }
     
-    // 如果没有完整句子但长度超过阈值，在合适位置分割
-    if (this.textBuffer.length >= this.config.maxChunkSize) {
-      const cutPoint = this.findOptimalCutPoint(this.config.maxChunkSize)
-      return { text: this.textBuffer.substring(0, cutPoint), shouldProcess: true }
-    }
-    
-    // 只有在达到较大长度时才处理逗号分隔的片段
-    if (this.textBuffer.length >= this.config.minChunkSize * 1.5) {
-      const commaMatch = this.textBuffer.match(/^([^，,]*[，,]\s*){1,2}/)
-      if (commaMatch && commaMatch[0].length >= this.config.minChunkSize) {
-        return { text: commaMatch[0], shouldProcess: true }
+    // 检查是否有待处理的块
+    if (currentChunk) {
+      if (currentChunk.length >= this.config.minChunkSize) {
+        chunks.push(this.createChunk(currentChunk))
+      } else {
+        // 长度不足，暂存等待更多句子
+        this.pendingCompleteChunks.push(this.createChunk(currentChunk))
       }
     }
     
-    return null
+    return chunks
   }
 
-  private preciseChunking(): { text: string; shouldProcess: boolean } | null {
-    // 精确策略：等待完整段落或强制分割点
-    const paragraphMatch = this.textBuffer.match(/^([^。！？.!?]*[。！？.!?]\s*[\n\r]*)/)
+  /**
+   * 精确句子分块 - 等待段落或更多句子
+   */
+  private preciseSentenceChunking(sentences: string[]): TextChunk[] {
+    const chunks: TextChunk[] = []
     
-    if (paragraphMatch) {
-      return { text: paragraphMatch[1], shouldProcess: true }
-    }
-    
-    // 只有在达到最大长度时才强制分割
-    if (this.textBuffer.length >= this.config.maxChunkSize * 2) {
-      const cutPoint = this.findOptimalCutPoint(this.config.maxChunkSize * 2)
-      return { text: this.textBuffer.substring(0, cutPoint), shouldProcess: true }
-    }
-    
-    return null
-  }
-
-  private findOptimalCutPoint(maxLength: number): number {
-    if (this.textBuffer.length <= maxLength) return this.textBuffer.length
-    
-    const searchText = this.textBuffer.substring(0, maxLength)
-    
-    // 优先在标点符号处分割
-    const punctuationIndex = Math.max(
-      searchText.lastIndexOf('，'),
-      searchText.lastIndexOf('；'),
-      searchText.lastIndexOf(','),
-      searchText.lastIndexOf(';'),
-      searchText.lastIndexOf('：'),
-      searchText.lastIndexOf(':')
-    )
-    
-    if (punctuationIndex > maxLength * 0.7) {
-      return punctuationIndex + 1
-    }
-    
-    // 在空格处分割
-    const spaceIndex = searchText.lastIndexOf(' ')
-    if (spaceIndex > maxLength * 0.8) {
-      return spaceIndex + 1
-    }
-    
-    // 避免在中文字符中间分割
-    for (let i = maxLength - 1; i >= maxLength * 0.8; i--) {
-      if (!this.isCJKCharacter(this.textBuffer[i])) {
-        return i + 1
+    // 检查是否有段落分割符
+    const fullText = sentences.join('')
+    if (fullText.includes('\n') || fullText.includes('\r')) {
+      // 有段落分割，按段落处理
+      const paragraphs = fullText.split(/[\r\n]+/).filter(p => p.trim())
+      chunks.push(...paragraphs.map(p => this.createChunk(p.trim())))
+    } else {
+      // 无段落分割，累积更多句子
+      const combinedText = sentences.join('')
+      if (combinedText.length >= this.config.minChunkSize * 2) {
+        chunks.push(this.createChunk(combinedText))
+      } else {
+        // 继续等待更多内容
+        this.pendingCompleteChunks.push(this.createChunk(combinedText))
       }
     }
     
-    return maxLength
+    return chunks
   }
 
-  private isCJKCharacter(char: string): boolean {
-    const code = char.charCodeAt(0)
-    return (code >= 0x4e00 && code <= 0x9fff) || // 中文
-           (code >= 0x3400 && code <= 0x4dbf) || // 扩展A
-           (code >= 0x20000 && code <= 0x2a6df) || // 扩展B
-           (code >= 0x3040 && code <= 0x309f) || // 平假名
-           (code >= 0x30a0 && code <= 0x30ff) || // 片假名
-           (code >= 0xac00 && code <= 0xd7af)    // 韩文
+  /**
+   * 分割超长句子 - 保持子句完整性
+   */
+  private splitLongSentence(sentence: string): string[] {
+    const chunks: string[] = []
+    
+    // 在逗号、分号等处分割，但保持子句完整性
+    const subClausePattern = /([^，；,;]*[，；,;]\s*)/g
+    
+    let currentChunk = ''
+    let lastIndex = 0
+    let match: RegExpExecArray | null
+    
+    while ((match = subClausePattern.exec(sentence)) !== null) {
+      const subClause = match[1]
+      const potentialLength = currentChunk.length + subClause.length
+      
+      if (potentialLength <= this.config.maxChunkSize) {
+        currentChunk += subClause
+      } else {
+        if (currentChunk) {
+          chunks.push(currentChunk.trim())
+        }
+        currentChunk = subClause
+      }
+      lastIndex = match.index + match[1].length
+    }
+    
+    // 处理剩余部分
+    const remaining = sentence.substring(lastIndex)
+    if (remaining.trim()) {
+      if (currentChunk) {
+        const finalChunk = currentChunk + remaining
+        if (finalChunk.length <= this.config.maxChunkSize) {
+          chunks.push(finalChunk.trim())
+        } else {
+          chunks.push(currentChunk.trim())
+          chunks.push(remaining.trim())
+        }
+      } else {
+        chunks.push(remaining.trim())
+      }
+    } else if (currentChunk) {
+      chunks.push(currentChunk.trim())
+    }
+    
+    return chunks.filter(chunk => chunk.length > 0)
   }
 
   private createChunk(text: string, priority = 0): TextChunk {
@@ -250,6 +326,7 @@ class SmartTextChunker {
   reset(): void {
     this.textBuffer = ''
     this.position = 0
+    this.pendingCompleteChunks = []
   }
 }
 
@@ -742,6 +819,34 @@ export class EnhancedTTSService {
       this.status = newStatus
       this.callbacks.onStatusChange?.(newStatus)
     }
+  }
+
+
+
+  private calculateChunkConfidence(chunk: string): number {
+    let confidence = 100
+    
+    // 检查句子完整性（是否以句末标点结尾）
+    if (!/[。！？.!?]$/.test(chunk.trim())) {
+      confidence -= 40  // 不完整句子大幅降低信心度
+    }
+    
+    // 检查是否包含逗号分割（逗号分割降低连贯性）
+    if (chunk.includes('，') || chunk.includes(',')) {
+      const parts = chunk.split(/[，,]/)
+      if (parts.length > 2) {
+        confidence -= 15  // 多逗号分割适度降低信心度
+      }
+    }
+    
+    // 长度评估
+    if (chunk.length < 5) {
+      confidence -= 20  // 过短
+    } else if (chunk.length > 150) {
+      confidence -= 10  // 过长
+    }
+    
+    return Math.max(0, confidence)
   }
 }
 
