@@ -1,4 +1,6 @@
 import { usePresenter } from '@/composables/usePresenter'
+import { VoiceConfig, isMaleVoice, isFemaleVoice, type VoiceType } from '@shared/voiceConfig'
+import { ttsCoordinator } from './ttsCoordinator'
 
 export interface TTSOptions {
   voice?: string
@@ -6,314 +8,340 @@ export interface TTSOptions {
   language?: string
 }
 
+// 🎯 新增：语音性别检测和异性回应功能
+export interface VoiceGenderDetectionResult {
+  detectedGender: 'male' | 'female' | 'unknown'
+  confidence: number // 0-1
+  fundamentalFrequency: number // 基频 Hz
+  method: 'frequency' | 'manual' | 'default'
+}
+
+export interface VoicePreferences {
+  genderDetectionEnabled: boolean
+  oppositeGenderResponseEnabled: boolean
+  userGender: 'auto' | 'male' | 'female'
+  preferredMaleVoice: string
+  preferredFemaleVoice: string
+}
+
 export class TTSService {
   private configPresenter = usePresenter('configPresenter')
   private currentAudio: HTMLAudioElement | null = null
   private isPlaying = false
-  private requestQueue: Promise<void> = Promise.resolve() // 请求队列，避免并发
+  // private requestQueue: Promise<void> = Promise.resolve() // 请求队列，避免并发 - 暂未使用
 
   /**
-   * 使用GPT TTS API进行语音合成（带重试机制）
+   * 🎯 智能语音参数优化 - 修复版本
+   * 增加语音一致性保护，避免突然的性别切换
    */
-  async playWithGPTTTS(text: string, options: TTSOptions = {}): Promise<void> {
-    // 打印TTS文字内容
-    console.log('\n[TTS文字转语音] 开始播放:')
-    console.log(text)
-    console.log(`[字符数: ${text.length}] [语言: ${this.detectLanguage(text) === 'zh' ? '中文' : '英文'}] [时间: ${new Date().toLocaleString()}]`)
+  private static lastUsedVoice: string = VoiceConfig.voiceMapping.defaultMaleVoice
+  private static voiceConsistencyMode: boolean = true // 语音一致性模式开关
+  
+  // 🎯 新增：用户性别检测缓存
+  private static detectedUserGender: 'male' | 'female' | 'unknown' = 'unknown'
+  private static genderDetectionConfidence: number = 0
+  private static voicePreferences: VoicePreferences = {
+    genderDetectionEnabled: true,
+    oppositeGenderResponseEnabled: true,
+    userGender: 'auto',
+    preferredMaleVoice: VoiceConfig.voiceMapping.defaultMaleVoice,
+    preferredFemaleVoice: VoiceConfig.voiceMapping.defaultFemaleVoice
+  }
+
+  // 🚨 新增：TTS服务冲突检测
+  private static activeInstances: Set<string> = new Set()
+  private instanceId: string
+
+  constructor() {
+    // 生成唯一实例ID
+    this.instanceId = `tts_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     
-    // 使用队列确保请求按顺序执行，避免并发问题
-    this.requestQueue = this.requestQueue.then(() => this.playWithGPTTTSInternal(text, options))
-    return this.requestQueue
+    // 检测服务冲突
+    if (TTSService.activeInstances.size > 0) {
+      console.warn(`⚠️ [TTS服务] 检测到多个TTS服务实例，当前实例: ${this.instanceId}`)
+      console.warn(`   已存在实例: ${Array.from(TTSService.activeInstances).join(', ')}`)
+    }
+    
+    TTSService.activeInstances.add(this.instanceId)
+    
+    // 🎯 注册到TTS协调器 - 修复优先级
+    ttsCoordinator.registerService(
+      this.instanceId,
+      'TTSService (Gender Detection)',
+      50, // 降低优先级，让其他播放服务优先
+      () => this.stop()
+    )
+    
+    // 🎯 初始化时加载语音偏好设置
+    this.loadVoicePreferences().catch(error => {
+      console.error('TTSService初始化时加载语音偏好设置失败:', error)
+    })
+    
+    console.log(`🎯 [TTS服务] 实例 ${this.instanceId} 初始化完成`)
   }
 
   /**
-   * 内部TTS实现（带重试）
+   * 🛡️ 析构函数，清理实例
    */
-  private async playWithGPTTTSInternal(text: string, options: TTSOptions = {}): Promise<void> {
-    const maxRetries = 2 // 最多重试2次
-    let lastError: Error | null = null
-
-    for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
-      try {
-        await this.attemptGPTTTS(text, options, attempt)
-        return // 成功则直接返回
-      } catch (error) {
-        lastError = error as Error
-        console.warn(`[TTS服务] 🔄 第${attempt}次尝试失败:`, error)
-        
-        if (attempt <= maxRetries) {
-          // 指数退避：第一次重试等待1秒，第二次等待2秒
-          const delay = attempt * 1000
-          console.log(`[TTS服务] ⏳ ${delay}ms后进行第${attempt + 1}次尝试`)
-          await new Promise(resolve => setTimeout(resolve, delay))
-        }
-      }
-    }
-
-    // 所有重试都失败
-    console.error(`[TTS服务] ❌ 所有重试都失败，最后错误:`, lastError)
-    console.log(`[TTS服务] 🔇 TTS完全失败，静默跳过播放`)
-  }
-
-  /**
-   * 单次TTS尝试
-   */
-  private async attemptGPTTTS(text: string, _options: TTSOptions, attempt: number): Promise<void> {
-    // 简化日志输出
-    if (attempt === 1) {
-      console.log(`[TTS服务] 开始播放 (${text.length}字符)`)
-    } else {
-      console.log(`[TTS服务] 重试第${attempt}次`)
-    }
-
-    // 优化超时时间：基础20秒 + 每100字符增加8秒，最大90秒
-    const baseTimeout = 20000
-    const extraTimeout = Math.ceil(text.length / 100) * 8000
-    const dynamicTimeout = Math.max(baseTimeout, Math.min(baseTimeout + extraTimeout, 90000))
-
-    const openaiProvider = await this.configPresenter.getProviderById('openai')
-    
-    if (!openaiProvider || !openaiProvider.apiKey) {
-      throw new Error('OpenAI配置未找到或API密钥缺失')
-    }
-    
-    const language = this.detectLanguage(text)
-    const voice = this.selectVoiceForLanguage(language)
-    const speed = this.selectSpeedForLanguage(language)
-    
-    // 根据尝试次数调整API超时时间
-    const apiTimeout = 10000 + (attempt - 1) * 5000 // 每次重试增加5秒
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => {
-      controller.abort()
-    }, apiTimeout)
-    
+  destroy(): void {
     try {
-      const response = await fetch('https://api.openai.com/v1/audio/speech', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiProvider.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'tts-1',
-          input: text,
-          voice: voice,
-          speed: speed
-        }),
-        signal: controller.signal
-      })
-
-      clearTimeout(timeoutId)
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error')
-        throw new Error(`TTS API请求失败: ${response.status} - ${errorText}`)
-      }
-
-      const audioBuffer = await response.arrayBuffer()
-
-      if (audioBuffer.byteLength === 0) {
-        throw new Error('收到空的音频数据')
-      }
-
-      const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' })
-      const audioUrl = URL.createObjectURL(audioBlob)
-
-      await this.playAudioFromUrl(audioUrl, dynamicTimeout)
-      
-      URL.revokeObjectURL(audioUrl)
-    } catch (fetchError) {
-      clearTimeout(timeoutId)
-      throw fetchError
-    }
-  }
-
-  /**
-   * 使用浏览器原生SpeechSynthesis API
-   */
-  async playWithBrowserTTS(text: string): Promise<void> {
-    // 打印TTS文字内容
-    console.log('\n[TTS文字转语音-浏览器] 开始播放:')
-    console.log(text)
-    console.log(`[字符数: ${text.length}] [语言: ${this.detectLanguage(text) === 'zh' ? '中文' : '英文'}] [时间: ${new Date().toLocaleString()}]`)
-    
-    return new Promise((resolve, reject) => {
-      if (!('speechSynthesis' in window)) {
-        console.error(`[TTS服务] 浏览器不支持语音合成`)
-        reject(new Error('浏览器不支持语音合成'))
-        return
-      }
-
       // 停止当前播放
       this.stop()
-
-      const utterance = new SpeechSynthesisUtterance(text)
       
-      // 设置语音参数
-      const language = this.detectLanguage(text)
-      utterance.lang = language === 'zh' ? 'zh-CN' : 'en-US'
-      utterance.rate = this.selectSpeedForLanguage(language)
-      utterance.pitch = 1.0
-      utterance.volume = 1.0
-
-      console.log(`[TTS服务] 浏览器TTS配置:`, {
-        language,
-        lang: utterance.lang,
-        rate: utterance.rate,
-        pitch: utterance.pitch,
-        volume: utterance.volume
-      })
-
-      // 选择合适的语音
-      const voices = speechSynthesis.getVoices()
-      const preferredVoice = voices.find(voice => 
-        voice.lang.startsWith(utterance.lang) && voice.localService
-      )
-      if (preferredVoice) {
-        utterance.voice = preferredVoice
-        console.log(`[TTS服务] 选择语音: ${preferredVoice.name}`)
-      } else {
-        console.log(`[TTS服务] 未找到合适的本地语音，使用默认语音`)
-      }
-
-      utterance.onstart = () => {
-        console.log(`[TTS服务] 浏览器TTS开始播放`)
-        this.isPlaying = true
-      }
-
-      utterance.onend = () => {
-        console.log(`[TTS服务] 浏览器TTS播放完成`)
-        this.isPlaying = false
-        resolve()
-      }
-
-      utterance.onerror = (event) => {
-        console.error(`[TTS服务] 浏览器TTS播放错误:`, event.error)
-        this.isPlaying = false
-        reject(new Error(`语音合成失败: ${event.error}`))
-      }
-
-      console.log(`[TTS服务] 开始浏览器语音合成`)
-      this.isPlaying = true
-      speechSynthesis.speak(utterance)
+      // 清理实例注册
+      TTSService.activeInstances.delete(this.instanceId)
+      ttsCoordinator.releaseService(this.instanceId)
       
-      // 设置浏览器TTS超时（基于文本长度）
-      const browserTimeout = Math.max(15000, text.length * 100) // 每字符100ms，最少15秒
-      setTimeout(() => {
-        if (this.isPlaying) {
-          console.log(`[TTS服务] 浏览器TTS播放超时`)
-          speechSynthesis.cancel()
-          this.isPlaying = false
-          reject(new Error('浏览器TTS播放超时'))
-        }
-      }, browserTimeout)
-    })
+      console.log(`🎯 [TTS服务] 实例 ${this.instanceId} 已销毁`)
+    } catch (error) {
+      console.error(`🚨 [TTS服务] 销毁实例失败:`, error)
+    }
   }
 
   /**
-   * 播放音频URL
+   * 🎯 请求播放权限
    */
-  private async playAudioFromUrl(url: string, timeout: number): Promise<void> {
-    const playStartTime = Date.now()
+  private requestPlayPermission(): boolean {
+    try {
+      return ttsCoordinator.requestActivation(this.instanceId)
+    } catch (error) {
+      console.error(`🚨 [TTS服务] 请求播放权限失败:`, error)
+      return false
+    }
+  }
+
+  /**
+   * 🎯 智能语音参数优化 - 修复版本
+   * 增加语音一致性保护，避免突然的性别切换
+   */
+  private optimizeVoiceParameters(text: string, language: string): {
+    speed: number
+    voice: string
+    model: string
+  } {
+    // 获取基础语速
+    const baseSpeed = this.selectSpeedForLanguage(language)
     
-    return new Promise((resolve, reject) => {
-      this.currentAudio = new Audio(url)
-      
-      // 添加超时机制，防止音频播放卡住
-      const timeoutHandle = setTimeout(() => {
-        console.error(`[TTS服务] 音频播放超时 (${timeout/1000}秒)`)
-        this.isPlaying = false
-        if (this.currentAudio) {
-          this.currentAudio.pause()
-          this.currentAudio = null
-        }
-        reject(new Error('音频播放超时'))
-      }, timeout)
-      
-      const cleanup = () => {
-        const playDuration = Date.now() - playStartTime
-        console.log(`[TTS服务] 清理音频资源，播放耗时: ${playDuration}ms`)
-        
-        // 添加播放完成的详细信息
-        console.log(`[TTS播放完成] 耗时: ${(playDuration/1000).toFixed(2)}秒 完成时间: ${new Date().toLocaleString()}`)
-        
-        clearTimeout(timeoutHandle)
-        this.isPlaying = false
-        this.currentAudio = null
-      }
-      
-      this.currentAudio.onloadeddata = () => {
-        this.isPlaying = true
-        this.currentAudio!.play().then(() => {
-          // 播放开始成功
-        }).catch((error) => {
-          console.error(`[TTS服务] 音频播放开始失败:`, error)
-          cleanup()
-          reject(error)
-        })
-      }
-
-      this.currentAudio.onended = () => {
-        cleanup()
-        resolve()
-      }
-
-      this.currentAudio.onerror = (event) => {
-        console.error(`[TTS服务] 音频播放错误:`, event)
-        cleanup()
-        reject(new Error('音频播放失败'))
-      }
-
-      this.currentAudio.onabort = () => {
-        cleanup()
-        resolve() // 中止不算错误，正常结束
-      }
-    })
-  }
-
-  /**
-   * 统一语音选择 - 所有语言使用同一个声音确保一致性
-   */
-  private selectVoiceForLanguage(language: string): string {
-    // 用户需求：所有语言都使用同一个人的声音，确保语音对话的一致性
-    // 选择 'alloy' 作为统一语音，因为它对多种语言的发音都比较自然
-    const unifiedVoice = 'alloy'
+    // 🛡️ 增强情感分析 - 避免技术术语误判
+    const emotionAnalysis = this.analyzeTextEmotionEnhanced(text)
     
-    console.log(`[TTS服务] 统一语音策略 - 语言: ${language} → 统一语音: ${unifiedVoice}`)
-    return unifiedVoice
-  }
-
-  /**
-   * 根据语言智能调整播放速度 - 让语音更自然、更拟人
-   * 采用保守的渐进式优化策略
-   */
-  private selectSpeedForLanguage(language: string): number {
-    // 基于OpenAI社区实测数据和语言学特性的保守调整
-    // 第一版采用温和的速度差异，后续可根据用户反馈微调
-    const baseSpeedMapping = {
-      'en': 0.9,   // 英语：从178 WPM温和降速，保守起步
-      'zh': 1.0,   // 中文：用户满意的现有速度，不变
-      'ja': 0.95,  // 日语：轻微调整，让发音更清晰
-      'ko': 0.95,  // 韩语：轻微调整，让发音更清晰
-      'fr': 0.95,  // 法语：轻微放慢，保持优雅
-      'de': 0.95,  // 德语：轻微放慢，保持庄重
-      'es': 0.95,  // 西班牙语：轻微调整
-      'it': 0.95,  // 意大利语：轻微调整
-      'pt': 0.95,  // 葡萄牙语：轻微调整
-      'ru': 1.0,   // 俄语：社区测试130 WPM正常，保持
-      'ar': 0.95,  // 阿拉伯语：轻微放慢
-      'hi': 0.95   // 印地语：轻微放慢
+    // 结合情感调节最终语速
+    const finalSpeed = Math.max(0.7, Math.min(1.3, baseSpeed * emotionAnalysis.speedModifier))
+    
+    // 🎯 智能语音选择 - 增加一致性保护
+    let optimizedVoice: string
+    
+    if (TTSService.voiceConsistencyMode) {
+      // 🛡️ 语音一致性保护模式
+      optimizedVoice = this.selectVoiceWithConsistency(emotionAnalysis, text)
+    } else {
+      // 原始情感映射模式
+      const emotionVoiceMapping = {
+        excited: 'nova',      // 活力充沛
+        calm: 'alloy',        // 温和平静  
+        serious: 'echo',      // 庄重严肃
+        friendly: 'alloy',    // 友好亲切
+        empathetic: 'shimmer', // 温暖共情
+        playful: 'fable',     // 活泼有趣
+        professional: 'onyx'   // 专业权威
+      }
+      optimizedVoice = emotionVoiceMapping[emotionAnalysis.emotionType] || 'alloy'
     }
     
-    const baseSpeed = baseSpeedMapping[language] || 0.95 // 未知语言保守默认
+    // 🎯 新增：异性语音回应逻辑
+    optimizedVoice = this.applyOppositeGenderLogicSync(optimizedVoice)
     
-    // TODO: 未来版本可以添加用户全局语速偏好倍数
-    // const userSpeedMultiplier = await this.getUserSpeedPreference()
-    // const finalSpeed = baseSpeed * userSpeedMultiplier
+    // 更新最后使用的语音
+    TTSService.lastUsedVoice = optimizedVoice
     
-    console.log(`[TTS服务] 智能语速调整 - 语言: ${language} → 基础语速: ${baseSpeed} (保守优化)`)
-    return baseSpeed
+    // 根据情感强度选择模型
+    const model = emotionAnalysis.intensity > 0.7 ? 'tts-1-hd' : 'tts-1'
+    
+    console.log(`🎯 [语音参数优化-修复版] 最终参数: 语速=${finalSpeed}, 语音=${optimizedVoice}, 模型=${model}`)
+    console.log(`   🛡️ 一致性保护: ${TTSService.voiceConsistencyMode ? '启用' : '禁用'}, 上次语音: ${TTSService.lastUsedVoice}`)
+    
+    return {
+      speed: finalSpeed,
+      voice: optimizedVoice,
+      model: model
+    }
+  }
+
+  /**
+   * 🛡️ 带一致性保护的智能语音选择
+   */
+  private selectVoiceWithConsistency(emotionAnalysis: {
+    emotionType: 'excited' | 'calm' | 'serious' | 'friendly' | 'empathetic' | 'playful' | 'professional'
+    intensity: number
+    speedModifier: number
+    pausePattern: 'normal' | 'dramatic' | 'gentle' | 'urgent'
+  }, text: string): string {
+    const currentVoice = TTSService.lastUsedVoice
+    
+    // 🔍 检测是否为技术描述内容
+    const isTechnicalContent = this.isTechnicalDescription(text)
+    
+    // 🎯 情感强度阈值检查 - 提高切换门槛
+    const emotionThreshold = 0.3 // 从0.07提高到0.3，避免误判
+    const isStrongEmotion = emotionAnalysis.intensity >= emotionThreshold
+    
+    console.log(`🛡️ [语音一致性分析] 技术内容: ${isTechnicalContent}, 情感强度: ${emotionAnalysis.intensity.toFixed(3)}, 阈值: ${emotionThreshold}`)
+    
+    // 🚫 技术内容强制使用专业语音
+    if (isTechnicalContent) {
+      console.log(`   🔧 检测到技术内容，强制使用专业语音: onyx`)
+      return 'onyx'
+    }
+    
+    // 🚫 情感强度不足，保持当前语音
+    if (!isStrongEmotion) {
+      console.log(`   📊 情感强度不足(${emotionAnalysis.intensity.toFixed(3)} < ${emotionThreshold})，保持当前语音: ${currentVoice}`)
+      return currentVoice
+    }
+    
+    // 🎭 强情感且非技术内容，允许切换
+    const emotionVoiceMapping = {
+      excited: 'nova',      // 活力充沛
+      calm: 'alloy',        // 温和平静
+      serious: 'echo',      // 庄重严肃  
+      friendly: 'alloy',    // 友好亲切
+      empathetic: 'shimmer', // 温暖共情
+      playful: 'fable',     // 活泼有趣
+      professional: 'onyx'   // 专业权威
+    }
+    
+    const targetVoice = emotionVoiceMapping[emotionAnalysis.emotionType] || currentVoice
+    
+    // 🔄 性别切换保护 - 避免男女声突然切换
+    const maleVoices = ['onyx', 'echo']
+    
+    const currentGender = maleVoices.includes(currentVoice) ? 'male' : 'female'
+    const targetGender = maleVoices.includes(targetVoice) ? 'male' : 'female'
+    
+    if (currentGender !== targetGender) {
+      console.log(`   ⚠️ 检测到性别切换风险 (${currentGender} → ${targetGender})，保持当前语音: ${currentVoice}`)
+      return currentVoice
+    }
+    
+    console.log(`   ✅ 允许情感语音切换: ${currentVoice} → ${targetVoice}`)
+    return targetVoice
+  }
+
+  /**
+   * 🔍 检测是否为技术描述内容
+   */
+  private isTechnicalDescription(text: string): boolean {
+    const technicalKeywords = [
+      // 技术功能描述
+      '语言理解', '图像识别', '创作助手', '智能决策', '数据分析', '算法处理',
+      '机器学习', '深度学习', '神经网络', '自然语言', '计算机视觉',
+      // 技术术语
+      'API', 'SDK', '接口', '协议', '框架', '架构', '模块', '组件',
+      '配置', '参数', '变量', '函数', '方法', '类', '对象',
+      // 系统功能
+      '系统', '平台', '服务', '工具', '应用', '软件', '程序',
+      '功能', '特性', '能力', '性能', '效率', '优化'
+    ]
+    
+    const lowerText = text.toLowerCase()
+    const matchCount = technicalKeywords.filter(keyword => 
+      lowerText.includes(keyword.toLowerCase())
+    ).length
+    
+    // 如果包含2个或以上技术关键词，认为是技术内容
+    const isTechnical = matchCount >= 2
+    
+    console.log(`🔍 [技术内容检测] 文本: "${text.substring(0, 30)}...", 匹配关键词数: ${matchCount}, 判定: ${isTechnical ? '技术内容' : '普通内容'}`)
+    
+    return isTechnical
+  }
+
+  /**
+   * 🧠 增强版情感分析 - 避免技术术语误判
+   */
+  private analyzeTextEmotionEnhanced(text: string): {
+    emotionType: 'excited' | 'calm' | 'serious' | 'friendly' | 'empathetic' | 'playful' | 'professional'
+    intensity: number // 0-1
+    speedModifier: number // 0.8-1.2
+    pausePattern: 'normal' | 'dramatic' | 'gentle' | 'urgent'
+  } {
+    const lowerText = text.toLowerCase()
+    
+    // 🔍 预先检测技术内容
+    const isTechnicalContent = this.isTechnicalDescription(text)
+    
+    if (isTechnicalContent) {
+      // 技术内容强制使用专业情感
+      console.log(`🔧 [增强情感分析] 检测到技术内容，强制使用专业情感`)
+      return {
+        emotionType: 'professional',
+        intensity: 0.8,
+        speedModifier: 0.95,
+        pausePattern: 'normal'
+      }
+    }
+    
+    // 🎭 优化后的情感关键词 - 避免技术术语误判
+    const excitedWords = ['哇', '太棒了', '惊喜', '激动', '兴奋', '厉害', '完美', 'amazing', 'fantastic', 'awesome']
+    const calmWords = ['平静', '安静', '温和', '缓慢', '轻松', '舒缓', 'calm', 'gentle', 'peaceful']
+    const seriousWords = ['重要', '严肃', '认真', '关键', '注意', '警告', 'serious', 'important', 'critical']
+    const friendlyWords = ['朋友', '亲爱的', '温暖', '亲切', '友好', '开心', 'friend', 'dear', 'warm']
+    // 🛡️ 修复：移除容易误判的技术术语，只保留真正的情感词汇
+    const empatheticWords = ['心情', '情感', '同情', '关怀', '体贴', '温柔', 'empathy', 'caring', 'compassion']
+    const playfulWords = ['哈哈', '嘻嘻', '有趣', '好玩', '搞笑', '逗', 'haha', 'funny', 'playful']
+    const professionalWords = ['专业', '技术', '分析', '数据', '研究', '报告', 'professional', 'technical', 'analysis']
+    
+    // 计算各种情感的得分
+    const scores = {
+      excited: this.calculateEmotionScore(lowerText, excitedWords),
+      calm: this.calculateEmotionScore(lowerText, calmWords),
+      serious: this.calculateEmotionScore(lowerText, seriousWords),
+      friendly: this.calculateEmotionScore(lowerText, friendlyWords),
+      empathetic: this.calculateEmotionScore(lowerText, empatheticWords),
+      playful: this.calculateEmotionScore(lowerText, playfulWords),
+      professional: this.calculateEmotionScore(lowerText, professionalWords)
+    }
+    
+    // 找出最高得分的情感
+    const emotionEntries = Object.entries(scores) as Array<[keyof typeof scores, number]>
+    const maxEmotion = emotionEntries.reduce((a, b) => scores[a[0]] > scores[b[0]] ? a : b)[0]
+    const maxScore = scores[maxEmotion]
+    
+    // 根据情感类型调整语音参数
+    const emotionConfig = {
+      excited: { speedModifier: 1.1, pausePattern: 'urgent' as const },
+      calm: { speedModifier: 0.9, pausePattern: 'gentle' as const },
+      serious: { speedModifier: 0.95, pausePattern: 'dramatic' as const },
+      friendly: { speedModifier: 1.0, pausePattern: 'normal' as const },
+      empathetic: { speedModifier: 0.9, pausePattern: 'gentle' as const },
+      playful: { speedModifier: 1.05, pausePattern: 'normal' as const },
+      professional: { speedModifier: 0.95, pausePattern: 'normal' as const }
+    }
+    
+    const config = emotionConfig[maxEmotion] || emotionConfig.friendly
+    
+    console.log(`🧠 [增强情感分析] 检测到情感: ${maxEmotion} (强度: ${maxScore.toFixed(3)})`)
+    console.log(`   🎵 语速调节: ${config.speedModifier}x, 停顿模式: ${config.pausePattern}`)
+    console.log(`   📊 详细得分: excited=${scores.excited.toFixed(3)}, empathetic=${scores.empathetic.toFixed(3)}, professional=${scores.professional.toFixed(3)}`)
+    
+    return {
+      emotionType: maxEmotion,
+      intensity: maxScore,
+      speedModifier: config.speedModifier,
+      pausePattern: config.pausePattern
+    }
+  }
+
+  /**
+   * 计算情感得分
+   */
+  private calculateEmotionScore(text: string, keywords: string[]): number {
+    let score = 0
+    for (const keyword of keywords) {
+      const matches = (text.match(new RegExp(keyword, 'g')) || []).length
+      score += matches * (keyword.length / 10) // 较长的关键词权重更高
+    }
+    return Math.min(1, score / 3) // 归一化到0-1
   }
 
   /**
@@ -411,6 +439,38 @@ export class TTSService {
   }
 
   /**
+   * 根据语言智能调整播放速度 - 让语音更自然、更拟人
+   * 采用保守的渐进式优化策略
+   */
+  private selectSpeedForLanguage(language: string): number {
+    // 基于OpenAI社区实测数据和语言学特性的保守调整
+    // 第一版采用温和的速度差异，后续可根据用户反馈微调
+    const baseSpeedMapping = {
+      'en': 0.9,   // 英语：从178 WPM温和降速，保守起步
+      'zh': 1.0,   // 中文：用户满意的现有速度，不变
+      'ja': 0.95,  // 日语：轻微调整，让发音更清晰
+      'ko': 0.95,  // 韩语：轻微调整，让发音更清晰
+      'fr': 0.95,  // 法语：轻微放慢，保持优雅
+      'de': 0.95,  // 德语：轻微放慢，保持庄重
+      'es': 0.95,  // 西班牙语：轻微调整
+      'it': 0.95,  // 意大利语：轻微调整
+      'pt': 0.95,  // 葡萄牙语：轻微调整
+      'ru': 1.0,   // 俄语：社区测试130 WPM正常，保持
+      'ar': 0.95,  // 阿拉伯语：轻微放慢
+      'hi': 0.95   // 印地语：轻微放慢
+    }
+    
+    const baseSpeed = baseSpeedMapping[language] || 0.95 // 未知语言保守默认
+    
+    // TODO: 未来版本可以添加用户全局语速偏好倍数
+    // const userSpeedMultiplier = await this.getUserSpeedPreference()
+    // const finalSpeed = baseSpeed * userSpeedMultiplier
+    
+    console.log(`[TTS服务] 智能语速调整 - 语言: ${language} → 基础语速: ${baseSpeed} (保守优化)`)
+    return baseSpeed
+  }
+
+  /**
    * 停止当前播放
    */
   stop(): void {
@@ -433,21 +493,33 @@ export class TTSService {
     return this.isPlaying
   }
 
-  // 添加新方法：生成音频数据但不播放
+  // 🎭 情感语音生成方法：生成音频数据但不播放
   async generateAudioBlob(text: string): Promise<Blob> {
-    console.log(`[TTS服务] 生成音频数据: ${text.length}字符`)
-    
-    const openaiProvider = await this.configPresenter.getProviderById('openai')
-    
-    if (!openaiProvider || !openaiProvider.apiKey) {
-      throw new Error('OpenAI配置未找到或API密钥缺失')
+    // 🎯 检查播放权限
+    if (!this.requestPlayPermission()) {
+      throw new Error('TTS服务被其他高优先级服务阻止')
     }
     
-    const language = this.detectLanguage(text)
-    const voice = this.selectVoiceForLanguage(language)
-    const speed = this.selectSpeedForLanguage(language)
+    console.log(`[TTS服务] 🎭 情感语音生成开始: ${text.length}字符`)
     
     try {
+      const openaiProvider = await this.configPresenter.getProviderById('openai')
+      
+      if (!openaiProvider || !openaiProvider.apiKey) {
+        throw new Error('OpenAI配置未找到或API密钥缺失')
+      }
+      
+      const language = this.detectLanguage(text)
+      
+      // 🎯 使用情感语音优化系统
+      const optimizedParams = this.optimizeVoiceParameters(text, language)
+      
+      console.log(`[TTS服务] 🎭 情感优化参数:`)
+      console.log(`   🌍 语言: ${language}`)
+      console.log(`   🎵 语音: ${optimizedParams.voice}`)
+      console.log(`   ⚡ 语速: ${optimizedParams.speed}`)
+      console.log(`   🎬 模型: ${optimizedParams.model}`)
+      
       const response = await fetch('https://api.openai.com/v1/audio/speech', {
         method: 'POST',
         headers: {
@@ -455,10 +527,10 @@ export class TTSService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'tts-1',
+          model: optimizedParams.model,
           input: text,
-          voice: voice,
-          speed: speed
+          voice: optimizedParams.voice,
+          speed: optimizedParams.speed
         })
       })
 
@@ -474,12 +546,374 @@ export class TTSService {
       }
 
       const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' })
-      console.log(`[TTS服务] 音频生成完成: ${audioBlob.size}字节, 语言: ${language}, 语音: ${voice}, 语速: ${speed} (智能优化)`)
+      console.log(`[TTS服务] 🎭 情感语音生成完成: ${audioBlob.size}字节`)
+      console.log(`   🎯 情感效果: ${optimizedParams.voice}语音 + ${optimizedParams.speed}x语速`)
       
       return audioBlob
+      
     } catch (error) {
-      console.error(`[TTS服务] 音频生成失败 (语言: ${language}, 语音: ${voice}):`, error)
+      console.error(`[TTS服务] 🎭 情感语音生成失败:`, error)
       throw error
+    } finally {
+      // 🎯 音频生成完成后立即释放权限，允许其他TTS服务播放
+      ttsCoordinator.releaseService(this.instanceId)
+      console.log(`🎯 [TTS服务] 已释放权限，允许其他服务播放`)
+    }
+  }
+
+     /**
+    * 🎯 新增：异性语音回应逻辑（同步版本）
+    */
+  private applyOppositeGenderLogicSync(originalVoice: string): string {
+    try {
+      // 检查是否启用异性语音回应
+      if (!TTSService.voicePreferences.oppositeGenderResponseEnabled) {
+        console.log(`🎯 [异性语音] 异性语音回应已禁用，使用原始语音: ${originalVoice}`)
+        return originalVoice
+      }
+      
+      // 获取用户性别（同步版本）
+      const userGender = this.determineUserGenderSync()
+      
+      if (userGender === 'unknown') {
+        console.log(`🎯 [异性语音] 用户性别未知，使用原始语音: ${originalVoice}`)
+        return originalVoice
+      }
+      
+      // 根据用户性别选择异性语音
+      const oppositeGenderVoice = this.selectOppositeGenderVoice(userGender, originalVoice)
+      
+      console.log(`🎯 [异性语音] 用户性别: ${userGender}, 原始语音: ${originalVoice} → 异性语音: ${oppositeGenderVoice}`)
+      
+      return oppositeGenderVoice
+      
+    } catch (error) {
+      console.error(`🎯 [异性语音] 处理失败，使用原始语音:`, error)
+      return originalVoice
+    }
+  }
+
+  /**
+   * 🎯 新增：加载用户语音偏好设置
+   */
+  private async loadVoicePreferences(): Promise<void> {
+    try {
+      const genderDetectionEnabled = (await this.configPresenter.getSetting('voice_gender_detection')) as boolean ?? true
+      const oppositeGenderResponseEnabled = (await this.configPresenter.getSetting('voice_opposite_gender_response')) as boolean ?? true
+      const userGender = (await this.configPresenter.getSetting('voice_user_gender')) as ('auto' | 'male' | 'female') ?? 'auto'
+      const preferredMaleVoice = (await this.configPresenter.getSetting('voice_preferred_male_voice')) as string ?? VoiceConfig.voiceMapping.defaultMaleVoice
+      const preferredFemaleVoice = (await this.configPresenter.getSetting('voice_preferred_female_voice')) as string ?? VoiceConfig.voiceMapping.defaultFemaleVoice
+      
+      TTSService.voicePreferences = {
+        genderDetectionEnabled,
+        oppositeGenderResponseEnabled,
+        userGender,
+        preferredMaleVoice,
+        preferredFemaleVoice
+      }
+      
+      console.log(`🎯 [语音偏好] 已加载设置:`, TTSService.voicePreferences)
+      
+    } catch (error) {
+      console.error('加载语音偏好设置失败:', error)
+    }
+  }
+
+     /**
+    * 🎯 新增：确定用户性别（同步版本）
+    */
+  private determineUserGenderSync(): 'male' | 'female' | 'unknown' {
+    // 如果用户手动设置了性别
+    if (TTSService.voicePreferences.userGender !== 'auto') {
+      const manualGender = TTSService.voicePreferences.userGender as 'male' | 'female'
+      console.log(`🎯 [性别确定] 使用手动设置: ${manualGender}`)
+      return manualGender
+    }
+    
+    // 如果禁用了自动检测
+    if (!TTSService.voicePreferences.genderDetectionEnabled) {
+      console.log(`🎯 [性别确定] 自动检测已禁用，返回未知`)
+      return 'unknown'
+    }
+    
+    // 使用缓存的检测结果
+    if (TTSService.detectedUserGender !== 'unknown' && TTSService.genderDetectionConfidence > 0.6) {
+      console.log(`🎯 [性别确定] 使用缓存结果: ${TTSService.detectedUserGender} (置信度: ${TTSService.genderDetectionConfidence.toFixed(2)})`)
+      return TTSService.detectedUserGender
+    }
+    
+    console.log(`🎯 [性别确定] 无可用的性别信息，返回未知`)
+    return 'unknown'
+  }
+
+  /**
+   * 🎯 新增：音频性别检测（基于基频分析）
+   */
+  async detectUserGenderFromAudio(audioBlob: Blob): Promise<VoiceGenderDetectionResult> {
+    try {
+      console.log(`🎤 [性别检测] 开始分析音频，大小: ${(audioBlob.size / 1024).toFixed(2)} KB`)
+      
+      // 使用Web Audio API分析音频
+      const audioContext = new AudioContext()
+      try {
+        const arrayBuffer = await audioBlob.arrayBuffer()
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+        
+        // 提取音频数据
+        const channelData = audioBuffer.getChannelData(0)
+        const sampleRate = audioBuffer.sampleRate
+        
+        // 计算基频（简化的自相关算法）
+        const fundamentalFrequency = this.calculateFundamentalFrequency(channelData, sampleRate)
+      
+      // 基于基频判断性别
+      let detectedGender: 'male' | 'female' | 'unknown' = 'unknown'
+      let confidence = 0
+      
+      if (fundamentalFrequency > 0) {
+        // 使用配置化的基频阈值
+        const config = VoiceConfig.genderDetection
+        
+        if (fundamentalFrequency < config.maleFrequencyThreshold) {
+          detectedGender = 'male'
+          confidence = Math.max(
+            config.minConfidence, 
+            Math.min(config.maxConfidence, (config.maleFrequencyThreshold - fundamentalFrequency) / 55)
+          )
+        } else if (fundamentalFrequency > config.femaleFrequencyThreshold) {
+          detectedGender = 'female'
+          confidence = Math.max(
+            config.minConfidence, 
+            Math.min(config.maxConfidence, (fundamentalFrequency - config.femaleFrequencyThreshold) / 65)
+          )
+        } else {
+          // 重叠区域，置信度较低
+          if (fundamentalFrequency < config.overlapLowThreshold) {
+            detectedGender = 'male'
+            confidence = config.overlapConfidence
+          } else {
+            detectedGender = 'female'
+            confidence = config.overlapConfidence
+          }
+        }
+      }
+      
+      // 更新缓存
+      TTSService.detectedUserGender = detectedGender
+      TTSService.genderDetectionConfidence = confidence
+      
+      const result: VoiceGenderDetectionResult = {
+        detectedGender,
+        confidence,
+        fundamentalFrequency,
+        method: 'frequency'
+      }
+      
+        console.log(`🎤 [性别检测] 完成分析:`, result)
+        
+        // 🎯 性别检测完成后立即释放权限，不阻止其他TTS服务
+        ttsCoordinator.releaseService(this.instanceId)
+        console.log(`🎯 [性别检测] 已释放TTS权限，允许其他服务播放`)
+        
+        return result
+        
+      } finally {
+        // 🛡️ 确保AudioContext被正确关闭，避免内存泄漏
+        await audioContext.close()
+      }
+      
+    } catch (error) {
+      console.error('音频性别检测失败:', error)
+      // 🎯 即使出错也要释放权限
+      ttsCoordinator.releaseService(this.instanceId)
+      return {
+        detectedGender: 'unknown',
+        confidence: 0,
+        fundamentalFrequency: 0,
+        method: 'frequency'
+      }
+    }
+  }
+
+  /**
+   * 🎯 新增：计算基频（简化实现）
+   */
+  private calculateFundamentalFrequency(audioData: Float32Array, sampleRate: number): number {
+    try {
+      // 简化的自相关算法计算基频
+      const bufferSize = Math.min(audioData.length, sampleRate) // 最多分析1秒
+      const correlations = new Array(bufferSize / 2)
+      
+      // 寻找能量最大的片段
+      let maxEnergy = 0
+      let maxEnergyStart = 0
+      const windowSize = Math.floor(sampleRate * (VoiceConfig.genderDetection.analysisWindowMs / 1000)) // 配置化窗口大小
+      
+      for (let i = 0; i < bufferSize - windowSize; i += windowSize / 4) {
+        let energy = 0
+        for (let j = 0; j < windowSize; j++) {
+          energy += audioData[i + j] * audioData[i + j]
+        }
+        if (energy > maxEnergy) {
+          maxEnergy = energy
+          maxEnergyStart = i
+        }
+      }
+      
+      // 如果能量太小，可能是静音
+      if (maxEnergy < VoiceConfig.genderDetection.silenceEnergyThreshold) {
+        return 0
+      }
+      
+      // 在能量最大的片段计算自相关
+      const analysisStart = maxEnergyStart
+      const analysisLength = Math.min(windowSize, bufferSize - analysisStart)
+      
+      // 计算自相关
+      for (let lag = VoiceConfig.genderDetection.minLagSamples; lag < analysisLength / 2; lag++) {
+        let correlation = 0
+        for (let i = 0; i < analysisLength - lag; i++) {
+          correlation += audioData[analysisStart + i] * audioData[analysisStart + i + lag]
+        }
+        correlations[lag] = correlation
+      }
+      
+      // 寻找第一个显著的峰值
+      let maxCorrelation = 0
+      let bestLag = 0
+      
+      for (let lag = VoiceConfig.genderDetection.minLagSamples; lag < correlations.length; lag++) {
+        if (correlations[lag] > maxCorrelation) {
+          maxCorrelation = correlations[lag]
+          bestLag = lag
+        }
+      }
+      
+      // 计算基频
+      const fundamentalFrequency = bestLag > 0 ? sampleRate / bestLag : 0
+      
+      // 合理性检查：使用配置的基频范围
+      const config = VoiceConfig.genderDetection
+      if (fundamentalFrequency < config.minValidFrequency || fundamentalFrequency > config.maxValidFrequency) {
+        return 0
+      }
+      
+      return fundamentalFrequency
+      
+    } catch (error) {
+      console.error('基频计算失败:', error)
+      return 0
+    }
+  }
+
+  /**
+   * 🎯 新增：选择异性语音
+   */
+  private selectOppositeGenderVoice(userGender: 'male' | 'female', originalVoice: string): VoiceType {
+    if (userGender === 'male') {
+      // 男用户 → 选择女声
+      const preferredFemaleVoice = TTSService.voicePreferences.preferredFemaleVoice
+      
+      // 如果偏好的女声可用，使用偏好的
+      if (isFemaleVoice(preferredFemaleVoice)) {
+        return preferredFemaleVoice
+      }
+      
+      // 否则，如果原始语音是女声，保持原样
+      if (isFemaleVoice(originalVoice)) {
+        return originalVoice
+      }
+      
+      // 最后使用默认女声
+      return VoiceConfig.voiceMapping.defaultFemaleVoice
+      
+    } else {
+      // 女用户 → 选择男声
+      const preferredMaleVoice = TTSService.voicePreferences.preferredMaleVoice
+      
+      // 如果偏好的男声可用，使用偏好的
+      if (isMaleVoice(preferredMaleVoice)) {
+        return preferredMaleVoice
+      }
+      
+      // 否则，如果原始语音是男声，保持原样
+      if (isMaleVoice(originalVoice)) {
+        return originalVoice
+      }
+      
+      // 最后使用默认男声
+      return VoiceConfig.voiceMapping.defaultMaleVoice
+    }
+  }
+
+  /**
+   * 🎯 新增：手动设置用户性别
+   */
+  async setUserGender(gender: 'auto' | 'male' | 'female'): Promise<void> {
+    try {
+      await this.configPresenter.setSetting('voice_user_gender', gender)
+      TTSService.voicePreferences.userGender = gender
+      
+      console.log(`🎯 [性别设置] 用户性别已设置为: ${gender}`)
+      
+      // 如果设置为手动，清除自动检测缓存
+      if (gender !== 'auto') {
+        TTSService.detectedUserGender = 'unknown'
+        TTSService.genderDetectionConfidence = 0
+      }
+      
+    } catch (error) {
+      console.error('设置用户性别失败:', error)
+    }
+  }
+
+  /**
+   * 🎯 新增：设置异性语音回应开关
+   */
+  async setOppositeGenderResponse(enabled: boolean): Promise<void> {
+    try {
+      await this.configPresenter.setSetting('voice_opposite_gender_response', enabled)
+      TTSService.voicePreferences.oppositeGenderResponseEnabled = enabled
+      
+      console.log(`🎯 [异性语音] 异性语音回应已${enabled ? '启用' : '禁用'}`)
+      
+    } catch (error) {
+      console.error('设置异性语音回应失败:', error)
+    }
+  }
+
+  /**
+   * 🎯 新增：设置偏好语音
+   */
+  async setPreferredVoices(maleVoice: string, femaleVoice: string): Promise<void> {
+    try {
+      await this.configPresenter.setSetting('voice_preferred_male_voice', maleVoice)
+      await this.configPresenter.setSetting('voice_preferred_female_voice', femaleVoice)
+      
+      TTSService.voicePreferences.preferredMaleVoice = maleVoice
+      TTSService.voicePreferences.preferredFemaleVoice = femaleVoice
+      
+      console.log(`🎯 [偏好语音] 已设置 - 男声: ${maleVoice}, 女声: ${femaleVoice}`)
+      
+    } catch (error) {
+      console.error('设置偏好语音失败:', error)
+    }
+  }
+
+  /**
+   * 🎯 新增：获取当前语音偏好设置
+   */
+  getVoicePreferences(): VoicePreferences {
+    return { ...TTSService.voicePreferences }
+  }
+
+  /**
+   * 🎯 新增：获取性别检测结果
+   */
+  getGenderDetectionResult(): { gender: 'male' | 'female' | 'unknown', confidence: number } {
+    return {
+      gender: TTSService.detectedUserGender,
+      confidence: TTSService.genderDetectionConfidence
     }
   }
 }

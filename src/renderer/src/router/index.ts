@@ -108,6 +108,15 @@ const router = createRouter({
           }
         },
         {
+          path: 'voice',
+          name: 'settings-voice',
+          component: () => import('@/components/settings/VoiceSettings.vue'),
+          meta: {
+            titleKey: 'routes.settings-voice',
+            icon: 'lucide:volume-2'
+          }
+        },
+        {
           path: 'about',
           name: 'settings-about',
           component: () => import('@/components/settings/AboutUsSettings.vue'),

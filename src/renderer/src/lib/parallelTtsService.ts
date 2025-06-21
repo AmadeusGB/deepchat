@@ -1,4 +1,5 @@
-import { ttsService } from './ttsService'
+import { ttsCoordinator } from './ttsCoordinator'
+import { usePresenter } from '@/composables/usePresenter'
 
 interface AudioChunk {
   id: string
@@ -36,6 +37,12 @@ export class ParallelTtsService {
   // 添加文本去重机制
   private textHashCache: Set<string> = new Set()
   
+  // 🎯 新增：服务实例管理
+  private instanceId: string
+  
+  // 🎯 新增：配置管理
+  private configPresenter = usePresenter('configPresenter')
+  
   private config: TtsConfig = {
     maxConcurrent: 5,         // 提高并发度从3→5
     chunkSize: { min: 15, max: 180 },  // 与新的分块器保持一致
@@ -49,8 +56,45 @@ export class ParallelTtsService {
       this.config = { ...this.config, ...customConfig }
     }
     
+    // 🎯 生成实例ID并注册到协调器
+    this.instanceId = `parallel_tts_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    ttsCoordinator.registerService(
+      this.instanceId,
+      'ParallelTtsService (Streaming)',
+      80, // 中等优先级
+      () => this.stop()
+    )
+    
     // 初始化Web Audio API
     this.initAudioContext()
+    
+    console.log(`🎯 [并行TTS] 实例 ${this.instanceId} 初始化完成`)
+  }
+
+  /**
+   * 🎯 请求播放权限
+   */
+  private requestPlayPermission(): boolean {
+    try {
+      return ttsCoordinator.requestActivation(this.instanceId)
+    } catch (error) {
+      console.error(`🚨 [并行TTS] 请求播放权限失败:`, error)
+      return false
+    }
+  }
+
+  /**
+   * 🛡️ 销毁服务实例
+   */
+  destroy(): void {
+    try {
+      this.stop()
+      ttsCoordinator.releaseService(this.instanceId)
+      console.log(`🎯 [并行TTS] 实例 ${this.instanceId} 已销毁`)
+    } catch (error) {
+      console.error(`🚨 [并行TTS] 销毁实例失败:`, error)
+    }
   }
 
   // 初始化音频上下文
@@ -176,6 +220,12 @@ export class ParallelTtsService {
 
   // 添加文本到处理队列
   async addText(text: string): Promise<void> {
+    // 🎯 检查播放权限
+    if (!this.requestPlayPermission()) {
+      console.warn('[并行TTS] 被其他高优先级服务阻止')
+      return
+    }
+    
     if (!text || !text.trim()) {
       console.log('[并行TTS] 跳过空文本')
       return
@@ -318,11 +368,116 @@ export class ParallelTtsService {
     }
   }
 
-  // 生成音频
+  /**
+   * 🎯 智能语音选择（优先考虑opposite gender voice response）
+   */
+  private async selectOptimalVoice(text: string): Promise<string> {
+    try {
+      // 🎯 首先检查是否启用了opposite gender voice response
+      const oppositeGenderEnabled = await this.configPresenter.getSetting('voice_opposite_gender_response') as boolean
+      
+      if (oppositeGenderEnabled) {
+        // 如果启用了相反性别语音响应，获取用户性别
+        const userGender = (await this.configPresenter.getSetting('voice_user_gender') as string) || 'auto'
+        
+        console.log(`[并行TTS] 🎭 相反性别模式: 用户性别=${userGender}`)
+        
+        if (userGender === 'male') {
+          // 男性用户 → 女声回应
+          console.log(`[并行TTS] 🎭 男性用户，使用女声: alloy`)
+          return 'alloy' // 默认女声
+        } else if (userGender === 'female') {
+          // 女性用户 → 男声回应  
+          console.log(`[并行TTS] 🎭 女性用户，使用男声: onyx`)
+          return 'onyx' // 默认男声
+        }
+        // auto模式：需要实时检测，暂时使用默认女声
+        console.log(`[并行TTS] 🎭 auto模式，使用默认女声: alloy`)
+        return 'alloy'
+      }
+      
+      // 🎯 如果没有启用相反性别响应，才使用内容智能分析
+      console.log(`[并行TTS] 🎭 内容智能分析模式`)
+      const textLower = text.toLowerCase()
+      
+      // 🎯 简化的内容分析逻辑，避免性别冲突
+      // 优先使用女声，只在特定情况下使用其他语音
+      if (textLower.includes('温暖') || textLower.includes('友好') || textLower.includes('感谢')) {
+        return 'shimmer' // 温暖女声
+      } else if (textLower.includes('兴奋') || textLower.includes('太棒了') || textLower.includes('amazing')) {
+        return 'nova' // 活力女声
+      } else {
+        // 🎯 移除所有可能触发男声的逻辑，统一使用默认女声
+        return 'alloy' // 默认平衡女声
+      }
+    } catch (error) {
+      console.error('[并行TTS] 语音选择失败:', error)
+      return 'alloy' // 出错时使用默认语音
+    }
+  }
+
+  /**
+   * 🎯 检测语言并调整语速
+   */
+  private detectLanguageAndSpeed(text: string): { language: string, speed: number } {
+    // 简单的语言检测
+    const chineseChars = (text.match(/[\u4e00-\u9fff]/g) || []).length
+    const totalChars = text.length
+    const chineseRatio = chineseChars / totalChars
+    
+    if (chineseRatio > 0.3) {
+      return { language: 'zh', speed: 1.0 } // 中文稍慢
+    } else {
+      return { language: 'en', speed: 1.1 } // 英文正常
+    }
+  }
+
   private async generateAudio(text: string): Promise<Blob> {
     try {
-      // 调用TTS服务生成音频数据
-      const audioBlob = await ttsService.generateAudioBlob(text)
+      console.log(`[并行TTS] 🎵 直接生成音频: ${text.length}字符`)
+      
+      // 获取OpenAI配置
+      const openaiProvider = await this.configPresenter.getProviderById('openai')
+      
+      if (!openaiProvider || !openaiProvider.apiKey) {
+        throw new Error('OpenAI配置未找到或API密钥缺失')
+      }
+      
+      // 🎯 智能语音和语速选择
+      const voice = await this.selectOptimalVoice(text)
+      const { speed } = this.detectLanguageAndSpeed(text)
+      
+      console.log(`[并行TTS] 🎭 智能参数: 语音=${voice}, 语速=${speed}`)
+      
+      // 调用OpenAI TTS API
+      const response = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiProvider.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'tts-1',
+          input: text,
+          voice: voice,
+          speed: speed
+        })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error')
+        throw new Error(`TTS API请求失败: ${response.status} - ${errorText}`)
+      }
+
+      const audioBuffer = await response.arrayBuffer()
+
+      if (audioBuffer.byteLength === 0) {
+        throw new Error('收到空的音频数据')
+      }
+
+      const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' })
+      console.log(`[并行TTS] 🎵 音频生成完成: ${audioBlob.size}字节`)
+      
       return audioBlob
     } catch (error) {
       console.error(`[并行TTS] 音频生成失败:`, error)

@@ -1,3 +1,5 @@
+import { ttsCoordinator } from './ttsCoordinator'
+
 /**
  * 增强型统一TTS服务
  * 解决双重系统复杂性，提供智能、健壮、用户友好的语音合成体验
@@ -579,6 +581,9 @@ export class EnhancedTTSService {
   private activeRequests = new Set<string>()
   private processTimeout: NodeJS.Timeout | null = null
   
+  // 🎯 新增：服务实例管理
+  private instanceId: string
+  
   constructor(options: TTSOptions, callbacks: TTSCallbacks = {}) {
     this.options = {
       voice: 'alloy',
@@ -607,13 +612,54 @@ export class EnhancedTTSService {
     this.audioManager = new AudioQueueManager(this.callbacks, this.config)
     this.adaptiveController = new AdaptiveDelayController(this.config)
     
-    console.log('[增强TTS] 服务初始化完成')
+    // 🎯 生成实例ID并注册到协调器
+    this.instanceId = `enhanced_tts_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    ttsCoordinator.registerService(
+      this.instanceId,
+      'EnhancedTTSService (Streaming)',
+      90, // 高优先级，但低于ParallelTtsService
+      () => this.stop()
+    )
+    
+    console.log(`🎯 [增强TTS] 实例 ${this.instanceId} 初始化完成`)
+  }
+
+  /**
+   * 🎯 请求播放权限
+   */
+  private requestPlayPermission(): boolean {
+    try {
+      return ttsCoordinator.requestActivation(this.instanceId)
+    } catch (error) {
+      console.error(`🚨 [增强TTS] 请求播放权限失败:`, error)
+      return false
+    }
+  }
+
+  /**
+   * 🛡️ 销毁服务实例
+   */
+  destroy(): void {
+    try {
+      this.stop()
+      ttsCoordinator.releaseService(this.instanceId)
+      console.log(`🎯 [增强TTS] 实例 ${this.instanceId} 已销毁`)
+    } catch (error) {
+      console.error(`🚨 [增强TTS] 销毁实例失败:`, error)
+    }
   }
 
   /**
    * 添加文本到处理队列
    */
   addText(text: string): void {
+    // 🎯 检查播放权限
+    if (!this.requestPlayPermission()) {
+      console.warn('[增强TTS] 被其他高优先级服务阻止')
+      return
+    }
+    
     if (!text || this.status === 'stopped') return
 
     console.log(`[增强TTS] 接收文本: "${text.substring(0, 30)}..."`)
@@ -820,8 +866,6 @@ export class EnhancedTTSService {
       this.callbacks.onStatusChange?.(newStatus)
     }
   }
-
-
 
   private calculateChunkConfidence(chunk: string): number {
     let confidence = 100

@@ -37,6 +37,9 @@ class EnhancedTTSIntegration {
   private lastInputTime: number = 0 // 新增：记录最后输入时间
   private forceFlushInProgress: boolean = false // 新增：防止重复强制刷新
   
+  // 🎯 新增：全局禁用开关
+  private isGloballyDisabled = false
+  
   // 响应式状态
   public state = ref<TTSState>({
     isEnabled: false,
@@ -148,9 +151,39 @@ class EnhancedTTSIntegration {
   }
 
   /**
+   * 🎯 全局禁用TTS（用于避免与其他TTS服务冲突）
+   */
+  setGloballyDisabled(disabled: boolean): void {
+    this.isGloballyDisabled = disabled
+    console.log(`🎛️ [TTS集成] 全局${disabled ? '禁用' : '启用'}TTS服务`)
+    
+    if (disabled && this.isActive.value) {
+      this.stop()
+    }
+  }
+
+  /**
+   * 🎯 检查是否全局禁用
+   */
+  isDisabled(): boolean {
+    return this.isGloballyDisabled
+  }
+
+  /**
    * 处理流式文本输入 - 技术文档优化版
    */
   async processStreamText(text: string): Promise<void> {
+    // 🎯 检查全局禁用状态
+    if (this.isGloballyDisabled) {
+      console.log(`🚫 [TTS集成] 全局禁用状态，跳过文本处理`)
+      return
+    }
+    
+    if (!this.isActive.value) {
+      console.log(`⚠️ [TTS集成] 服务未激活，跳过文本处理`)
+      return
+    }
+
     console.log(`\n🌊 [TTS集成-技术文档流式处理] 收到文本片段`)
     console.log(`📝 输入文本: "${text}" (${text.length}字符)`)
     console.log(`🔄 当前处理状态: ${this.isProcessing ? '处理中' : '空闲'}`)
@@ -641,7 +674,9 @@ export const useTTS = () => {
     getDetailedStatus: enhancedTTSIntegration.getDetailedStatus.bind(enhancedTTSIntegration),
     destroy: enhancedTTSIntegration.destroy.bind(enhancedTTSIntegration),
     getStatus: enhancedTTSIntegration.getStatus.bind(enhancedTTSIntegration),
-    reset: enhancedTTSIntegration.reset.bind(enhancedTTSIntegration)
+    reset: enhancedTTSIntegration.reset.bind(enhancedTTSIntegration),
+    setGloballyDisabled: enhancedTTSIntegration.setGloballyDisabled.bind(enhancedTTSIntegration),
+    isDisabled: enhancedTTSIntegration.isDisabled.bind(enhancedTTSIntegration)
   }
 }
 

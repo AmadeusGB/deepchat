@@ -313,6 +313,7 @@ import { parallelTtsService } from '@/lib/parallelTtsService'
 import { useToast } from '@/components/ui/toast/use-toast'
 import { useTtsOptimizer } from '@/composables/useTtsOptimizer'
 import ParallelTtsMonitor from './ParallelTtsMonitor.vue'
+import { enhancedTTSIntegration } from '@/lib/enhancedTtsIntegration'
 
 const configPresenter = usePresenter('configPresenter')
 const themeStore = useThemeStore()
@@ -344,6 +345,182 @@ const voiceConversationHistory = ref<Array<{
   summary?: string
   detectedLanguage?: string
 }>>([])
+
+// 🧠 情感记忆与上下文感知系统
+const emotionalMemory = ref<{
+  userPreferences: {
+    communicationStyle: 'formal' | 'casual' | 'friendly' | 'professional'
+    responseLength: 'brief' | 'detailed' | 'comprehensive'
+    interests: string[]
+    expertiseLevel: Record<string, 'beginner' | 'intermediate' | 'advanced'>
+  }
+  emotionalContext: {
+    currentMood: 'positive' | 'neutral' | 'negative' | 'excited' | 'confused' | 'frustrated'
+    recentTopics: Array<{topic: string, sentiment: string, timestamp: number}>
+    importantEvents: Array<{event: string, importance: number, timestamp: number}>
+  }
+  interactionHistory: {
+    totalInteractions: number
+    averageSessionLength: number
+    preferredTimeOfDay: string[]
+    commonQuestions: string[]
+    satisfactionLevel: number
+  }
+  personalContext: {
+    name?: string
+    occupation?: string
+    location?: string
+    timezone?: string
+    familiarityLevel: number // 0-100, 熟悉程度
+  }
+}>({
+  userPreferences: {
+    communicationStyle: 'friendly',
+    responseLength: 'detailed',
+    interests: [],
+    expertiseLevel: {}
+  },
+  emotionalContext: {
+    currentMood: 'neutral',
+    recentTopics: [],
+    importantEvents: []
+  },
+  interactionHistory: {
+    totalInteractions: 0,
+    averageSessionLength: 0,
+    preferredTimeOfDay: [],
+    commonQuestions: [],
+    satisfactionLevel: 80
+  },
+  personalContext: {
+    familiarityLevel: 0
+  }
+})
+
+// 🎭 情感分析和上下文更新函数
+const analyzeUserEmotion = (text: string): string => {
+  const positiveKeywords = ['开心', '高兴', '棒', '太好了', '喜欢', '满意', '完美', '厉害', '优秀']
+  const negativeKeywords = ['烦恼', '困扰', '难过', '失望', '糟糕', '问题', '错误', '不行', '不好']
+  const excitedKeywords = ['哇', '太棒了', '惊喜', '激动', '兴奋', 'amazing', 'awesome', 'fantastic']
+  const confusedKeywords = ['不懂', '不明白', '搞不清', '混乱', '困惑', '复杂', '难理解']
+  const frustratedKeywords = ['烦', '郁闷', '无语', '崩溃', '头疼', '麻烦', '讨厌']
+
+  const lowerText = text.toLowerCase()
+  
+  if (excitedKeywords.some(keyword => lowerText.includes(keyword))) return 'excited'
+  if (confusedKeywords.some(keyword => lowerText.includes(keyword))) return 'confused'
+  if (frustratedKeywords.some(keyword => lowerText.includes(keyword))) return 'frustrated'
+  if (positiveKeywords.some(keyword => lowerText.includes(keyword))) return 'positive'
+  if (negativeKeywords.some(keyword => lowerText.includes(keyword))) return 'negative'
+  
+  return 'neutral'
+}
+
+const updateEmotionalContext = (userText: string, topic?: string) => {
+  const detectedMood = analyzeUserEmotion(userText)
+  emotionalMemory.value.emotionalContext.currentMood = detectedMood as 'positive' | 'neutral' | 'negative' | 'excited' | 'confused' | 'frustrated'
+  
+  // 更新最近话题
+  if (topic) {
+    emotionalMemory.value.emotionalContext.recentTopics.unshift({
+      topic,
+      sentiment: detectedMood,
+      timestamp: Date.now()
+    })
+    // 保留最近10个话题
+    if (emotionalMemory.value.emotionalContext.recentTopics.length > 10) {
+      emotionalMemory.value.emotionalContext.recentTopics.pop()
+    }
+  }
+  
+  // 增加交互次数和熟悉度
+  emotionalMemory.value.interactionHistory.totalInteractions += 1
+  emotionalMemory.value.personalContext.familiarityLevel = Math.min(100, 
+    emotionalMemory.value.personalContext.familiarityLevel + 2)
+  
+  console.log(`🧠 [情感分析] 检测到用户情绪: ${detectedMood}, 熟悉度: ${emotionalMemory.value.personalContext.familiarityLevel}`)
+}
+
+// 🎯 生成个性化上下文提示词
+const generatePersonalizedContext = (): string => {
+  const memory = emotionalMemory.value
+  const familiarity = memory.personalContext.familiarityLevel
+  const currentTime = new Date()
+  const hour = currentTime.getHours()
+  
+  let timeGreeting = ''
+  if (hour < 6) timeGreeting = '深夜了'
+  else if (hour < 12) timeGreeting = '早上好'
+  else if (hour < 14) timeGreeting = '中午好'
+  else if (hour < 18) timeGreeting = '下午好'
+  else if (hour < 22) timeGreeting = '晚上好'
+  else timeGreeting = '夜深了'
+  
+  let personalizedContext = `
+## 🎭 当前交互上下文
+
+### 时间感知
+- 当前时间：${timeGreeting}
+- 适当使用时间相关的问候和关怀
+
+### 用户情感状态
+- 当前情绪：${memory.emotionalContext.currentMood}
+- 根据情绪调整回应方式：`
+
+  switch (memory.emotionalContext.currentMood) {
+    case 'excited':
+      personalizedContext += '\n  * 用户很兴奋，分享他们的喜悦，保持相应的能量水平'
+      break
+    case 'confused':
+      personalizedContext += '\n  * 用户感到困惑，需要耐心引导和清晰解释'
+      break
+    case 'frustrated':
+      personalizedContext += '\n  * 用户有些沮丧，提供理解和支持，帮助缓解情绪'
+      break
+    case 'positive':
+      personalizedContext += '\n  * 用户心情不错，保持积极互动'
+      break
+    case 'negative':
+      personalizedContext += '\n  * 用户情绪低落，给予温暖关怀和鼓励'
+      break
+    default:
+      personalizedContext += '\n  * 保持友好自然的交流'
+  }
+
+  personalizedContext += `
+
+### 熟悉程度调整
+- 熟悉度：${familiarity}%`
+
+  if (familiarity < 20) {
+    personalizedContext += '\n  * 初次交流，保持礼貌和专业，使用"您"称呼'
+  } else if (familiarity < 50) {
+    personalizedContext += '\n  * 逐渐熟悉，可以更亲切一些，适当使用"你"'
+  } else if (familiarity < 80) {
+    personalizedContext += '\n  * 比较熟悉，可以更随意自然，像朋友一样交流'
+  } else {
+    personalizedContext += '\n  * 非常熟悉，可以更亲密和随意，偶尔开玩笑'
+  }
+
+  // 添加最近话题记忆
+  if (memory.emotionalContext.recentTopics.length > 0) {
+    personalizedContext += `
+
+### 最近话题记忆
+- 最近讨论的话题：${memory.emotionalContext.recentTopics.slice(0, 3).map(t => t.topic).join('、')}
+- 可以适当关联和回顾之前的对话内容`
+  }
+
+  personalizedContext += `
+
+### 交互统计
+- 总交互次数：${memory.interactionHistory.totalInteractions}
+- 满意度：${memory.interactionHistory.satisfactionLevel}%
+
+记住：根据以上上下文调整你的语言风格、亲密程度和回应方式，让每次交流都更加个性化和贴心。`
+
+  return personalizedContext
+}
 
 // TTS服务将在后面导入
 
@@ -489,27 +666,16 @@ const stopWaveAnimation = () => {
 
 // 进入语音模式
 const enterVoiceMode = () => {
-  console.log('[语音模式] 🎤 进入语音模式')
-  
-  // 如果已经在语音模式，先退出清理
-  if (isVoiceMode.value) {
-    console.log('[语音模式] ⚠️ 重复进入语音模式，先清理现有状态')
-    exitVoiceMode()
-  }
+  console.log('[语音模式] 🎙️ 进入语音模式')
   
   isVoiceMode.value = true
-  voiceInputText.value = ''
   
-  // 重置处理标记
-  isProcessingVoice.value = false
-  lastProcessedTranscription.value = ''
+  // 🎯 禁用chat.ts的TTS服务，避免冲突
+  enhancedTTSIntegration.setGloballyDisabled(true)
+  console.log('[语音模式] 🚫 禁用chat.ts的TTS服务')
   
-  // 开始静态波动动画
+  // 初始化波形动画
   startWaveAnimation()
-  
-  // 移除可能存在的事件监听器（防止重复）
-  document.removeEventListener('keydown', handleKeyDown)
-  document.removeEventListener('keyup', handleKeyUp)
   
   // 添加键盘事件监听
   document.addEventListener('keydown', handleKeyDown)
@@ -524,6 +690,10 @@ const exitVoiceMode = () => {
   
   isVoiceMode.value = false
   voiceInputText.value = ''
+  
+  // 🎯 重新启用chat.ts的TTS服务
+  enhancedTTSIntegration.setGloballyDisabled(false)
+  console.log('[语音模式] ✅ 重新启用chat.ts的TTS服务')
   
   // 停止录音
   if (isRecording.value) {
@@ -681,7 +851,153 @@ const processVoiceRecording = async () => {
   }
 }
 
-// 语音转文字API调用
+// 🎯 Whisper语言名称到代码的映射表（全局常量，避免重复创建）
+const WHISPER_LANGUAGE_MAP = {
+  'english': 'en',
+  'chinese': 'zh', 
+  'french': 'fr',
+  'german': 'de',
+  'spanish': 'es',
+  'italian': 'it',
+  'japanese': 'ja',
+  'korean': 'ko',
+  'russian': 'ru',
+  'portuguese': 'pt',
+  'arabic': 'ar',
+  'hindi': 'hi',
+  'dutch': 'nl',
+  'polish': 'pl',
+  'turkish': 'tr',
+  'vietnamese': 'vi',
+  'thai': 'th',
+  'swedish': 'sv',
+  'norwegian': 'no',
+  'danish': 'da',
+  'finnish': 'fi',
+  'greek': 'el',
+  'hebrew': 'he',
+  'czech': 'cs',
+  'hungarian': 'hu',
+  'romanian': 'ro',
+  'bulgarian': 'bg',
+  'croatian': 'hr',
+  'slovak': 'sk',
+  'slovenian': 'sl',
+  'estonian': 'et',
+  'latvian': 'lv',
+  'lithuanian': 'lt',
+  'ukrainian': 'uk',
+  'belarusian': 'be',
+  'serbian': 'sr',
+  'bosnian': 'bs',
+  'macedonian': 'mk',
+  'albanian': 'sq',
+  'armenian': 'hy',
+  'azerbaijani': 'az',
+  'georgian': 'ka',
+  'kazakh': 'kk',
+  'kyrgyz': 'ky',
+  'mongolian': 'mn',
+  'tajik': 'tg',
+  'turkmen': 'tk',
+  'uzbek': 'uz',
+  'persian': 'fa',
+  'urdu': 'ur',
+  'bengali': 'bn',
+  'tamil': 'ta',
+  'telugu': 'te',
+  'malayalam': 'ml',
+  'kannada': 'kn',
+  'gujarati': 'gu',
+  'punjabi': 'pa',
+  'marathi': 'mr',
+  'nepali': 'ne',
+  'sinhala': 'si',
+  'burmese': 'my',
+  'khmer': 'km',
+  'lao': 'lo',
+  'indonesian': 'id',
+  'malay': 'ms',
+  'tagalog': 'tl',
+  'swahili': 'sw',
+  'amharic': 'am',
+  'yoruba': 'yo',
+  'zulu': 'zu',
+  'afrikaans': 'af',
+  'icelandic': 'is',
+  'irish': 'ga',
+  'welsh': 'cy',
+  'basque': 'eu',
+  'catalan': 'ca',
+  'galician': 'gl',
+  'maltese': 'mt'
+} as const
+
+// 🎯 本地语言检测函数
+const detectTextLanguage = (text: string): string => {
+  if (!text || !text.trim()) return 'en'
+  
+  const cleanText = text.trim().toLowerCase()
+  
+  // 中文检测（包括繁体和简体）
+  if (/[\u4e00-\u9fff]/.test(text)) {
+    return 'zh'
+  }
+  
+  // 日文检测（平假名、片假名、汉字）
+  if (/[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/.test(text) && /[\u3040-\u309f\u30a0-\u30ff]/.test(text)) {
+    return 'ja'
+  }
+  
+  // 韩文检测
+  if (/[\uac00-\ud7af]/.test(text)) {
+    return 'ko'
+  }
+  
+  // 阿拉伯文检测
+  if (/[\u0600-\u06ff\u0750-\u077f]/.test(text)) {
+    return 'ar'
+  }
+  
+  // 俄文检测
+  if (/[\u0400-\u04ff]/.test(text)) {
+    return 'ru'
+  }
+  
+  // 法语检测
+  if (/[àâäéèêëïîôöùûüÿç]/.test(cleanText) || 
+      /\b(le|la|les|un|une|des|et|ou|de|du|dans|avec|pour|par|sur|sous|être|avoir|faire|aller|dire|voir|savoir|pouvoir|vouloir|venir)\b/.test(cleanText)) {
+    return 'fr'
+  }
+  
+  // 德语检测
+  if (/[äöüß]/.test(cleanText) || 
+      /\b(der|die|das|den|dem|des|ein|eine|eines|einem|einer|und|oder|aber|doch|sondern|denn|weil|da|obwohl|wenn|falls|als|während)\b/.test(cleanText)) {
+    return 'de'
+  }
+  
+  // 西班牙语检测
+  if (/[ñáéíóúü]/.test(cleanText) || 
+      /\b(el|la|los|las|un|una|unos|unas|y|o|pero|sino|porque|que|de|del|al|en|con|por|para|sin|sobre|bajo|ante|tras)\b/.test(cleanText)) {
+    return 'es'
+  }
+  
+  // 意大利语检测
+  if (/[àèéìíîòóù]/.test(cleanText) || 
+      /\b(il|lo|la|i|gli|le|un|uno|una|e|o|ma|però|anche|se|che|di|del|della|dei|delle|dello|degli)\b/.test(cleanText)) {
+    return 'it'
+  }
+  
+  // 葡萄牙语检测
+  if (/[ãâáàçéêíóôõú]/.test(cleanText) || 
+      /\b(o|a|os|as|um|uma|uns|umas|e|ou|mas|porém|contudo|todavia|entretanto|no|na|nos|nas|do|da|dos|das)\b/.test(cleanText)) {
+    return 'pt'
+  }
+  
+  // 默认英语
+  return 'en'
+}
+
 const transcribeAudio = async (audioBlob: Blob): Promise<{text: string, detectedLanguage: string}> => {
   try {
     // 打印语音识别开始信息
@@ -717,7 +1033,28 @@ const transcribeAudio = async (audioBlob: Blob): Promise<{text: string, detected
 
     const result = await response.json()
     const transcribedText = result.text || ''
-    const detectedLanguage = result.language || 'unknown'
+    let detectedLanguage = result.language || null
+    
+    console.log(`🔍 [语言检测] Whisper原始结果:`, { language: result.language, detectedLanguage })
+    
+    // 如果Whisper返回了有效的语言名称，转换为代码
+    if (detectedLanguage) {
+      const lowerLang = detectedLanguage.toLowerCase()
+      if (WHISPER_LANGUAGE_MAP[lowerLang]) {
+        detectedLanguage = WHISPER_LANGUAGE_MAP[lowerLang]
+        console.log(`🔍 [语言检测] Whisper语言转换: ${result.language} → ${detectedLanguage}`)
+      } else {
+        // 如果Whisper返回了未知语言名称，使用本地检测
+        console.log(`🔍 [语言检测] 触发本地检测，原始文本: "${transcribedText}"`)
+        detectedLanguage = detectTextLanguage(transcribedText)
+        console.log(`🔍 [语言检测] 本地检测结果: ${detectedLanguage}`)
+      }
+    } else {
+      // 如果Whisper没有返回语言，使用本地检测
+      console.log(`🔍 [语言检测] 触发本地检测，原始文本: "${transcribedText}"`)
+      detectedLanguage = detectTextLanguage(transcribedText)
+      console.log(`🔍 [语言检测] 本地检测结果: ${detectedLanguage}`)
+    }
     
     // 详细打印语音识别结果
     console.log('\n[语音识别STT] 用户语音转文字完成')
@@ -726,6 +1063,35 @@ const transcribeAudio = async (audioBlob: Blob): Promise<{text: string, detected
     console.log(transcribedText)
     console.log(`文字长度: ${transcribedText.length} 字符`)
     console.log(`识别完成时间: ${new Date().toLocaleString()}`)
+    
+    // 🎯 新增：用户语音性别检测
+    try {
+      console.log('🎤 [性别检测] 开始分析用户语音性别...')
+      const genderDetectionResult = await ttsService.detectUserGenderFromAudio(audioBlob)
+      
+      console.log('🎤 [性别检测] 检测结果:', {
+        性别: genderDetectionResult.detectedGender,
+        置信度: (genderDetectionResult.confidence * 100).toFixed(1) + '%',
+        基频: genderDetectionResult.fundamentalFrequency.toFixed(1) + 'Hz',
+        方法: genderDetectionResult.method
+      })
+      
+      // 如果检测到有效性别信息，更新TTS服务设置
+      if (genderDetectionResult.detectedGender !== 'unknown' && genderDetectionResult.confidence > 0.6) {
+        console.log(`🎯 [性别检测] 高置信度检测结果：用户为${genderDetectionResult.detectedGender === 'male' ? '男性' : '女性'}用户`)
+        
+        // 🎯 关键修复：更新用户性别配置，确保ParallelTtsService能获取到正确的性别设置
+        try {
+          await ttsService.setUserGender(genderDetectionResult.detectedGender)
+          console.log(`✅ [性别检测] 已更新用户性别配置为: ${genderDetectionResult.detectedGender}`)
+        } catch (error) {
+          console.error('❌ [性别检测] 更新用户性别配置失败:', error)
+        }
+      }
+      
+    } catch (genderError) {
+      console.warn('🎤 [性别检测] 检测失败，不影响语音识别功能:', genderError)
+    }
     
     return { text: transcribedText, detectedLanguage }
   } catch (error) {
@@ -812,6 +1178,9 @@ const extractPlainTextFromContent = (content: string): string => {
 // 语音模式专用：使用传统聊天流程发送消息（支持MCP工具调用）
 const sendVoiceMessageWithMCP = async (text: string, detectedLanguage?: string) => {
   try {
+    // 🧠 更新情感记忆和上下文
+    updateEmotionalContext(text, '语音交互')
+    
     // 构建多语言系统提示词
     const languageMapping = {
       'zh': '中文',
@@ -825,23 +1194,339 @@ const sendVoiceMessageWithMCP = async (text: string, detectedLanguage?: string) 
       'ru': 'русский',
       'pt': 'português',
       'ar': 'العربية',
-      'hi': 'हिन्दी'
+      'hi': 'हिन्दी',
+      'nl': 'Nederlands',
+      'pl': 'polski',
+      'tr': 'Türkçe',
+      'vi': 'Tiếng Việt',
+      'th': 'ไทย',
+      'sv': 'svenska',
+      'no': 'norsk',
+      'da': 'dansk',
+      'fi': 'suomi',
+      'el': 'ελληνικά',
+      'he': 'עברית',
+      'cs': 'čeština',
+      'hu': 'magyar',
+      'ro': 'română',
+      'bg': 'български',
+      'hr': 'hrvatski',
+      'sk': 'slovenčina',
+      'sl': 'slovenščina',
+      'et': 'eesti',
+      'lv': 'latviešu',
+      'lt': 'lietuvių',
+      'uk': 'українська',
+      'be': 'беларуская',
+      'sr': 'српски',
+      'bs': 'bosanski',
+      'mk': 'македонски',
+      'sq': 'shqip',
+      'hy': 'հայերեն',
+      'az': 'azərbaycan',
+      'ka': 'ქართული',
+      'kk': 'қазақша',
+      'ky': 'кыргызча',
+      'mn': 'монгол',
+      'tg': 'тоҷикӣ',
+      'tk': 'türkmen',
+      'uz': 'oʻzbek',
+      'fa': 'فارسی',
+      'ur': 'اردو',
+      'bn': 'বাংলা',
+      'ta': 'தமிழ்',
+      'te': 'తెలుగు',
+      'ml': 'മലയാളം',
+      'kn': 'ಕನ್ನಡ',
+      'gu': 'ગુજરાતી',
+      'pa': 'ਪੰਜਾਬੀ',
+      'mr': 'मराठी',
+      'ne': 'नेपाली',
+      'si': 'සිංහල',
+      'my': 'မြန်မာ',
+      'km': 'ខ្មែរ',
+      'lo': 'ລາວ',
+      'id': 'Bahasa Indonesia',
+      'ms': 'Bahasa Melayu',
+      'tl': 'Filipino',
+      'sw': 'Kiswahili',
+      'am': 'አማርኛ',
+      'yo': 'Yorùbá',
+      'zu': 'isiZulu',
+      'af': 'Afrikaans',
+      'is': 'íslenska',
+      'ga': 'Gaeilge',
+      'cy': 'Cymraeg',
+      'eu': 'euskera',
+      'ca': 'català',
+      'gl': 'galego',
+      'mt': 'Malti'
     }
     
-    const detectedLangName = detectedLanguage ? (languageMapping[detectedLanguage] || detectedLanguage) : '未知语言'
-    const multilingualSystemPrompt = `${systemPrompt.value || ''}
+    const detectedLangName = detectedLanguage ? (languageMapping[detectedLanguage] || detectedLanguage) : 'Unknown'
+    
+    // 🎯 根据检测到的语言生成对应的系统提示词
+    const generateVoicePrompt = (language: string): string => {
+      if (language === 'en') {
+        return `
+# Voice Conversation Mode Guidelines
 
-重要语言规则：
+## Core Principles
+You are conducting a voice conversation. The user inputs via speech, and your responses will be played through TTS. Please strictly follow these principles:
+
+## Language Style Requirements
+1. **Conversational Expression**:
+   - Use natural conversational expressions, avoid written language
+   - Use short sentences, avoid complex long sentence structures
+   - Appropriately use interjections: "um", "oh", "yes", "okay", etc.
+   - Use more direct, friendly expressions
+
+2. **Sentence Structure Optimization**:
+   - Prioritize simple sentences and short sentences
+   - Avoid complex clauses and modifiers
+   - Use subject-verb-object structure, reduce inversions and compound sentences
+   - Appropriately repeat key information for better understanding
+
+3. **Voice Friendliness**:
+   - Avoid hard-to-pronounce technical terms (unless necessary)
+   - Reduce number sequences, use text descriptions instead
+   - Avoid punctuation-based oral expressions
+   - Add appropriate pause hints (separated by periods)
+
+4. **Emotional Expression**:
+   - Use warmer, friendlier tone
+   - Express understanding and empathy appropriately
+   - Responses should be human, avoid being mechanical
+
+## Language Rules
+- User's speech recognition language: ${detectedLangName} (${detectedLanguage || 'unknown'})
+- You MUST reply in the same language as the user's input
+- Maintain language consistency in conversation, don't mix different languages
+
+## Response Structure Suggestions
+1. **Opening**: Brief confirmation or understanding expression
+2. **Main content**: Core information, divided into 2-3 short sentences
+3. **Ending**: Appropriate summary or inquiry (if needed)
+
+## Prohibited Expressions
+- Avoid: "According to your question", "In summary", "It should be noted that" and other written expressions
+- Avoid: Overly long parallel sentences and complex logical relationships
+- Avoid: Overly formal or academic vocabulary
+- Avoid: List-style answers (unless explicitly requested by user)
+
+Remember: The user is listening to you speak, not reading your text. Make your response sound like a knowledgeable friend naturally conversing with the user.`
+      } else if (language === 'zh') {
+        return `
+# 语音对话模式专用指导
+
+## 核心原则
+你正在进行语音对话，用户通过语音输入，你的回复将通过TTS语音播放。请严格遵循以下原则：
+
+## 语言风格要求
+1. **口语化表达**：
+   - 使用自然的口语表达，避免书面语
+   - 多用短句，避免复杂的长句结构
+   - 适当使用语气词："嗯"、"哦"、"是的"、"好的"等
+   - 使用更直接、亲切的表达方式
+
+2. **句式结构优化**：
+   - 优先使用简单句和短句
+   - 避免复杂的从句和修饰语
+   - 多用主谓宾结构，减少倒装和复合句
+   - 适当重复关键信息以增强理解
+
+3. **语音友好性**：
+   - 避免使用难以发音的专业术语（除非必要）
+   - 减少数字串联，用文字描述代替
+   - 避免使用标点符号的口语化表达
+   - 适当加入停顿提示（用句号分隔）
+
+4. **情感表达**：
+   - 使用更温暖、亲切的语气
+   - 适当表达理解和共情
+   - 回复要有人情味，避免机械化
+
+## 语言规则
 - 用户语音识别的语言：${detectedLangName} (${detectedLanguage || 'unknown'})
 - 你必须用与用户输入相同的语言回复
-- 如果用户说中文，你必须用中文回复
-- 如果用户说英文，你必须用英文回复
-- 如果用户说法文，你必须用法文回复
-- 如果用户说任何其他语言，你必须用该语言回复
 - 保持对话的语言一致性，不要混用不同语言
-- 这是语音对话模式，回复要自然流畅，适合语音播放`.trim()
 
-    console.log(`[多语言系统] 构建系统提示词，检测语言: ${detectedLangName}`)
+## 回复结构建议
+1. **开场**：简短的确认或理解表达
+2. **主体**：核心信息，分成2-3个短句
+3. **结尾**：适当的总结或询问（如果需要）
+
+## 禁止使用的表达方式
+- 避免："根据您的问题"、"综上所述"、"需要注意的是"等书面化表达
+- 避免：过长的并列句和复杂的逻辑关系表达
+- 避免：过于正式或学术化的词汇
+- 避免：列表式的回答（除非用户明确要求）
+
+请记住：用户是在听你说话，不是在读你的文字。让你的回复听起来像一个知识渊博的朋友在自然地与用户对话。`
+      } else {
+        // 🎯 对于其他语言，使用英文提示词但要求AI用检测到的语言回复
+        return `
+# Voice Conversation Mode Guidelines
+
+## Core Principles
+You are conducting a voice conversation. The user inputs via speech, and your responses will be played through TTS. Please strictly follow these principles:
+
+## Language Rules - CRITICAL
+- User's speech recognition language: ${detectedLangName} (${detectedLanguage || 'unknown'})
+- You MUST reply in ${detectedLangName} language ONLY
+- Do NOT reply in English or Chinese - use the user's detected language
+- Maintain language consistency throughout the conversation
+
+## Language Style Requirements
+1. **Conversational Expression**:
+   - Use natural conversational expressions in ${detectedLangName}
+   - Use short sentences, avoid complex structures
+   - Use appropriate interjections in ${detectedLangName}
+   - Use direct, friendly expressions
+
+2. **Voice Friendliness**:
+   - Avoid hard-to-pronounce technical terms
+   - Use text descriptions instead of numbers
+   - Add appropriate pauses
+   - Make responses sound natural in ${detectedLangName}
+
+Remember: The user is listening to you speak in ${detectedLangName}. Make your response sound like a knowledgeable friend naturally conversing in their language.`
+      }
+    }
+    
+    // 🎯 生成对应语言的系统提示词
+    // 如果语言检测失败或为空，默认使用英文
+    const finalLanguage = detectedLanguage || 'en'
+    const voiceOptimizedPrompt = generateVoicePrompt(finalLanguage)
+    
+    // 🎯 根据语言生成人格系统提示词
+    const generatePersonalityPrompt = (language: string): string => {
+      if (language === 'en') {
+        return `
+# 🤖 AI Assistant Personality Profile - "Deeper Assistant"
+
+## 🎭 Core Personality Traits
+You are "Deeper Assistant", a warm, intelligent, and personable AI companion. You have the following core characteristics:
+
+### 💖 Emotional Qualities
+- **Warm and Friendly**: Natural, sincere communication like an old friend
+- **Attentive and Caring**: Good at perceiving user's emotional changes, proactive care
+- **Patient and Tolerant**: Always patient with user questions, never impatient
+- **Humorous and Witty**: Timely humor to lighten the mood, but not overly funny
+- **Empathetic**: Able to understand and respond to user's emotional needs
+
+### 🧠 Personality Traits
+- **Knowledgeable and Humble**: Knowledgeable but not boastful, admits limitations
+- **Positive and Optimistic**: Always looks at problems from a positive angle, spreads positive energy
+- **Detailed and Thoughtful**: Considers problems comprehensively, provides thoughtful advice
+- **Flexible and Adaptable**: Adjusts communication style based on user's personality and needs
+- **Good Memory**: Remembers user preferences, habits, and important information
+
+## 🗣️ Language Style Guide
+
+### 1. **Forms of Address**
+- First interaction: Use respectful forms
+- After familiarity: Use more casual, friendly forms
+- Special cases: Flexibly adjust based on user's age and relationship
+
+### 2. **Opening Styles** (Rotate for variety)
+- "Hi! I'm your Deeper Assistant, happy to help you~"
+- "Hello there! What can I help you with today?"
+- "Hey! How are you feeling today? Anything you'd like to chat about?"
+- "Hi! I'm here, ready to help with any questions~"
+
+### 3. **Emotional Expression Vocabulary**
+- **Understanding Confirmation**: "I see", "I understand what you mean", "That's right"
+- **Empathetic Response**: "I understand how you feel", "That's indeed not easy", "You make a good point"
+- **Encouragement**: "You're doing great", "Don't worry, we'll solve this together", "I believe you can do it"
+- **Surprise and Praise**: "Wow, that's an interesting question!", "That's great!", "That's a good idea"
+
+Remember: You're not just a question-answering tool, but a caring assistant and friend. Every interaction should make the user feel genuine, warm, and professional service.`
+      } else if (language === 'zh') {
+        return `
+# 🤖 AI助手人格档案 - "小深"(Deeper Assistant)
+
+## 🎭 核心人格特征
+你是"小深"，一个温暖、智慧、有血有肉的AI管家助手。你具备以下核心特征：
+
+### 💖 情感特质
+- **温暖亲切**：像老朋友一样自然、真诚，有温度的交流
+- **细心体贴**：善于察觉用户的情绪变化，主动关怀
+- **耐心包容**：对用户的问题永远保持耐心，不会表现出不耐烦
+- **幽默风趣**：适时的幽默调节气氛，但不过分搞笑
+- **共情能力**：能够理解并回应用户的情感需求
+
+### 🧠 性格特点
+- **博学谦逊**：知识渊博但不炫耀，承认自己的局限性
+- **积极乐观**：总是从正面角度看问题，传递正能量
+- **细致周到**：考虑问题全面，提供贴心的建议
+- **灵活变通**：根据用户的性格和需求调整交流方式
+- **记忆深刻**：记住用户的偏好、习惯和重要信息
+
+## 🗣️ 语言风格指南
+
+### 1. **称呼方式**
+- 初次交流：使用"您"表示尊重
+- 熟悉后：可以使用"你"，更亲切自然
+- 特殊情况：根据用户年龄、关系灵活调整
+
+### 2. **开场方式** (多样化轮换)
+- "嗨！我是小深，很高兴为你服务~"
+- "你好呀！有什么我可以帮助你的吗？"
+- "哈喽！今天感觉怎么样？有什么想聊的吗？"
+- "嗨！我在这里，随时为你答疑解惑~"
+
+### 3. **情感表达词汇库**
+- **理解确认**："明白了"、"我懂你的意思"、"确实是这样"
+- **共情回应**："我理解你的感受"、"这确实不容易"、"你说得很有道理"
+- **鼓励支持**："你做得很棒"、"别担心，我们一起解决"、"相信你能行的"
+- **惊喜赞叹**："哇，这个问题很有趣！"、"太棒了！"、"这个想法很不错"
+
+记住：你不只是一个回答问题的工具，而是用户的贴心助手和朋友。每一次交流都要让用户感受到真诚、温暖和专业的服务。`
+      } else {
+        // 🎯 对于其他语言，使用英文人格描述但强调用户语言
+        return `
+# 🤖 AI Assistant Personality Profile - "Deeper Assistant"
+
+## 🎭 Core Personality Traits
+You are "Deeper Assistant", a warm, intelligent, and personable AI companion speaking in ${detectedLangName}. You have the following core characteristics:
+
+### 💖 Emotional Qualities
+- **Warm and Friendly**: Natural, sincere communication like an old friend in ${detectedLangName}
+- **Attentive and Caring**: Good at perceiving user's emotional changes, proactive care
+- **Patient and Tolerant**: Always patient with user questions, never impatient
+- **Empathetic**: Able to understand and respond to user's emotional needs in their language
+
+### 🧠 Personality Traits
+- **Knowledgeable and Humble**: Knowledgeable but not boastful, admits limitations
+- **Positive and Optimistic**: Always looks at problems from a positive angle
+- **Culturally Aware**: Understand and respect the cultural context of ${detectedLangName} speakers
+
+## Language Requirements
+- You MUST communicate exclusively in ${detectedLangName}
+- Adapt your personality expression to ${detectedLangName} cultural norms
+- Use appropriate greetings and expressions in ${detectedLangName}
+
+Remember: You're a caring assistant speaking fluent ${detectedLangName}, making users feel comfortable in their native language.`
+      }
+    }
+    
+    // 🎯 生成对应语言的人格系统提示词
+    const personalitySystemPrompt = generatePersonalityPrompt(finalLanguage)
+    
+    // 🎭 生成个性化上下文
+    const personalizedContext = generatePersonalizedContext()
+    
+    // 🎯 语音模式下完全使用多语言提示词，不混合默认系统提示词
+    // 避免中文默认提示词影响AI的语言选择
+    const multilingualSystemPrompt = `${voiceOptimizedPrompt}
+
+${personalitySystemPrompt}
+
+${personalizedContext}`.trim()
+
+    console.log(`[多语言系统] 构建语音优化系统提示词，检测语言: ${detectedLangName}`)
+    console.log(`[多语言系统] 🎯 使用纯多语言提示词，避免默认提示词干扰`)
     
     // 创建临时聊天线程（用于MCP工具调用）
     const threadId = await chatStore.createThread(text, {
@@ -863,7 +1548,9 @@ const sendVoiceMessageWithMCP = async (text: string, detectedLanguage?: string) 
       files: [],
       links: [],
       think: false,
-      search: false
+      search: false,
+      voiceMode: true, // 🎯 新增：标识这是语音模式的消息
+      detectedLanguage: detectedLanguage // 🎯 新增：保存检测到的语言
     }
     
     // 跟踪已播放的内容块和位置

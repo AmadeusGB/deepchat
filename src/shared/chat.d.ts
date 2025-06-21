@@ -69,6 +69,8 @@ export type UserMessageContent = {
   search: boolean
   text: string
   content?: (UserMessageTextBlock | UserMessageMentionBlock | UserMessageCodeBlock)[]
+  voiceMode?: boolean
+  detectedLanguage?: string
 }
 
 export type MessageFile = {
