@@ -40,22 +40,13 @@
       <!-- Voice waveform (shown when in voice mode) -->
       <div v-if="isVoiceMode" class="figma-voice-waveform-container flex items-center justify-center gap-1 mb-8">
         <!-- AI Response Subtitle (字幕) -->
-        <div v-if="voiceResponseText || isWaitingResponse" class="figma-voice-subtitle mb-6 text-center">
+        <div v-if="voiceResponseText" class="figma-voice-subtitle mb-6 text-center">
           <div class="text-lg font-medium text-foreground bg-background/80 rounded-xl px-6 py-3 backdrop-blur-md shadow-lg border border-border/50">
-            <div v-if="isWaitingResponse && !voiceResponseText" class="flex items-center justify-center gap-2">
-              <div class="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full"></div>
-              <span>{{ t('chat.input.voiceThinking') }}</span>
-            </div>
-            <div v-else>{{ voiceResponseText }}</div>
+            {{ voiceResponseText }}
           </div>
         </div>
         
-        <!-- Voice conversation history summary -->
-        <div v-if="voiceHistorySummary && !voiceResponseText" class="figma-voice-history-summary mb-4 text-center">
-          <div class="text-xs text-muted-foreground bg-background/50 rounded-lg px-3 py-2 backdrop-blur-sm">
-            {{ voiceHistorySummary }}
-          </div>
-        </div>
+
         
         <!-- Recording status indicator -->
         <div class="figma-voice-status-container mb-4">
@@ -186,7 +177,7 @@
           <div v-if="isVoiceMode" class="figma-voice-input-container flex items-center gap-4">
             <div class="figma-voice-input-box opacity-50">
               <input 
-                v-model="voiceInputText"
+                :value="latestUserVoiceInput || t('chat.input.voiceAutoMode')"
                 type="text" 
                 class="figma-voice-input"
                 :placeholder="t('chat.input.voiceAutoMode')"
@@ -290,7 +281,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, readonly } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
@@ -331,7 +322,12 @@ const settingsStore = useSettingsStore()
 
 // 语音模式状态
 const isVoiceMode = ref(false)
-const voiceInputText = ref('')
+
+// 🎯 暴露语音模式状态给父组件
+defineExpose({
+  isVoiceMode: readonly(isVoiceMode)
+})
+
 const isRecording = ref(false)
 const isTranscribing = ref(false)
 const isTTSPlaying = ref(false)
@@ -689,7 +685,6 @@ const exitVoiceMode = () => {
   console.log('[语音模式] 🔇 退出语音模式')
   
   isVoiceMode.value = false
-  voiceInputText.value = ''
   
   // 🎯 重新启用chat.ts的TTS服务
   enhancedTTSIntegration.setGloballyDisabled(false)
@@ -748,16 +743,58 @@ const handleKeyUp = (event: KeyboardEvent) => {
   }
 }
 
-// 语音对话历史摘要显示
-const voiceHistorySummary = computed(() => {
-  if (voiceConversationHistory.value.length === 0) return ''
-  const recent = voiceConversationHistory.value.slice(-3) // 显示最近3条
-  return recent.map(item => `${item.type === 'user' ? '👤' : '🤖'} ${item.summary || item.text}`).join(' • ')
+
+
+// 🎯 获取最近一次用户语音输入（用于显示在Voice Auto Mode框内）
+const latestUserVoiceInput = computed(() => {
+  const userInputs = voiceConversationHistory.value.filter(item => item.type === 'user')
+  if (userInputs.length === 0) return ''
+  return userInputs[userInputs.length - 1].text // 返回最新的用户输入
 })
+
+// 🎯 停止所有TTS播放（语音打断功能）
+const stopAllTTSPlayback = async () => {
+  console.log('[语音打断] 🛑 停止所有TTS播放服务')
+  
+  try {
+    // 停止并行TTS服务
+    if (parallelTtsService) {
+      parallelTtsService.stop()
+      console.log('[语音打断] ✅ 已停止ParallelTtsService')
+    }
+    
+    // 停止传统TTS服务
+    if (ttsService) {
+      ttsService.stop()
+      console.log('[语音打断] ✅ 已停止TTSService')
+    }
+    
+    // 停止增强TTS集成服务
+    if (enhancedTTSIntegration) {
+      enhancedTTSIntegration.stop()
+      console.log('[语音打断] ✅ 已停止EnhancedTTSIntegration')
+    }
+    
+    // 重置相关状态
+    isTTSPlaying.value = false
+    isParallelTTSActive.value = false
+    voiceResponseText.value = '' // 清除当前显示的字幕
+    
+    console.log('[语音打断] 🎯 所有TTS服务已停止，状态已重置')
+    
+  } catch (error) {
+    console.error('[语音打断] ❌ 停止TTS播放时出错:', error)
+  }
+}
+
+
 
 // 开始语音录制
 const startVoiceRecording = async () => {
   if (isRecording.value) return
+  
+  // 🎯 语音打断功能：在开始新录音前停止所有TTS播放
+  await stopAllTTSPlayback()
   
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -778,6 +815,8 @@ const startVoiceRecording = async () => {
 
     mediaRecorder.start()
     isRecording.value = true
+    
+    console.log('[语音打断] 🎙️ 开始新的语音录制，已停止所有TTS播放')
     
     // 初始化音频分析
     await initAudioAnalysis(stream)
@@ -831,9 +870,6 @@ const processVoiceRecording = async () => {
       // 在语音模式下，直接自动提交消息，不填入输入框
       if (isVoiceMode.value) {
         await autoSubmitVoiceMessage(currentTranscription, transcriptionResult.detectedLanguage)
-      } else {
-        // 非语音模式下，将转录结果添加到语音输入框
-        voiceInputText.value = currentTranscription
       }
     }
   } catch (error) {
@@ -1126,6 +1162,14 @@ const autoSubmitVoiceMessage = async (text: string, detectedLanguage?: string) =
       summary: text.length > 50 ? text.substring(0, 50) + '...' : text,
       detectedLanguage: detectedLanguage || 'unknown'
     })
+    
+    // 🧹 每次对话前进行内存监控和清理
+    console.log('🧠 [内存监控] 语音对话开始前的数据统计:')
+    console.log(`   - 语音历史: ${voiceConversationHistory.value.length} 条`)
+    console.log(`   - 情感话题: ${emotionalMemory.value.emotionalContext.recentTopics.length} 个`)
+    console.log(`   - 重要事件: ${emotionalMemory.value.emotionalContext.importantEvents.length} 个`)
+    console.log(`   - 总交互次数: ${emotionalMemory.value.interactionHistory.totalInteractions}`)
+    console.log(`   - 熟悉度: ${emotionalMemory.value.personalContext.familiarityLevel}%`)
 
     // 设置等待回复状态
     isWaitingResponse.value = true
@@ -1483,7 +1527,7 @@ Remember: You're not just a question-answering tool, but a caring assistant and 
 - **惊喜赞叹**："哇，这个问题很有趣！"、"太棒了！"、"这个想法很不错"
 
 记住：你不只是一个回答问题的工具，而是用户的贴心助手和朋友。每一次交流都要让用户感受到真诚、温暖和专业的服务。`
-      } else {
+    } else {
         // 🎯 对于其他语言，使用英文人格描述但强调用户语言
         return `
 # 🤖 AI Assistant Personality Profile - "Deeper Assistant"
@@ -1528,7 +1572,7 @@ ${personalizedContext}`.trim()
     console.log(`[多语言系统] 构建语音优化系统提示词，检测语言: ${detectedLangName}`)
     console.log(`[多语言系统] 🎯 使用纯多语言提示词，避免默认提示词干扰`)
     
-    // 创建临时聊天线程（用于MCP工具调用）
+    // 🎯 语音模式：创建后台聊天线程（避免UI跳转）
     const threadId = await chatStore.createThread(text, {
       providerId: activeModel.value.providerId,
       modelId: activeModel.value.id,
@@ -1539,8 +1583,8 @@ ${personalizedContext}`.trim()
       artifacts: artifacts.value as 0 | 1
     })
     
-    // 设置为活跃线程（但不跳转UI）
-    await chatStore.setActiveThread(threadId)
+    // 🎯 语音模式：仅在内部设置活跃线程，不触发UI跳转
+    await chatStore.setActiveThreadForVoiceMode(threadId)
     
     // 构建消息内容
     const messageContent: UserMessageContent = {
@@ -1556,6 +1600,70 @@ ${personalizedContext}`.trim()
     // 跟踪已播放的内容块和位置
     let playedContentBlocks = new Map<string, number>() // 存储每个块已播放的字符位置
     let isStreamCompleted = false
+    
+    // 🧹 数据清理和监控函数
+    const printMemoryUsage = () => {
+      const memoryInfo = {
+        voiceHistoryCount: voiceConversationHistory.value.length,
+        playedBlocksCount: playedContentBlocks.size,
+        emotionalTopicsCount: emotionalMemory.value.emotionalContext.recentTopics.length,
+        emotionalEventsCount: emotionalMemory.value.emotionalContext.importantEvents.length,
+        totalInteractions: emotionalMemory.value.interactionHistory.totalInteractions,
+        familiarityLevel: emotionalMemory.value.personalContext.familiarityLevel
+      }
+      
+      console.log('🧠 [内存监控] 语音对话数据统计:', memoryInfo)
+      
+      // 如果数据过多，发出警告
+      if (memoryInfo.voiceHistoryCount > 50) {
+        console.warn('⚠️ [内存警告] 语音对话历史过多:', memoryInfo.voiceHistoryCount)
+      }
+      if (memoryInfo.playedBlocksCount > 100) {
+        console.warn('⚠️ [内存警告] 已播放内容块过多:', memoryInfo.playedBlocksCount)
+      }
+      
+      return memoryInfo
+    }
+    
+    // 🧹 清理旧数据
+    const cleanupOldData = () => {
+      console.log('🧹 [数据清理] 开始清理旧数据...')
+      
+      // 清理语音对话历史，保留最近20条
+      if (voiceConversationHistory.value.length > 20) {
+        const removed = voiceConversationHistory.value.length - 20
+        voiceConversationHistory.value = voiceConversationHistory.value.slice(-20)
+        console.log(`🧹 [数据清理] 清理语音历史 ${removed} 条，保留最近20条`)
+      }
+      
+      // 清理已播放内容块，保留最近50个
+      if (playedContentBlocks.size > 50) {
+        const entries = Array.from(playedContentBlocks.entries())
+        const toKeep = entries.slice(-50)
+        playedContentBlocks.clear()
+        toKeep.forEach(([key, value]) => playedContentBlocks.set(key, value))
+        console.log(`🧹 [数据清理] 清理已播放内容块 ${entries.length - 50} 个，保留最近50个`)
+      }
+      
+      // 清理情感记忆中的旧话题，保留最近15个
+      if (emotionalMemory.value.emotionalContext.recentTopics.length > 15) {
+        const removed = emotionalMemory.value.emotionalContext.recentTopics.length - 15
+        emotionalMemory.value.emotionalContext.recentTopics = 
+          emotionalMemory.value.emotionalContext.recentTopics.slice(0, 15)
+        console.log(`🧹 [数据清理] 清理情感话题 ${removed} 个，保留最近15个`)
+      }
+      
+      // 清理重要事件，保留最近10个
+      if (emotionalMemory.value.emotionalContext.importantEvents.length > 10) {
+        const removed = emotionalMemory.value.emotionalContext.importantEvents.length - 10
+        emotionalMemory.value.emotionalContext.importantEvents = 
+          emotionalMemory.value.emotionalContext.importantEvents.slice(0, 10)
+        console.log(`🧹 [数据清理] 清理重要事件 ${removed} 个，保留最近10个`)
+      }
+      
+      console.log('🧹 [数据清理] 清理完成')
+      printMemoryUsage()
+    }
     
     // 智能轮询优化器类
     class SmartPollingOptimizer {
@@ -1819,8 +1927,8 @@ ${personalizedContext}`.trim()
           // 检查新的内容块
           if (assistantContent && Array.isArray(assistantContent)) {
                          // 更精确的内容稳定性检测
-             const currentContentBlockCount = contentBlocks.length
-             const currentContentHash = contentBlocks.map(block => block.content || '').join('|')
+            const currentContentBlockCount = contentBlocks.length
+            const currentContentHash = contentBlocks.map(block => block.content || '').join('|')
             
             if (currentContentBlockCount === lastContentBlockCount && currentContentHash === lastContentHash) {
               stableContentChecks++
@@ -1890,8 +1998,8 @@ ${personalizedContext}`.trim()
                     
                     try {
                       await playTTSWithParallelService(contentToPlay.trim())
-                      playedContentBlocks.set(blockKey, playedLength + contentToPlay.length)
-                      console.log(`[实时语音] ✅ 块${i}播放完成, 更新已播放位置: ${playedLength + contentToPlay.length}`)
+                    playedContentBlocks.set(blockKey, playedLength + contentToPlay.length)
+                    console.log(`[实时语音] ✅ 块${i}播放完成, 更新已播放位置: ${playedLength + contentToPlay.length}`)
                     } catch (error) {
                       console.error(`[实时语音] ❌ 块${i}播放失败:`, error)
                       playedContentBlocks.set(blockKey, playedLength + contentToPlay.length)
@@ -1961,8 +2069,8 @@ ${personalizedContext}`.trim()
             return false
           })()
           
-          // 检查是否完成
-          if (!workingStatus && (contentBlocks.length === 0 || shouldCompleteEarly)) {
+          // 检查是否完成 - 修复逻辑冲突
+          if (!workingStatus || shouldCompleteEarly) {
             const completionReason = !workingStatus ? 'AI工作完成' : '智能提前完成'
             console.log(`[实时语音] ${completionReason}，当前阶段: ${currentPhase}，等待并行TTS播放完成`)
             const status = parallelTtsService.getStatus()
@@ -2009,7 +2117,18 @@ ${personalizedContext}`.trim()
               }
             }
             
-            console.log(`[实时语音] 🎉 所有语音播放完成，总计用时: ${Date.now() - startTime}ms，播放块数: ${playedContentBlocks.size}`)
+            // 🎯 获取并行TTS的实际播放统计
+            const ttsStatus = parallelTtsService.getStatus()
+            const actualAudioBlocks = ttsStatus.totalChunks || 0
+            
+            console.log(`[实时语音] 🎉 所有语音播放完成，总计用时: ${Date.now() - startTime}ms，消息块数: ${playedContentBlocks.size}，音频块数: ${actualAudioBlocks}`)
+            
+            // 🧹 语音对话完成后进行数据监控和清理
+            printMemoryUsage()
+            if (emotionalMemory.value.interactionHistory.totalInteractions % 5 === 0) {
+              cleanupOldData() // 每5轮对话清理一次数据
+            }
+            
             isWaitingResponse.value = false
             return
           }
@@ -2172,7 +2291,7 @@ ${personalizedContext}`.trim()
               console.log(`[实时语音] 🎯 最终播放遗漏内容 (${remainingText.length}字符): ${remainingText.substring(0, 50)}...`)
               
               try {
-                await playTTSWithParallelService(remainingText.trim())
+              await playTTSWithParallelService(remainingText.trim())
                 playedContentBlocks.set(blockKey, content.length)
                 console.log(`[实时语音] ✅ 最终播放完成: ${blockKey}`)
               } catch (error) {
@@ -2183,7 +2302,17 @@ ${personalizedContext}`.trim()
         }
       }
       
-      console.log(`[实时语音] 🎉 超时处理完成，总计播放了 ${playedContentBlocks.size} 个内容块`)
+      // 🎯 获取并行TTS的实际播放统计
+      const finalTtsStatus = parallelTtsService.getStatus()
+      const finalAudioBlocks = finalTtsStatus.totalChunks || 0
+      
+      console.log(`[实时语音] 🎉 超时处理完成，总计播放了 ${playedContentBlocks.size} 个消息块，${finalAudioBlocks} 个音频块`)
+      
+      // 🧹 超时处理完成后进行数据清理
+      printMemoryUsage()
+      if (emotionalMemory.value.interactionHistory.totalInteractions % 5 === 0) {
+        cleanupOldData()
+      }
     }
     
     // 发送消息（使用传统聊天流程，支持MCP工具）
@@ -2210,18 +2339,16 @@ const isParallelTTSActive = ref(false)
 
 // 旧的直接TTS播放函数已被并行TTS服务替代
 
-// 切换录制状态（点击语音波浪时）
-const toggleVoiceRecording = () => {
-  // 如果正在播放TTS，先停止
-  if (isTTSPlaying.value) {
-    ttsService.stop()
-    isTTSPlaying.value = false
-  }
-  
+// 🎯 切换录制状态（点击语音波浪时）- 增强语音打断功能
+const toggleVoiceRecording = async () => {
   if (isRecording.value) {
+    // 如果正在录音，停止录音
     stopRecording()
+    console.log('[语音打断] 🛑 用户手动停止录音')
   } else {
-    startVoiceRecording()
+    // 如果没有录音，开始录音（会自动停止TTS播放）
+    await startVoiceRecording()
+    console.log('[语音打断] 🎙️ 用户手动开始录音')
   }
 }
 

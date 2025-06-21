@@ -93,7 +93,7 @@ export class TTSService {
       ttsCoordinator.releaseService(this.instanceId)
       
       console.log(`🎯 [TTS服务] 实例 ${this.instanceId} 已销毁`)
-    } catch (error) {
+      } catch (error) {
       console.error(`🚨 [TTS服务] 销毁实例失败:`, error)
     }
   }
@@ -503,13 +503,13 @@ export class TTSService {
     console.log(`[TTS服务] 🎭 情感语音生成开始: ${text.length}字符`)
     
     try {
-      const openaiProvider = await this.configPresenter.getProviderById('openai')
-      
-      if (!openaiProvider || !openaiProvider.apiKey) {
-        throw new Error('OpenAI配置未找到或API密钥缺失')
-      }
-      
-      const language = this.detectLanguage(text)
+    const openaiProvider = await this.configPresenter.getProviderById('openai')
+    
+    if (!openaiProvider || !openaiProvider.apiKey) {
+      throw new Error('OpenAI配置未找到或API密钥缺失')
+    }
+    
+    const language = this.detectLanguage(text)
       
       // 🎯 使用情感语音优化系统
       const optimizedParams = this.optimizeVoiceParameters(text, language)

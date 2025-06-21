@@ -204,6 +204,22 @@ export const useChatStore = defineStore('chat', () => {
     await threadP.setActiveConversation(threadId, tabId)
   }
 
+  // 🎯 语音模式专用：设置活跃线程但不触发UI跳转
+  const setActiveThreadForVoiceMode = async (threadId: string) => {
+    const threadsWorkingStatus = getThreadsWorkingStatus()
+    if (
+      threadsWorkingStatus.get(threadId) === 'completed' ||
+      threadsWorkingStatus.get(threadId) === 'error'
+    ) {
+      threadsWorkingStatus.delete(threadId)
+    }
+    // 🎯 关键区别：只设置内部状态，不调用 threadP.setActiveConversation
+    // 这样避免了触发 CONVERSATION_EVENTS.ACTIVATED 事件，防止UI跳转
+    setActiveThreadId(threadId)
+    setMessages([])
+    console.log('[语音模式] 🎙️ 设置后台活跃线程，不触发UI跳转:', threadId)
+  }
+
   const clearActiveThread = async () => {
     const tabId = getTabId()
     if (!getActiveThreadId()) return
@@ -1126,6 +1142,7 @@ export const useChatStore = defineStore('chat', () => {
     loadThreads,
     createThread,
     setActiveThread,
+    setActiveThreadForVoiceMode, // 🎯 新增：语音模式专用方法
     loadMessages,
     sendMessage,
     handleStreamResponse,

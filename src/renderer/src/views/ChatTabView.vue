@@ -25,8 +25,8 @@
 
         <!-- 主聊天区域 -->
         <div class="flex-1 flex flex-col w-0">
-          <!-- 新会话 -->
-          <NewThread v-if="!chatStore.getActiveThreadId()" />
+          <!-- 新会话 - 🎯 语音模式下即使有activeThreadId也显示NewThread -->
+          <NewThread v-if="!chatStore.getActiveThreadId() || newThreadRef?.isVoiceMode" ref="newThreadRef" />
           <template v-else>
             <!-- 聊天内容区域 -->
             <ChatView />
@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent } from 'vue'
+import { defineAsyncComponent, ref } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import { watch } from 'vue'
 import { useArtifactStore } from '@/stores/artifact'
@@ -54,6 +54,9 @@ const artifactStore = useArtifactStore()
 const route = useRoute()
 const chatStore = useChatStore()
 const title = useTitle()
+
+// 🎯 NewThread组件引用，用于访问语音模式状态
+const newThreadRef = ref()
 
 // 添加标题更新逻辑
 const updateTitle = () => {
