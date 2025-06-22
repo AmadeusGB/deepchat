@@ -46,6 +46,10 @@
           </div>
         </div>
         
+        <!-- 🎯 性能监控显示 -->
+        <div v-if="animationPerformance.isPerformanceIssue" class="figma-performance-warning">
+          ⚠️ 性能警告: FPS {{ animationPerformance.currentFps.toFixed(1) }} | 帧时间 {{ animationPerformance.averageFrameTime.toFixed(1) }}ms
+        </div>
 
         
         <!-- Recording status indicator -->
@@ -520,13 +524,37 @@ const generatePersonalizedContext = (): string => {
 
 // TTS服务将在后面导入
 
-// 录音相关变量
+// 🎯 新增：录音相关变量
 let mediaRecorder: MediaRecorder | null = null
 let audioChunks: Blob[] = []
 
 // 动画时间戳，用于正弦波动画
 const animationTime = ref(0)
 let animationFrameId: number | null = null
+
+// 🎯 新增：性能监控变量
+const animationPerformance = ref({
+  frameCount: 0,
+  lastFpsCheck: 0,
+  currentFps: 60,
+  averageFrameTime: 16.67,
+  frameTimeHistory: [] as number[],
+  isPerformanceIssue: false
+})
+
+// 🎯 新增：动画优化配置
+const animationConfig = {
+  targetFps: 60,
+  maxFrameTime: 33, // 30fps阈值
+  performanceCheckInterval: 1000, // 每秒检查一次性能
+  reducedQualityThreshold: 5, // 连续5帧超时则降级
+  pathCacheSize: 10 // 缓存最近10个路径
+}
+
+// 🎯 新增：路径缓存系统
+const pathCache = new Map<string, string>()
+let cacheHitCount = 0
+let cacheMissCount = 0
 
 // 音频分析相关
 let audioContext: AudioContext | null = null
@@ -535,8 +563,22 @@ let microphone: MediaStreamAudioSourceNode | null = null
 let dataArray: Uint8Array | null = null
 const audioLevel = ref(0) // 当前音频强度 0-1
 
-// 生成正弦波路径
+// 🎯 优化后的正弦波路径生成函数
 const generateSineWave = (waveId: number, amplitude: number, frequency: number, phaseOffset: number) => {
+  const frameStartTime = performance.now()
+  
+  // 🎯 生成缓存键（降低精度以提高缓存命中率）
+  const timeKey = Math.floor(animationTime.value / 50) * 50 // 50ms精度
+  const audioKey = Math.floor(audioLevel.value * 10) // 0.1精度
+  const cacheKey = `${waveId}-${timeKey}-${audioKey}-${isRecording.value}`
+  
+  // 🎯 检查缓存
+  if (pathCache.has(cacheKey)) {
+    cacheHitCount++
+    return pathCache.get(cacheKey) || ''
+  }
+  
+  cacheMissCount++
   const centerY = 72 // 144/2，波浪中心线
   
   // 静态状态下也有一定的波动
@@ -551,13 +593,31 @@ const generateSineWave = (waveId: number, amplitude: number, frequency: number, 
   
   let path = `M 0 ${centerY}`
   
-  for (let x = 0; x <= 838; x += 6) {
+  // 🎯 性能优化：根据性能动态调整采样密度
+  const step = animationPerformance.value.isPerformanceIssue ? 12 : 6 // 性能不佳时降低采样密度
+  
+  for (let x = 0; x <= 838; x += step) {
     // 添加音频驱动的随机跳跃效果
     const jumpEffect = isRecording.value ? audioLevel.value * Math.sin(x * 0.1 + phase * 3) * 5 : 0
     const baseWave = Math.sin(x * frequency + phase) * dynamicAmplitude
     const complexWave = baseWave * (1 + Math.sin(x * frequency * 2 + phase) * 0.3)
     const y = centerY + complexWave + jumpEffect
     path += ` L ${x} ${y}`
+  }
+  
+  // 🎯 缓存管理：限制缓存大小
+  if (pathCache.size >= animationConfig.pathCacheSize) {
+    const firstKey = pathCache.keys().next().value
+    if (firstKey) {
+      pathCache.delete(firstKey)
+    }
+  }
+  pathCache.set(cacheKey, path)
+  
+  // 🎯 性能监控
+  const frameTime = performance.now() - frameStartTime
+  if (frameTime > 5) { // 超过5ms的计算时间
+    console.warn(`[波浪性能] 路径生成耗时: ${frameTime.toFixed(2)}ms, 波形${waveId}`)
   }
   
   return path
@@ -569,6 +629,62 @@ const isSpacePressed = ref(false)
 // 防止重复处理的标记
 const isProcessingVoice = ref(false)
 const lastProcessedTranscription = ref('')
+
+// 🎯 新增：性能监控函数
+const updatePerformanceMetrics = (frameTime: number) => {
+  animationPerformance.value.frameCount++
+  animationPerformance.value.frameTimeHistory.push(frameTime)
+  
+  // 保持最近60帧的历史
+  if (animationPerformance.value.frameTimeHistory.length > 60) {
+    animationPerformance.value.frameTimeHistory.shift()
+  }
+  
+  // 计算平均帧时间
+  const avgFrameTime = animationPerformance.value.frameTimeHistory.reduce((a, b) => a + b, 0) / 
+                      animationPerformance.value.frameTimeHistory.length
+  animationPerformance.value.averageFrameTime = avgFrameTime
+  
+  // 每秒检查一次性能
+  const now = Date.now()
+  if (now - animationPerformance.value.lastFpsCheck >= animationConfig.performanceCheckInterval) {
+    const fps = animationPerformance.value.frameCount * 1000 / (now - animationPerformance.value.lastFpsCheck)
+    animationPerformance.value.currentFps = fps
+    animationPerformance.value.frameCount = 0
+    animationPerformance.value.lastFpsCheck = now
+    
+    // 检测性能问题
+    const recentSlowFrames = animationPerformance.value.frameTimeHistory.slice(-5)
+      .filter(time => time > animationConfig.maxFrameTime).length
+    
+    animationPerformance.value.isPerformanceIssue = recentSlowFrames >= animationConfig.reducedQualityThreshold
+    
+    // 性能报告
+    if (animationPerformance.value.isPerformanceIssue) {
+      console.warn(`[波浪性能] 性能问题检测: FPS=${fps.toFixed(1)}, 平均帧时间=${avgFrameTime.toFixed(2)}ms`)
+      console.warn(`[波浪性能] 缓存统计: 命中=${cacheHitCount}, 错过=${cacheMissCount}, 命中率=${(cacheHitCount/(cacheHitCount+cacheMissCount)*100).toFixed(1)}%`)
+    }
+  }
+}
+
+// 🎯 新增：初始化音频分析
+const initAudioAnalysis = async (stream: MediaStream) => {
+  try {
+    audioContext = new AudioContext()
+    analyser = audioContext.createAnalyser()
+    microphone = audioContext.createMediaStreamSource(stream)
+    
+    analyser.fftSize = 256
+    analyser.smoothingTimeConstant = 0.8
+    dataArray = new Uint8Array(analyser.frequencyBinCount)
+    
+    microphone.connect(analyser)
+    
+    console.log('[波浪性能] 音频分析初始化完成')
+  } catch (error) {
+    console.error('音频分析初始化失败:', error)
+  }
+}
 
 // 组件卸载时清理
 onBeforeUnmount(() => {
@@ -582,20 +698,94 @@ onBeforeUnmount(() => {
   // 清理动画
   stopWaveAnimation()
   
+  // 🎯 清理缓存
+  pathCache.clear()
+  
   // 确保移除事件监听器
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('keyup', handleKeyUp)
+  
+  // 🎯 输出最终性能报告
+  console.log(`[波浪性能] 最终报告: 平均FPS=${animationPerformance.value.currentFps.toFixed(1)}, 平均帧时间=${animationPerformance.value.averageFrameTime.toFixed(2)}ms`)
+  console.log(`[波浪性能] 缓存效率: 总命中=${cacheHitCount}, 总错过=${cacheMissCount}`)
 })
 
-// 开始正弦波动画
+// 🎯 新增：自适应性能优化函数
+const adaptivePerformanceOptimization = () => {
+  const performance = animationPerformance.value
+  
+  // 检测Hold说话状态（连续录音超过3秒）
+  const isHoldSpeaking = isRecording.value && (Date.now() - (performance.lastFpsCheck || Date.now())) > 3000
+  
+  if (performance.isPerformanceIssue || isHoldSpeaking) {
+    console.log(`[自适应优化] 检测到性能问题或Hold说话状态，启动优化措施`)
+    
+    // 1. 降低动画帧率
+    if (performance.currentFps < 30) {
+      animationConfig.targetFps = 30
+      console.log(`[自适应优化] 降低目标帧率到30fps`)
+    }
+    
+    // 2. 减少音频分析频率
+    if (isHoldSpeaking) {
+      // Hold说话时，每6帧更新一次音频数据而不是每3帧
+      console.log(`[自适应优化] Hold说话模式：降低音频分析频率`)
+    }
+    
+    // 3. 增加路径缓存大小
+    if (animationConfig.pathCacheSize < 20) {
+      animationConfig.pathCacheSize = 20
+      console.log(`[自适应优化] 增加路径缓存大小到20`)
+    }
+    
+    // 4. 清理旧数据
+    if (pathCache.size > 15) {
+      const oldSize = pathCache.size
+      const entries = Array.from(pathCache.entries()).slice(-10)
+      pathCache.clear()
+      entries.forEach(([key, value]) => pathCache.set(key, value))
+      console.log(`[自适应优化] 清理路径缓存: ${oldSize} -> ${pathCache.size}`)
+    }
+  } else if (performance.currentFps > 55 && performance.averageFrameTime < 10) {
+    // 性能良好时恢复高质量设置
+    animationConfig.targetFps = 60
+    animationConfig.pathCacheSize = 10
+  }
+}
+
+// 🎯 优化后的正弦波动画（增强版）
 const startWaveAnimation = () => {
-  const animate = () => {
+  let lastFrameTime = performance.now()
+  let holdSpeakingStartTime = 0
+  
+  const animate = (currentTime: number) => {
     // 静态和录音状态都有动画
     if (isVoiceMode.value) {
-      animationTime.value = Date.now()
+      const frameTime = currentTime - lastFrameTime
+      lastFrameTime = currentTime
       
-      // 分析音频数据（仅在录音时）
+      // 🎯 性能监控
+      updatePerformanceMetrics(frameTime)
+      
+      // 🎯 检测Hold说话状态
+      if (isRecording.value) {
+        if (holdSpeakingStartTime === 0) {
+          holdSpeakingStartTime = currentTime
+        }
+      } else {
+        holdSpeakingStartTime = 0
+      }
+      
+      const isHoldSpeaking = holdSpeakingStartTime > 0 && (currentTime - holdSpeakingStartTime) > 3000
+      
+      animationTime.value = currentTime
+      
+      // 🎯 优化音频数据分析：根据Hold说话状态调整频率
       if (isRecording.value && analyser && dataArray) {
+        // Hold说话时降低更新频率，正常说话时保持较高频率
+        const updateInterval = isHoldSpeaking ? 6 : 3
+        
+        if (animationPerformance.value.frameCount % updateInterval === 0) {
         analyser.getByteFrequencyData(dataArray)
         
         // 计算平均音量
@@ -607,32 +797,35 @@ const startWaveAnimation = () => {
         
         // 将音量转换为0-1的范围，并增加灵敏度
         audioLevel.value = Math.min(1, (average / 128) * 2)
+          
+          // 🎯 Hold说话状态的特殊处理
+          if (isHoldSpeaking && animationPerformance.value.frameCount % 60 === 0) {
+            console.log(`[Hold说话] 持续录音 ${((currentTime - holdSpeakingStartTime) / 1000).toFixed(1)}s, 音量=${audioLevel.value.toFixed(2)}`)
+          }
+        }
       } else if (!isRecording.value) {
         // 非录音状态下音频强度为0
         audioLevel.value = 0
       }
       
+      // 🎯 每2秒执行一次自适应优化
+      if (animationPerformance.value.frameCount % 120 === 0) {
+        adaptivePerformanceOptimization()
+      }
+      
       animationFrameId = requestAnimationFrame(animate)
     }
   }
-  animate()
-}
-
-// 初始化音频分析
-const initAudioAnalysis = async (stream: MediaStream) => {
-  try {
-    audioContext = new AudioContext()
-    analyser = audioContext.createAnalyser()
-    microphone = audioContext.createMediaStreamSource(stream)
-    
-    analyser.fftSize = 256
-    analyser.smoothingTimeConstant = 0.8
-    dataArray = new Uint8Array(analyser.frequencyBinCount)
-    
-    microphone.connect(analyser)
-  } catch (error) {
-    console.error('音频分析初始化失败:', error)
-  }
+  
+  // 初始化性能监控
+  animationPerformance.value.lastFpsCheck = Date.now()
+  animationPerformance.value.frameCount = 0
+  pathCache.clear()
+  cacheHitCount = 0
+  cacheMissCount = 0
+  
+  console.log('[波浪性能] 启动优化版动画系统')
+  animate(performance.now())
 }
 
 // 停止音频分析
@@ -1629,6 +1822,13 @@ ${personalizedContext}`.trim()
     const cleanupOldData = () => {
       console.log('🧹 [数据清理] 开始清理旧数据...')
       
+      // 🎯 清理动画缓存（新增）
+      if (pathCache.size > 0) {
+        const cacheSize = pathCache.size
+        pathCache.clear()
+        console.log(`🧹 [数据清理] 清理动画路径缓存 ${cacheSize} 个`)
+      }
+      
       // 清理语音对话历史，保留最近20条
       if (voiceConversationHistory.value.length > 20) {
         const removed = voiceConversationHistory.value.length - 20
@@ -1659,6 +1859,22 @@ ${personalizedContext}`.trim()
         emotionalMemory.value.emotionalContext.importantEvents = 
           emotionalMemory.value.emotionalContext.importantEvents.slice(0, 10)
         console.log(`🧹 [数据清理] 清理重要事件 ${removed} 个，保留最近10个`)
+      }
+      
+      // 🎯 重置性能监控历史（新增）
+      if (animationPerformance.value.frameTimeHistory.length > 60) {
+        animationPerformance.value.frameTimeHistory = animationPerformance.value.frameTimeHistory.slice(-30)
+        console.log(`🧹 [数据清理] 重置性能监控历史，保留最近30帧`)
+      }
+      
+      // 🎯 强制垃圾回收提示（在支持的环境中）
+      if (typeof window !== 'undefined' && 'gc' in window) {
+        try {
+          (window as unknown as { gc?: () => void }).gc?.()
+          console.log('🧹 [数据清理] 触发垃圾回收')
+        } catch {
+          // 忽略错误，gc可能不可用
+        }
       }
       
       console.log('🧹 [数据清理] 清理完成')
@@ -3322,6 +3538,24 @@ const insertExample = (text: string) => {
     font-size: 14px;
     padding: 6px;
   }
+}
+
+/* 🎯 性能监控显示 */
+.figma-performance-warning {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #856404;
+}
+
+.dark .figma-performance-warning {
+  background-color: rgba(255, 193, 7, 0.15);
+  border-color: rgba(255, 193, 7, 0.4);
+  color: #ffc107;
 }
 </style>
 

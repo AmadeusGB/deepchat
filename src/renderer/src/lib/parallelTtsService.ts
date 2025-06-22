@@ -42,7 +42,7 @@ export class ParallelTtsService {
   
   // 🎯 新增：配置管理
   private configPresenter = usePresenter('configPresenter')
-  
+
   private config: TtsConfig = {
     maxConcurrent: 5,         // 提高并发度从3→5
     chunkSize: { min: 15, max: 180 },  // 与新的分块器保持一致

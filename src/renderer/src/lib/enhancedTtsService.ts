@@ -216,7 +216,7 @@ class SmartTextChunker {
         if (potentialLength >= this.config.minChunkSize) {
           chunks.push(this.createChunk(currentChunk))
           currentChunk = ''
-        }
+      }
       } else {
         // 无法合并，输出当前块
         if (currentChunk) {
@@ -303,7 +303,7 @@ class SmartTextChunker {
         } else {
           chunks.push(currentChunk.trim())
           chunks.push(remaining.trim())
-        }
+      }
       } else {
         chunks.push(remaining.trim())
       }
