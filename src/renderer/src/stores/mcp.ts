@@ -481,7 +481,7 @@ export const useMcpStore = defineStore('mcp', () => {
     window.electron.ipcRenderer.on(
       MCP_EVENTS.TOOL_CALL_RESULT,
       (_event, result: MCPToolCallResult) => {
-        console.log(`MCP tool call result:`, result.function_name)
+        console.log(`MCP tool call result:`, result.function_name || 'unknown', result)
         if (result && result.function_name) {
           toolResults.value[result.function_name] = result.content
         }
@@ -494,10 +494,37 @@ export const useMcpStore = defineStore('mcp', () => {
     initEvents()
     await loadConfig()
 
-    // 如果MCP已启用，加载工具、客户端、提示模板和资源
+    // 🎯 优化：延迟加载策略，不在启动时立即加载所有资源
     if (config.value.mcpEnabled) {
-      await loadTools()
-      await loadClients()
+      // 只在真正需要时才加载工具和客户端
+      console.log('🔧 [MCP优化] 配置已启用，等待首次使用时加载资源')
+      // 注释掉立即加载，改为按需加载
+      // await loadTools()
+      // await loadClients()
+    }
+  }
+
+  // 🎯 新增：按需加载方法
+  const ensureResourcesLoaded = async () => {
+    if (!config.value.mcpEnabled) return false
+    
+    // 如果已经加载过了，直接返回
+    if (tools.value.length > 0 || clients.value.length > 0) {
+      return true
+    }
+    
+    console.log('🔧 [MCP优化] 开始按需加载MCP资源...')
+    
+    try {
+      await Promise.all([
+        loadTools(),
+        loadClients()
+      ])
+      console.log('🔧 [MCP优化] MCP资源按需加载完成')
+      return true
+    } catch (error) {
+      console.error('🔧 [MCP优化] 按需加载失败:', error)
+      return false
     }
   }
 
@@ -547,6 +574,7 @@ export const useMcpStore = defineStore('mcp', () => {
     callTool,
     setMcpEnabled,
     getPrompt,
-    readResource
+    readResource,
+    ensureResourcesLoaded
   }
 })

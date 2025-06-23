@@ -175,12 +175,12 @@ class EnhancedTTSIntegration {
   async processStreamText(text: string): Promise<void> {
     // 🎯 检查全局禁用状态
     if (this.isGloballyDisabled) {
-      console.log(`🚫 [TTS集成] 全局禁用状态，跳过文本处理`)
+      console.debug(`🚫 [TTS集成] 全局禁用状态，跳过文本处理`)
       return
     }
     
     if (!this.isActive.value) {
-      console.log(`⚠️ [TTS集成] 服务未激活，跳过文本处理`)
+      console.debug(`🔇 [TTS集成] 服务未激活，跳过文本处理 (这是正常的，用户可在设置中启用TTS)`)
       return
     }
 
