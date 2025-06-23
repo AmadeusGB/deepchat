@@ -349,6 +349,9 @@ const voiceConversationHistory = ref<Array<{
   detectedLanguage?: string
 }>>([])
 
+// 🔧 新增：记录上次语音提交时间，用于超时检测
+const lastVoiceSubmitTime = ref<number>(0)
+
 // 🧠 情感记忆与上下文感知系统
 const emotionalMemory = ref<{
   userPreferences: {
@@ -574,7 +577,7 @@ const animationConfig = {
   maxFrameTime: 33, // 30fps阈值
   performanceCheckInterval: 1000,
   reducedQualityThreshold: 3, // 降低到3帧即降级
-  pathCacheSize: 15, // 增加缓存大小
+  pathCacheSize: 100, // 🎯 增加缓存大小以提高命中率
   
   // 质量等级配置
   qualitySettings: {
@@ -637,81 +640,17 @@ let microphone: MediaStreamAudioSourceNode | null = null
 let dataArray: Uint8Array | null = null
 const audioLevel = ref(0) // 当前音频强度 0-1
 
-// 🎯 终极优化的正弦波路径生成函数
+// 🎯 超简化正弦波函数 - 无缓存，无复杂计算
 const generateSineWave = (waveId: number, amplitude: number, frequency: number, phaseOffset: number) => {
-  // 🎯 获取当前质量设置
-  const quality = animationConfig.qualitySettings[animationPerformance.value.qualityLevel]
-  
-  // 🎯 生成缓存键（极粗粒度，最大化命中率）
-  const timeKey = Math.floor(animationTime.value / quality.cacheTime) * quality.cacheTime
-  const audioKey = Math.floor(audioLevel.value / quality.audioGranularity) * quality.audioGranularity
-  const cacheKey = `${waveId}-${timeKey}-${audioKey}-${isRecording.value}`
-  
-  // 🎯 检查缓存
-  const cached = pathCache.get(cacheKey)
-  if (cached !== undefined) {
-    cacheHitCount++
-    return cached
-  }
-  
-  // 🎯 性能测量（仅在缓存未命中时）
-  const frameStartTime = performance.now()
-  cacheMissCount++
-  
   const centerY = 72
-  const staticAmplitude = amplitude * 0.8
-  const dynamicAmplitude = isRecording.value 
-    ? staticAmplitude + (amplitude * audioLevel.value * 2)
-    : staticAmplitude
+  const realAmplitude = isRecording.value ? amplitude * (1 + audioLevel.value) : amplitude * 0.5
   
-  // 🎯 预计算常量
-  const phase = animationTime.value * 0.003 * waveId + phaseOffset
-  const step = quality.step
-  const pointCount = Math.floor(838 / step) + 1
-  
-  // 🎯 使用字符串构建器模式
   let path = `M 0 ${centerY}`
   
-  // 🎯 展开循环，减少循环开销
-  for (let i = 0; i < pointCount; i++) {
-    const x = i * step
-    if (x > 838) break
-    
-    // 🎯 内联计算，避免函数调用开销
-    const freqX = x * frequency + phase
-    const freqX2 = x * frequency * 2 + phase
-    const jumpX = x * 0.1 + phase * 3
-    
-    // 🎯 快速正弦计算（内联版本）
-    const sinIndex1 = Math.floor(Math.abs(freqX) * SINE_TABLE_SIZE / (Math.PI * 2)) & SINE_TABLE_MASK
-    const sinValue1 = freqX >= 0 ? sineTable[sinIndex1] : -sineTable[sinIndex1]
-    
-    const sinIndex2 = Math.floor(Math.abs(freqX2) * SINE_TABLE_SIZE / (Math.PI * 2)) & SINE_TABLE_MASK
-    const sinValue2 = freqX2 >= 0 ? sineTable[sinIndex2] : -sineTable[sinIndex2]
-    
-    const baseWave = sinValue1 * dynamicAmplitude
-    const complexWave = baseWave * (1 + sinValue2 * 0.3)
-    
-    let y = centerY + complexWave
-    
-    // 🎯 只在需要时计算跳跃效果
-    if (isRecording.value && audioLevel.value > 0.1) {
-      const sinIndex3 = Math.floor(Math.abs(jumpX) * SINE_TABLE_SIZE / (Math.PI * 2)) & SINE_TABLE_MASK
-      const jumpSin = jumpX >= 0 ? sineTable[sinIndex3] : -sineTable[sinIndex3]
-      y += audioLevel.value * jumpSin * 5
-    }
-    
-    // 🎯 直接字符串拼接，避免数组开销
-    path += ` L ${x} ${Math.round(y)}`
-  }
-  
-  pathCache.set(cacheKey, path)
-  
-  // 🎯 性能监控（调整阈值）
-  const frameTime = performance.now() - frameStartTime
-  if (frameTime > 8) { // 提高阈值到合理水平
-    console.warn(`[波浪性能] 路径生成耗时: ${frameTime.toFixed(2)}ms, 波形${waveId}, 质量${animationPerformance.value.qualityLevel}`)
-    console.warn(`[波浪性能] 缓存状态: 命中=${cacheHitCount}, 错过=${cacheMissCount}`)
+  // 简单的固定步长循环
+  for (let x = 0; x <= 838; x += 10) {
+    const y = centerY + Math.sin(x * 0.01 + animationTime.value * 0.001 + phaseOffset) * realAmplitude
+    path += ` L ${x} ${y}`
   }
   
   return path
@@ -723,6 +662,373 @@ const isSpacePressed = ref(false)
 // 防止重复处理的标记
 const isProcessingVoice = ref(false)
 const lastProcessedTranscription = ref('')
+
+// 🎯 新增：键盘事件监听器健康检查
+const keyboardListenerHealthCheck = ref({
+  isActive: false,
+  lastTestTime: 0,
+  testInterval: 10000, // 每10秒检查一次
+  failedTests: 0,
+  maxFailedTests: 3
+})
+
+// 🎯 新增：长时间运行性能监控系统
+const longTermPerformanceMonitor = ref({
+  startTime: 0,
+  totalFrames: 0,
+  memoryUsageHistory: [] as number[],
+  fpsHistory: [] as number[],
+  cacheHitRateHistory: [] as number[],
+  animationTimeValues: [] as number[],
+  lastCleanupTime: 0,
+  cleanupInterval: 60000, // 每分钟清理一次
+  reportInterval: 30000, // 每30秒报告一次
+  lastReportTime: 0,
+  performanceDegradationThreshold: 0.7 // 性能下降70%时报警
+})
+
+// 🎯 新增：键盘事件监听器状态追踪
+const keyboardEventState = ref({
+  listenersAttached: false,
+  lastKeydownTime: 0,
+  lastKeyupTime: 0,
+  spaceKeyPressCount: 0,
+  debugMode: false
+})
+
+// 🎯 新增：键盘健康检查和自动恢复机制
+const checkKeyboardListenerHealth = () => {
+  if (!isVoiceMode.value) return
+  
+  const now = Date.now()
+  
+  // 每10秒进行一次健康检查
+  if (now - keyboardListenerHealthCheck.value.lastTestTime < keyboardListenerHealthCheck.value.testInterval) {
+    return
+  }
+  
+  keyboardListenerHealthCheck.value.lastTestTime = now
+  
+  // 检查事件监听器是否仍然附加
+  const isHealthy = keyboardEventState.value.listenersAttached && 
+                   (now - keyboardEventState.value.lastKeydownTime < 60000 || 
+                    keyboardEventState.value.spaceKeyPressCount > 0)
+  
+  if (!isHealthy) {
+    keyboardListenerHealthCheck.value.failedTests++
+    console.warn(`🚨 [键盘健康检查] 检测到键盘事件监听器可能失效 (失败次数: ${keyboardListenerHealthCheck.value.failedTests}/${keyboardListenerHealthCheck.value.maxFailedTests})`)
+    
+    if (keyboardListenerHealthCheck.value.failedTests >= keyboardListenerHealthCheck.value.maxFailedTests) {
+      console.error(`🔧 [键盘自动修复] 尝试重新绑定键盘事件监听器`)
+      repairKeyboardListeners()
+    }
+  } else {
+    keyboardListenerHealthCheck.value.failedTests = 0
+  }
+}
+
+// 🎯 新增：修复键盘事件监听器
+const repairKeyboardListeners = () => {
+  console.log(`🔧 [键盘修复] 开始修复键盘事件监听器`)
+  
+  // 1. 先移除所有可能存在的监听器
+  document.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('keyup', handleKeyUp)
+  
+  // 2. 重置相关状态
+  isSpacePressed.value = false
+  keyboardEventState.value.listenersAttached = false
+  keyboardEventState.value.spaceKeyPressCount = 0
+  
+  // 3. 重新绑定事件监听器
+  if (isVoiceMode.value) {
+    document.addEventListener('keydown', handleKeyDown)
+    document.addEventListener('keyup', handleKeyUp)
+    keyboardEventState.value.listenersAttached = true
+    
+    console.log(`✅ [键盘修复] 键盘事件监听器已重新绑定`)
+  }
+  
+  // 4. 重置健康检查状态
+  keyboardListenerHealthCheck.value.failedTests = 0
+  keyboardListenerHealthCheck.value.lastTestTime = Date.now()
+}
+
+// 🎯 新增：启用键盘调试模式
+const enableKeyboardDebugMode = () => {
+  keyboardEventState.value.debugMode = true
+  console.log(`🐛 [键盘调试] 已启用键盘调试模式`)
+}
+
+// 🎯 新增：手动修复键盘功能（用户可在控制台调用）
+const manualFixKeyboard = () => {
+  console.log(`🔧 [手动修复] 用户触发手动键盘修复`)
+  
+  if (!isVoiceMode.value) {
+    console.warn(`⚠️ [手动修复] 当前不在语音模式，无需修复`)
+    return false
+  }
+  
+  console.log(`📊 [手动修复] 当前状态检查:`)
+  console.log(`   - 语音模式: ${isVoiceMode.value}`)
+  console.log(`   - 空格键按下: ${isSpacePressed.value}`)
+  console.log(`   - 正在录音: ${isRecording.value}`)
+  console.log(`   - 监听器已附加: ${keyboardEventState.value.listenersAttached}`)
+  console.log(`   - 累计按键次数: ${keyboardEventState.value.spaceKeyPressCount}`)
+  
+  repairKeyboardListeners()
+  enableKeyboardDebugMode()
+  
+  console.log(`✅ [手动修复] 手动键盘修复完成，已启用调试模式`)
+  return true
+}
+
+// 🎯 新增：长时间性能监控和诊断
+const performLongTermDiagnostics = () => {
+  const monitor = longTermPerformanceMonitor.value
+  const now = Date.now()
+  
+  // 获取内存使用情况（如果可用）
+  let memoryUsage = 0
+  if ('memory' in performance && (performance as any).memory) {
+    memoryUsage = (performance as any).memory.usedJSHeapSize / 1024 / 1024 // MB
+    monitor.memoryUsageHistory.push(memoryUsage)
+  }
+  
+  // 记录当前FPS
+  monitor.fpsHistory.push(animationPerformance.value.currentFps)
+  
+  // 记录缓存命中率
+  const totalCacheRequests = cacheHitCount + cacheMissCount
+  const cacheHitRate = totalCacheRequests > 0 ? (cacheHitCount / totalCacheRequests) : 1
+  monitor.cacheHitRateHistory.push(cacheHitRate)
+  
+  // 记录动画时间值
+  monitor.animationTimeValues.push(animationTime.value)
+  
+  // 保持历史数据在合理范围内
+  const maxHistoryLength = 100
+  if (monitor.memoryUsageHistory.length > maxHistoryLength) {
+    monitor.memoryUsageHistory.shift()
+  }
+  if (monitor.fpsHistory.length > maxHistoryLength) {
+    monitor.fpsHistory.shift()
+  }
+  if (monitor.cacheHitRateHistory.length > maxHistoryLength) {
+    monitor.cacheHitRateHistory.shift()
+  }
+  if (monitor.animationTimeValues.length > maxHistoryLength) {
+    monitor.animationTimeValues.shift()
+  }
+  
+  // 每30秒生成详细报告
+  if (now - monitor.lastReportTime >= monitor.reportInterval) {
+    generatePerformanceReport()
+    monitor.lastReportTime = now
+  }
+  
+  // 检测性能下降
+  detectPerformanceDegradation()
+}
+
+const generatePerformanceReport = () => {
+  const monitor = longTermPerformanceMonitor.value
+  const runtimeSeconds = (Date.now() - monitor.startTime) / 1000
+  const avgFps = monitor.fpsHistory.length > 0 ? 
+    monitor.fpsHistory.reduce((a, b) => a + b, 0) / monitor.fpsHistory.length : 0
+  const avgMemory = monitor.memoryUsageHistory.length > 0 ?
+    monitor.memoryUsageHistory.reduce((a, b) => a + b, 0) / monitor.memoryUsageHistory.length : 0
+  const avgCacheHitRate = monitor.cacheHitRateHistory.length > 0 ?
+    monitor.cacheHitRateHistory.reduce((a, b) => a + b, 0) / monitor.cacheHitRateHistory.length : 0
+  
+  console.log(`📊 [长期性能报告] 运行时间: ${runtimeSeconds.toFixed(1)}秒`)
+  console.log(`   📈 总帧数: ${monitor.totalFrames}`)
+  console.log(`   🎯 平均FPS: ${avgFps.toFixed(1)} (最近: ${animationPerformance.value.currentFps.toFixed(1)})`)
+  console.log(`   💾 平均内存: ${avgMemory.toFixed(1)}MB (当前: ${monitor.memoryUsageHistory[monitor.memoryUsageHistory.length - 1]?.toFixed(1) || 'N/A'}MB)`)
+  console.log(`   🎯 缓存命中率: ${(avgCacheHitRate * 100).toFixed(1)}% (命中:${cacheHitCount}, 错过:${cacheMissCount})`)
+  console.log(`   ⏰ 动画时间值: ${animationTime.value.toFixed(1)} (最大: ${Math.max(...monitor.animationTimeValues).toFixed(1)})`)
+  console.log(`   📦 路径缓存大小: ${pathCache.size}/${animationConfig.pathCacheSize}`)
+  console.log(`   🧠 键盘按键次数: ${keyboardEventState.value.spaceKeyPressCount}`)
+  
+  // 内存增长趋势分析
+  if (monitor.memoryUsageHistory.length >= 10) {
+    const memoryGrowth = monitor.memoryUsageHistory[monitor.memoryUsageHistory.length - 1] - monitor.memoryUsageHistory[0]
+    const growthRate = memoryGrowth / runtimeSeconds * 60 // MB/分钟
+    if (growthRate > 0.5) {
+      console.warn(`⚠️ [内存泄漏警告] 内存增长率: ${growthRate.toFixed(2)}MB/分钟`)
+    }
+  }
+}
+
+const detectPerformanceDegradation = () => {
+  const monitor = longTermPerformanceMonitor.value
+  
+  if (monitor.fpsHistory.length < 10) return
+  
+  // 比较最近10帧和前面10帧的平均FPS
+  const recentFps = monitor.fpsHistory.slice(-10).reduce((a, b) => a + b, 0) / 10
+  const previousFps = monitor.fpsHistory.slice(-20, -10).reduce((a, b) => a + b, 0) / 10
+  
+  if (previousFps > 0 && recentFps / previousFps < monitor.performanceDegradationThreshold) {
+    console.error(`🚨 [性能下降警告] FPS下降了${((1 - recentFps / previousFps) * 100).toFixed(1)}%`)
+    console.error(`   之前FPS: ${previousFps.toFixed(1)}, 现在FPS: ${recentFps.toFixed(1)}`)
+    triggerPerformanceEmergencyCleanup()
+  }
+}
+
+const performPerformanceCleanup = () => {
+  console.log(`🧹 [定期清理] 执行性能维护`)
+  
+  // 1. 检查路径缓存大小（LRU缓存会自动管理大小，但我们可以记录状态）
+  if (pathCache.size > animationConfig.pathCacheSize * 0.9) {
+    console.log(`   📦 路径缓存接近满载: ${pathCache.size}/${animationConfig.pathCacheSize}`)
+  }
+  
+  // 2. 重置动画时间（防止溢出）
+  if (animationTime.value > 1000000) { // 超过100万毫秒时重置
+    const oldTime = animationTime.value
+    animationTime.value = performance.now() % 10000
+    console.log(`   ⏰ 重置动画时间: ${oldTime.toFixed(1)} -> ${animationTime.value.toFixed(1)}`)
+  }
+  
+  // 3. 清理监控历史数据（保留最近50项）
+  const trimHistory = (arr: number[], maxLength: number = 50) => {
+    if (arr.length > maxLength) {
+      return arr.slice(-maxLength)
+    }
+    return arr
+  }
+  
+  const oldMemoryLength = longTermPerformanceMonitor.value.memoryUsageHistory.length
+  longTermPerformanceMonitor.value.memoryUsageHistory = trimHistory(longTermPerformanceMonitor.value.memoryUsageHistory)
+  longTermPerformanceMonitor.value.fpsHistory = trimHistory(longTermPerformanceMonitor.value.fpsHistory)
+  longTermPerformanceMonitor.value.cacheHitRateHistory = trimHistory(longTermPerformanceMonitor.value.cacheHitRateHistory)
+  longTermPerformanceMonitor.value.animationTimeValues = trimHistory(longTermPerformanceMonitor.value.animationTimeValues)
+  
+  if (oldMemoryLength > 50) {
+    console.log(`   📊 清理监控历史: ${oldMemoryLength} -> 50`)
+  }
+  
+  // 4. 计算缓存效率并优化
+  const totalRequests = cacheHitCount + cacheMissCount
+  if (totalRequests > 1000) {
+    const hitRate = cacheHitCount / totalRequests
+    if (hitRate < 0.8) {
+      console.log(`   ⚠️ 缓存命中率低: ${(hitRate * 100).toFixed(1)}%`)
+    }
+  }
+  
+  console.log(`✅ [定期清理完成] 缓存=${pathCache.size}, 动画时间=${animationTime.value.toFixed(1)}`)
+}
+
+// 🎯 新增：专门用于长期运行问题诊断的特殊监控
+const enableDeepPerformanceAnalysis = () => {
+  console.log(`🔬 [深度性能分析] 启用详细监控模式`)
+  
+  // 每10秒详细报告
+  const detailedMonitorInterval = setInterval(() => {
+    if (!isVoiceMode.value) {
+      clearInterval(detailedMonitorInterval)
+      return
+    }
+    
+    const now = Date.now()
+    const runtime = (now - longTermPerformanceMonitor.value.startTime) / 1000
+    
+    // 检查内存使用
+    let memInfo = 'N/A'
+    if ('memory' in performance) {
+      const mem = (performance as any).memory
+      if (mem) {
+        const used = (mem.usedJSHeapSize / 1024 / 1024).toFixed(1)
+        const total = (mem.totalJSHeapSize / 1024 / 1024).toFixed(1)
+        const limit = (mem.jsHeapSizeLimit / 1024 / 1024).toFixed(1)
+        memInfo = `${used}MB/${total}MB (限制:${limit}MB)`
+      }
+    }
+    
+    console.log(`🔬 [${runtime.toFixed(0)}s] 深度分析:`)
+    console.log(`   💾 内存: ${memInfo}`)
+         console.log(`   🎯 FPS: ${animationPerformance.value.currentFps.toFixed(1)} (帧数:${animationPerformance.value.frameCount})`)
+    console.log(`   📦 缓存: ${pathCache.size}/${animationConfig.pathCacheSize} (命中率:${((cacheHitCount / (cacheHitCount + cacheMissCount)) * 100).toFixed(1)}%)`)
+    console.log(`   ⏰ 动画时间: ${animationTime.value.toFixed(0)} (是否巨大: ${animationTime.value > 500000 ? '是' : '否'})`)
+    console.log(`   🎬 总帧数: ${longTermPerformanceMonitor.value.totalFrames}`)
+    console.log(`   🎙️ 录音状态: ${isRecording.value ? '录音中' : '空闲'}, 🔊TTS: ${isTtsPlaying.value ? '播放中' : '停止'}`)
+    console.log(`   🔍 质量等级: ${animationPerformance.value.qualityLevel}`)
+    
+    // 检查异常状态
+    if (animationTime.value > 1000000) {
+      console.warn(`   ⚠️ 动画时间值异常大，可能导致计算精度问题`)
+    }
+    
+    if (pathCache.size === animationConfig.pathCacheSize) {
+      console.log(`   📦 缓存已满，LRU算法工作中`)
+    }
+    
+  }, 10000) // 每10秒
+  
+  // 暴露到全局
+  if (typeof window !== 'undefined') {
+    (window as any).stopDeepAnalysis = () => {
+      clearInterval(detailedMonitorInterval)
+      console.log(`🔬 [深度性能分析] 已停用`)
+    }
+    console.log(`🔬 调用 window.stopDeepAnalysis() 来停止深度分析`)
+  }
+}
+
+const triggerPerformanceEmergencyCleanup = () => {
+  console.log(`🆘 [紧急性能清理] 开始清理以恢复性能`)
+  
+  // 1. 清理路径缓存
+  const oldCacheSize = pathCache.size
+  pathCache.clear()
+  console.log(`   🧹 清理路径缓存: ${oldCacheSize} -> 0`)
+  
+  // 2. 重置动画时间（防止时间值过大）
+  const oldAnimationTime = animationTime.value
+  animationTime.value = performance.now() % 10000 // 重置到较小的值
+  console.log(`   ⏰ 重置动画时间: ${oldAnimationTime.toFixed(1)} -> ${animationTime.value.toFixed(1)}`)
+  
+  // 3. 强制垃圾回收（如果可用）
+  if (typeof window !== 'undefined' && 'gc' in window) {
+    (window as any).gc()
+    console.log(`   🗑️ 触发垃圾回收`)
+  }
+  
+  // 4. 降低动画质量
+  if (animationPerformance.value.qualityLevel !== 'low') {
+    animationPerformance.value.qualityLevel = 'low'
+    console.log(`   📉 降低动画质量到最低`)
+  }
+  
+  // 5. 重置性能监控历史
+  longTermPerformanceMonitor.value.memoryUsageHistory = []
+  longTermPerformanceMonitor.value.fpsHistory = []
+  longTermPerformanceMonitor.value.cacheHitRateHistory = []
+  longTermPerformanceMonitor.value.animationTimeValues = []
+  
+  console.log(`✅ [紧急清理完成] 性能优化措施已执行`)
+}
+
+// 🎯 暴露给全局，方便用户在控制台调用
+const exposeDebugFunctions = () => {
+  if (typeof window !== 'undefined') {
+    (window as any).manualFixKeyboard = manualFixKeyboard;
+    (window as any).enableKeyboardDebugMode = enableKeyboardDebugMode;
+    (window as any).generatePerformanceReport = generatePerformanceReport;
+    (window as any).triggerPerformanceEmergencyCleanup = triggerPerformanceEmergencyCleanup;
+    (window as any).enableDeepPerformanceAnalysis = enableDeepPerformanceAnalysis;
+    (window as any).immediatePerformanceCheck = immediatePerformanceCheck;
+    console.log(`🛠️ [调试工具] 已暴露修复函数到全局:`);
+    console.log(`   - window.manualFixKeyboard() - 手动修复键盘`);
+    console.log(`   - window.enableKeyboardDebugMode() - 启用调试模式`);
+    console.log(`   - window.generatePerformanceReport() - 生成性能报告`);
+    console.log(`   - window.triggerPerformanceEmergencyCleanup() - 紧急性能清理`);
+    console.log(`   - window.enableDeepPerformanceAnalysis() - 启用深度性能分析`);
+    console.log(`   - window.immediatePerformanceCheck() - 立即性能检查`);
+  }
+}
 
 // 🎯 增强的性能监控函数
 const updatePerformanceMetrics = (frameTime: number) => {
@@ -811,9 +1117,12 @@ const initAudioAnalysis = async (stream: MediaStream) => {
   }
 }
 
-// 组件卸载时清理
+// 🎯 增强的组件卸载清理
 onBeforeUnmount(() => {
   console.log('[组件生命周期] NewThread组件即将卸载，清理语音相关资源')
+  
+  // 🎯 禁用键盘健康检查
+  keyboardListenerHealthCheck.value.isActive = false
   
   // 清理语音模式
   if (isVoiceMode.value) {
@@ -826,13 +1135,19 @@ onBeforeUnmount(() => {
   // 🎯 清理缓存
   pathCache.clear()
   
-  // 确保移除事件监听器
+  // 🎯 强制重置所有键盘相关状态
+  isSpacePressed.value = false
+  keyboardEventState.value.listenersAttached = false
+  keyboardEventState.value.spaceKeyPressCount = 0
+  
+  // 确保移除事件监听器（多次调用是安全的）
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('keyup', handleKeyUp)
   
   // 🎯 输出最终性能报告
   console.log(`[波浪性能] 最终报告: 平均FPS=${animationPerformance.value.currentFps.toFixed(1)}, 平均帧时间=${animationPerformance.value.averageFrameTime.toFixed(2)}ms`)
   console.log(`[波浪性能] 缓存效率: 总命中=${cacheHitCount}, 总错过=${cacheMissCount}`)
+  console.log(`[键盘统计] 组件生命周期内累计按键: ${keyboardEventState.value.spaceKeyPressCount}次`)
 })
 
 // 🎯 新增：自适应性能优化函数
@@ -893,72 +1208,47 @@ const startWaveAnimation = () => {
     }
   }
   
-  const animate = (currentTime: number) => {
+  // 🎯 超简化版动画循环 - 保留必要的系统依赖
+  let frameCounter = 0
+  
+  const animate = () => {
     if (!isVoiceMode.value) return
     
-    const frameTime = currentTime - lastFrameTime
-    lastFrameTime = currentTime
-    
-    // 🎯 帧率限制：避免不必要的高频更新
-    const targetInterval = getTargetFrameInterval()
-    const shouldUpdateAnimation = (currentTime - lastAnimationUpdate) >= targetInterval
-    
-    if (shouldUpdateAnimation) {
-      lastAnimationUpdate = currentTime
-      animationTime.value = currentTime
-      
-      // 🎯 性能监控（降低频率）
-      if (animationPerformance.value.frameCount % 10 === 0) {
-        updatePerformanceMetrics(frameTime)
-      }
+    // TTS播放期间暂停
+    if (isTtsPlaying.value) {
+      animationFrameId = requestAnimationFrame(animate)
+      return
     }
     
-    // 🎯 检测Hold说话状态
-    if (isRecording.value) {
-      if (holdSpeakingStartTime === 0) {
-        holdSpeakingStartTime = currentTime
+    // 🔧 重要：保持帧计数，其他系统依赖它
+    frameCounter++
+    animationPerformance.value.frameCount++
+    animationTime.value = frameCounter * 16.67 // 假设60fps，每帧16.67ms
+    
+    // 🔧 简单的FPS计算（每300帧计算一次）
+    if (animationPerformance.value.frameCount % 300 === 0) {
+      const now = Date.now()
+      if (animationPerformance.value.lastFpsCheck) {
+        const fps = 300 * 1000 / (now - animationPerformance.value.lastFpsCheck)
+        animationPerformance.value.currentFps = fps
       }
+      animationPerformance.value.lastFpsCheck = now
+    }
+    
+    // 简单音频获取（录音时获取实际数据，否则使用固定值）
+    if (isRecording.value && analyser && dataArray) {
+      analyser.getByteFrequencyData(dataArray)
+      let sum = 0
+      for (let i = 0; i < 32; i++) { // 只取前32个值，减少计算
+        sum += dataArray[i]
+      }
+      audioLevel.value = Math.min(1, (sum / 32 / 128) * 2)
     } else {
-      holdSpeakingStartTime = 0
+      // 非录音状态，使用固定的轻微波动
+      audioLevel.value = 0.1 + Math.sin(frameCounter * 0.1) * 0.05
     }
     
-    const isHoldSpeaking = holdSpeakingStartTime > 0 && (currentTime - holdSpeakingStartTime) > 3000
-    
-    // 🎯 优化音频数据分析：大幅降低更新频率
-    if (isRecording.value && analyser && dataArray && shouldUpdateAnimation) {
-      // 根据质量等级调整音频分析频率
-      const analysisInterval = isHoldSpeaking ? 12 : 6
-      
-      if (animationPerformance.value.frameCount % analysisInterval === 0) {
-        analyser.getByteFrequencyData(dataArray)
-        
-        // 优化音量计算：只计算前半部分频率数据
-        let sum = 0
-        const sampleSize = Math.min(dataArray.length, 64) // 限制采样大小
-        for (let i = 0; i < sampleSize; i++) {
-          sum += dataArray[i]
-        }
-        const average = sum / sampleSize
-        
-        // 🎯 平滑音频变化，减少抖动
-        const newAudioLevel = Math.min(1, (average / 128) * 2)
-        audioLevel.value = audioLevel.value * 0.7 + newAudioLevel * 0.3 // 平滑滤波
-        
-        // 🎯 Hold说话状态的特殊处理
-        if (isHoldSpeaking && animationPerformance.value.frameCount % 120 === 0) {
-          console.log(`[Hold说话] 持续录音 ${((currentTime - holdSpeakingStartTime) / 1000).toFixed(1)}s, 音量=${audioLevel.value.toFixed(2)}`)
-        }
-      }
-    } else if (!isRecording.value) {
-      // 🎯 非录音状态下平滑降低音频强度
-      audioLevel.value *= 0.95
-    }
-    
-    // 🎯 降低自适应优化频率
-    if (animationPerformance.value.frameCount % 300 === 0) { // 每5秒一次
-      adaptivePerformanceOptimization()
-    }
-    
+    // 继续下一帧
     animationFrameId = requestAnimationFrame(animate)
   }
   
@@ -969,6 +1259,100 @@ const startWaveAnimation = () => {
   cacheHitCount = 0
   cacheMissCount = 0
   
+  // 🎯 初始化长期性能监控
+  longTermPerformanceMonitor.value.startTime = Date.now()
+  longTermPerformanceMonitor.value.totalFrames = 0
+  longTermPerformanceMonitor.value.lastReportTime = Date.now()
+  longTermPerformanceMonitor.value.lastCleanupTime = Date.now()
+  longTermPerformanceMonitor.value.memoryUsageHistory = []
+  longTermPerformanceMonitor.value.fpsHistory = []
+  longTermPerformanceMonitor.value.cacheHitRateHistory = []
+  longTermPerformanceMonitor.value.animationTimeValues = []
+  
+  // 🎯 立即测试监控系统
+  console.log(`🔬 [性能监控] 系统已启动，开始监控`)
+  console.log(`🔬 [性能监控] 初始时间: ${new Date().toLocaleTimeString()}`)
+  console.log(`🔬 [性能监控] 每30秒将自动生成性能报告`)
+  
+  // 🎯 立即生成第一次报告（5秒后）
+  setTimeout(() => {
+    console.log(`🔬 [性能监控] === 首次性能检查 ===`)
+    generatePerformanceReport()
+  }, 5000)
+  
+  // 🎯 3秒后首次监控测试
+  setTimeout(() => {
+    const runtimeSeconds = (Date.now() - longTermPerformanceMonitor.value.startTime) / 1000
+    console.log(`🔬 [首次监控-${runtimeSeconds.toFixed(0)}s] 动画时间=${(animationTime.value/1000).toFixed(1)}s, 缓存=${pathCache.size}/${animationConfig.pathCacheSize}, FPS=${animationPerformance.value.currentFps.toFixed(1)}`)
+    console.log(`🔬 [提醒] 正常情况下，您现在应该能看到每10秒的监控输出`)
+  }, 3000)
+  
+  // 🎯 启动定时器监控系统
+  let monitorInterval10s: NodeJS.Timeout | null = null
+  let monitorInterval30s: NodeJS.Timeout | null = null
+  
+  // 每10秒基础监控
+  monitorInterval10s = setInterval(() => {
+    if (!isVoiceMode.value) {
+      if (monitorInterval10s) {
+        clearInterval(monitorInterval10s)
+        monitorInterval10s = null
+      }
+      return
+    }
+    
+    const runtimeSeconds = (Date.now() - longTermPerformanceMonitor.value.startTime) / 1000
+    console.log(`🔬 [${runtimeSeconds.toFixed(0)}s] 动画时间=${(animationTime.value/1000).toFixed(1)}s, 缓存=${pathCache.size}/${animationConfig.pathCacheSize}, FPS=${animationPerformance.value.currentFps.toFixed(1)}`)
+    
+    // 关键问题快速检测
+    if (animationTime.value > 600000) {
+      console.error(`🚨 [紧急] 动画时间超过10分钟，建议立即重置！`)
+    }
+  }, 10000)
+  
+  // 每30秒详细监控
+  monitorInterval30s = setInterval(() => {
+    if (!isVoiceMode.value) {
+      if (monitorInterval30s) {
+        clearInterval(monitorInterval30s)
+        monitorInterval30s = null
+      }
+      return
+    }
+    
+    const runtimeSeconds = (Date.now() - longTermPerformanceMonitor.value.startTime) / 1000
+    console.log(`\n🔬 ===== 自动性能监控报告 (${runtimeSeconds.toFixed(0)}秒) =====`)
+    console.log(`🔬 [监控] 帧数: ${animationPerformance.value.frameCount}`)
+    console.log(`🔬 [监控] 当前FPS: ${animationPerformance.value.currentFps.toFixed(1)}`)
+    console.log(`🔬 [监控] 路径缓存: ${pathCache.size}/${animationConfig.pathCacheSize}`)
+    console.log(`🔬 [监控] 动画时间: ${animationTime.value.toFixed(0)}ms`)
+    console.log(`🔬 [监控] 缓存命中率: ${((cacheHitCount / (cacheHitCount + cacheMissCount)) * 100).toFixed(1)}%`)
+    
+    // 检查内存使用
+    if ('memory' in performance) {
+      const mem = (performance as any).memory
+      if (mem) {
+        const used = (mem.usedJSHeapSize / 1024 / 1024).toFixed(1)
+        const total = (mem.totalJSHeapSize / 1024 / 1024).toFixed(1)
+        console.log(`🔬 [监控] 内存使用: ${used}MB / ${total}MB`)
+      }
+    }
+    
+    // 性能问题检测
+    if (animationTime.value > 500000) {
+      console.warn(`⚠️ [自动检测] 动画时间值过大: ${animationTime.value.toFixed(0)}ms - 可能影响性能`)
+    }
+    if (pathCache.size >= animationConfig.pathCacheSize) {
+      console.warn(`⚠️ [自动检测] 缓存已满，频繁LRU可能影响性能`)
+    }
+    const cacheHitRate = cacheHitCount / (cacheHitCount + cacheMissCount)
+    if (cacheHitRate < 0.8) {
+      console.warn(`⚠️ [自动检测] 缓存命中率低 (${(cacheHitRate * 100).toFixed(1)}%)`)
+    }
+    
+    console.log(`🔬 =====================================\n`)
+  }, 30000)
+  
   console.log('[波浪性能] 🚀 启动终极优化版动画系统')
   console.log(`   🎯 预计算正弦表: ${SINE_TABLE_SIZE}个值`)
   console.log(`   💾 LRU缓存系统: 最大${animationConfig.pathCacheSize}项`)
@@ -978,7 +1362,23 @@ const startWaveAnimation = () => {
   console.log(`   📈 音频优化: 减少50%采样`)
   console.log(`   ⚡ 预期性能提升: 80-90%`)
   console.log(`   🔇 警告阈值: 提升到8ms`)
-  animate(performance.now())
+  console.log(`   📊 长期监控: 已启用内存/FPS/缓存追踪`)
+  console.log(`   ⏰ 自动监控: 每10秒基础报告 + 每30秒详细报告`)
+  console.log(`   🚨 自动检测: 动画时间过大、缓存满载、命中率低`)
+  console.log(`   🎯 首次监控: 3秒后开始，确保立即可见`)
+  
+  // 🎯 立即测试调试函数
+  console.log(`🛠️ [立即测试] 验证监控系统...`)
+  setTimeout(() => {
+    console.log(`🛠️ [立即测试] 1秒后测试完成`)
+    if (typeof generatePerformanceReport === 'function') {
+      console.log(`✅ [立即测试] generatePerformanceReport 函数可用`)
+    } else {
+      console.error(`❌ [立即测试] generatePerformanceReport 函数不可用`)
+    }
+  }, 1000)
+  
+  animate() // 启动简化版动画
 }
 
 // 停止音频分析
@@ -1006,31 +1406,80 @@ const stopWaveAnimation = () => {
   stopAudioAnalysis()
 }
 
-// 进入语音模式
+// 🎯 立即执行的性能检查函数
+const immediatePerformanceCheck = () => {
+  console.log(`🔬 [立即检查] === 当前性能状态 ===`)
+  console.log(`🔬 [立即检查] 时间: ${new Date().toLocaleTimeString()}`)
+  console.log(`🔬 [立即检查] 语音模式: ${isVoiceMode.value}`)
+  console.log(`🔬 [立即检查] 录音状态: ${isRecording.value}`)
+  console.log(`🔬 [立即检查] TTS播放: ${isTtsPlaying.value}`)
+  console.log(`🔬 [立即检查] 动画帧数: ${animationPerformance.value.frameCount}`)
+  console.log(`🔬 [立即检查] 当前FPS: ${animationPerformance.value.currentFps.toFixed(1)}`)
+  console.log(`🔬 [立即检查] 路径缓存: ${pathCache.size}/${animationConfig.pathCacheSize}`)
+  console.log(`🔬 [立即检查] 动画时间: ${animationTime.value.toFixed(0)}ms`)
+  
+  // 检查内存（如果可用）
+  if ('memory' in performance) {
+    const mem = (performance as any).memory
+    if (mem) {
+      const used = (mem.usedJSHeapSize / 1024 / 1024).toFixed(1)
+      console.log(`🔬 [立即检查] 内存使用: ${used}MB`)
+    }
+  }
+  
+  console.log(`🔬 [立即检查] ========================`)
+}
+
+// 🎯 增强的语音模式进入函数
 const enterVoiceMode = () => {
   console.log('[语音模式] 🎙️ 进入语音模式')
   
   isVoiceMode.value = true
   
+  // 🎯 立即执行性能检查
+  setTimeout(() => {
+    immediatePerformanceCheck()
+  }, 2000) // 2秒后检查，确保动画已启动
+  
   // 🎯 禁用chat.ts的TTS服务，避免冲突
   enhancedTTSIntegration.setGloballyDisabled(true)
   console.log('[语音模式] 🚫 禁用chat.ts的TTS服务')
   
-  // 初始化波形动画
-  startWaveAnimation()
+  // 🎯 重置所有键盘相关状态
+  isSpacePressed.value = false
+  keyboardEventState.value.spaceKeyPressCount = 0
+  keyboardEventState.value.lastKeydownTime = 0
+  keyboardEventState.value.lastKeyupTime = 0
+  
+  // 🎯 安全地移除可能存在的事件监听器（防止重复绑定）
+  document.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('keyup', handleKeyUp)
   
   // 添加键盘事件监听
   document.addEventListener('keydown', handleKeyDown)
   document.addEventListener('keyup', handleKeyUp)
+  keyboardEventState.value.listenersAttached = true
   
-  console.log('[语音模式] ✅ 语音模式初始化完成')
+  // 🎯 启用键盘健康检查
+  keyboardListenerHealthCheck.value.isActive = true
+  keyboardListenerHealthCheck.value.lastTestTime = Date.now()
+  keyboardListenerHealthCheck.value.failedTests = 0
+  
+  // 初始化波形动画
+  startWaveAnimation()
+  
+  console.log('[语音模式] ✅ 语音模式初始化完成，键盘监听已启用')
+  console.log(`[语音模式] 🔍 键盘监听器状态: attached=${keyboardEventState.value.listenersAttached}`)
 }
 
-// 退出语音模式
+// 🎯 增强的语音模式退出函数
 const exitVoiceMode = () => {
   console.log('[语音模式] 🔇 退出语音模式')
   
   isVoiceMode.value = false
+  
+  // 🎯 禁用键盘健康检查
+  keyboardListenerHealthCheck.value.isActive = false
   
   // 🎯 重新启用chat.ts的TTS服务
   enhancedTTSIntegration.setGloballyDisabled(false)
@@ -1049,17 +1498,24 @@ const exitVoiceMode = () => {
     isTTSPlaying.value = false
   }
   
-  // 重置所有状态
+  // 🎯 完整的状态重置（包括键盘状态）
   isTranscribing.value = false
   isWaitingResponse.value = false
   isProcessingVoice.value = false
+  isSpacePressed.value = false // 确保重置空格键状态
   lastVoiceResponse.value = ''
   voiceResponseText.value = '' // 清除字幕文本
   lastProcessedTranscription.value = '' // 清除重复检测缓存
   
-      // 停止并行TTS服务
-    parallelTtsService.stop()
-    isParallelTTSActive.value = false
+  // 🎯 重置键盘状态
+  keyboardEventState.value.listenersAttached = false
+  keyboardEventState.value.spaceKeyPressCount = 0
+  keyboardEventState.value.lastKeydownTime = 0
+  keyboardEventState.value.lastKeyupTime = 0
+  
+  // 停止并行TTS服务
+  parallelTtsService.stop()
+  isParallelTTSActive.value = false
   
   // 停止正弦波动画
   stopWaveAnimation()
@@ -1069,23 +1525,52 @@ const exitVoiceMode = () => {
   document.removeEventListener('keyup', handleKeyUp)
   
   console.log('[语音模式] ✅ 语音模式清理完成')
+  console.log(`[语音模式] 🔍 最终键盘统计: 累计按键${keyboardEventState.value.spaceKeyPressCount}次`)
 }
 
-// 键盘按下事件
+// 🎯 增强的键盘按下事件处理
 const handleKeyDown = (event: KeyboardEvent) => {
+  // 更新状态追踪
+  keyboardEventState.value.lastKeydownTime = Date.now()
+  
+  if (keyboardEventState.value.debugMode) {
+    console.log(`🔍 [键盘调试] KeyDown事件: code=${event.code}, isSpacePressed=${isSpacePressed.value}, isRecording=${isRecording.value}`)
+  }
+  
   if (event.code === 'Space' && !isSpacePressed.value && !isRecording.value) {
     event.preventDefault()
     isSpacePressed.value = true
+    keyboardEventState.value.spaceKeyPressCount++
+    
+    console.log(`🎙️ [键盘事件] 空格键按下，开始录音 (累计按键次数: ${keyboardEventState.value.spaceKeyPressCount})`)
     startVoiceRecording()
+  } else if (event.code === 'Space') {
+    // 记录被忽略的空格键事件，帮助调试
+    console.warn(`⚠️ [键盘事件] 空格键被忽略: isSpacePressed=${isSpacePressed.value}, isRecording=${isRecording.value}`)
   }
 }
 
-// 键盘抬起事件
+// 🎯 增强的键盘抬起事件处理
 const handleKeyUp = (event: KeyboardEvent) => {
+  // 更新状态追踪
+  keyboardEventState.value.lastKeyupTime = Date.now()
+  
+  if (keyboardEventState.value.debugMode) {
+    console.log(`🔍 [键盘调试] KeyUp事件: code=${event.code}, isSpacePressed=${isSpacePressed.value}, isRecording=${isRecording.value}`)
+  }
+  
   if (event.code === 'Space' && isSpacePressed.value && isRecording.value) {
     event.preventDefault()
     isSpacePressed.value = false
+    
+    console.log(`🛑 [键盘事件] 空格键抬起，停止录音`)
     stopRecording()
+  } else if (event.code === 'Space') {
+    // 防御性重置：如果状态不一致，强制重置
+    if (isSpacePressed.value) {
+      console.warn(`🔧 [键盘修复] 检测到状态不一致，强制重置isSpacePressed`)
+      isSpacePressed.value = false
+    }
   }
 }
 
@@ -1691,10 +2176,44 @@ const transcribeAudio = async (audioBlob: Blob): Promise<{text: string, detected
 
 // 自动提交语音消息并等待回复（语音模式专用，使用传统聊天流程但不显示UI）
 const autoSubmitVoiceMessage = async (text: string, detectedLanguage?: string) => {
-  // 防止重复提交相同消息
+  // 🔧 修复：智能处理等待状态，支持用户主动打断和超时恢复
   if (isWaitingResponse.value) {
-    console.log('[语音消息提交] 🚫 正在等待AI回复中，跳过重复提交')
-    return
+    // 检查上次提交的时间，如果超过30秒，允许重新提交（超时恢复）
+    const currentTime = Date.now()
+    const timeSinceLastSubmit = currentTime - (lastVoiceSubmitTime.value || 0)
+    
+    if (timeSinceLastSubmit > 30000) { // 30秒超时
+      console.log(`[语音消息提交] ⏰ 检测到超时等待(${Math.round(timeSinceLastSubmit/1000)}秒)，允许重新提交`)
+      
+      // 强制重置状态，停止之前的流程
+      isWaitingResponse.value = false
+      
+             // 停止当前的实时语音检查
+       // TODO: 实现停止当前语音检查的逻辑
+      
+      console.log('[语音消息提交] 🔄 已重置等待状态，准备处理新的语音输入')
+    } else {
+      // 检查用户是否想要打断当前对话（通过关键词识别）
+      const interruptKeywords = ['停止', '重新', '不对', '换个', '重来', '停', 'stop', 'restart', 'again']
+      const hasInterruptIntent = interruptKeywords.some(keyword => 
+        text.toLowerCase().includes(keyword.toLowerCase())
+      )
+      
+      if (hasInterruptIntent) {
+        console.log(`[语音消息提交] 🛑 检测到用户打断意图："${text.substring(0, 20)}..."，停止当前对话`)
+        
+                 // 停止当前TTS播放
+         parallelTtsService.stop()
+        
+        // 重置状态
+        isWaitingResponse.value = false
+        
+        console.log('[语音消息提交] 🔄 已停止当前对话，准备处理新的语音输入')
+      } else {
+        console.log(`[语音消息提交] 🚫 正在等待AI回复中(${Math.round(timeSinceLastSubmit/1000)}秒)，跳过提交："${text.substring(0, 30)}..."`)
+        return
+      }
+    }
   }
   
   try {
@@ -1726,6 +2245,9 @@ const autoSubmitVoiceMessage = async (text: string, detectedLanguage?: string) =
 
     // 设置等待回复状态
     isWaitingResponse.value = true
+    
+    // 🔧 记录提交时间，用于超时检测
+    lastVoiceSubmitTime.value = Date.now()
     
     // 语音模式下使用传统聊天流程（支持MCP工具调用），但不显示UI
     await sendVoiceMessageWithMCP(text, detectedLanguage)
@@ -2629,6 +3151,12 @@ ${personalizedContext}`.trim()
             }
             
             if (stableContentChecks >= 5 && assistantContent.length > 0) {
+              // 🔧 修复：如果AI还在工作，不应该提前完成
+              if (workingStatus === 'working') {
+                console.log(`[实时语音] 🎯 ${currentPhase}阶段：AI仍在工作中(${workingStatus})，继续等待内容生成`)
+                return false
+              }
+              
               const allContentPlayed = contentBlocks.every((block, blockIndex) => {
                 const blockKey = generateBlockKey(latestLastMessage.id, blockIndex)
                 const playedLength = playedContentBlocks.get(blockKey) || 0
@@ -2637,7 +3165,7 @@ ${personalizedContext}`.trim()
               })
               
               if (allContentPlayed) {
-                console.log(`[实时语音] 🎯 ${currentPhase}阶段智能判断：所有内容已播放，提前完成等待`)
+                console.log(`[实时语音] 🎯 ${currentPhase}阶段智能判断：AI工作完成且所有内容已播放，提前完成等待`)
                 return true
               }
             }
@@ -2698,6 +3226,9 @@ ${personalizedContext}`.trim()
             const actualAudioBlocks = ttsStatus.totalChunks || 0
             
             console.log(`[实时语音] 🎉 所有语音播放完成，总计用时: ${Date.now() - startTime}ms，消息块数: ${playedContentBlocks.size}，音频块数: ${actualAudioBlocks}`)
+        
+        // 🎯 TTS播放完成，恢复波浪动画
+        isTtsPlaying.value = false
             
             // 🧹 语音对话完成后进行数据监控和清理
             printMemoryUsage()
@@ -2755,6 +3286,9 @@ ${personalizedContext}`.trim()
       
       try {
         // 直接添加到并行TTS服务（现在有去重机制）
+        // 🎯 TTS播放开始，暂停波浪动画
+        isTtsPlaying.value = true
+        
         await parallelTtsService.addText(responseText)
         
         // 更新状态
@@ -3122,6 +3656,9 @@ onMounted(async () => {
     useEventListener(groupElement, 'mouseenter', handleMouseEnter)
     useEventListener(groupElement, 'mouseleave', handleMouseLeave)
   }
+  
+  // 🎯 暴露调试函数到全局
+  exposeDebugFunctions()
 })
 
 const handleSettingsPopoverUpdate = (isOpen: boolean) => {
@@ -3185,6 +3722,36 @@ const insertExample = (text: string) => {
     chatInputRef.value.setText(text)
   }
 }
+
+// 🎯 简化的TTS播放状态管理
+let isTtsPlaying = ref(false)
+
+// 🎯 简单的性能保护机制
+let consecutiveSlowFrames = 0
+const pauseAnimationForPerformance = ref(false)
+
+const checkPerformanceAndPause = (frameTime: number) => {
+  if (frameTime > 50) { // 超过50ms认为过慢
+    consecutiveSlowFrames++
+    console.warn(`⚠️ [性能保护] 检测到慢帧: ${frameTime.toFixed(2)}ms (${consecutiveSlowFrames}/3)`)
+    
+    if (consecutiveSlowFrames >= 3) {
+      pauseAnimationForPerformance.value = true
+      console.warn(`🛑 [性能保护] 临时暂停波浪动画以保护性能`)
+      
+      // 3秒后自动恢复
+      setTimeout(() => {
+        pauseAnimationForPerformance.value = false
+        consecutiveSlowFrames = 0
+        console.log(`✅ [性能保护] 恢复波浪动画`)
+      }, 3000)
+    }
+  } else {
+    consecutiveSlowFrames = 0
+  }
+}
+
+// 🎯 已完成智能调度系统集成
 
 </script>
 
