@@ -371,7 +371,7 @@ export class ParallelTtsService {
   /**
    * 🎯 智能语音选择（优先考虑opposite gender voice response）
    */
-  private async selectOptimalVoice(text: string): Promise<string> {
+  private async selectOptimalVoice(): Promise<string> {
     try {
       // 🎯 首先检查是否启用了opposite gender voice response
       const oppositeGenderEnabled = await this.configPresenter.getSetting('voice_opposite_gender_response') as boolean
@@ -396,20 +396,11 @@ export class ParallelTtsService {
         return 'alloy'
       }
       
-      // 🎯 如果没有启用相反性别响应，才使用内容智能分析
-      console.log(`[并行TTS] 🎭 内容智能分析模式`)
-      const textLower = text.toLowerCase()
+      // 🎯 如果没有启用相反性别响应，使用固定语音确保一致性
+      console.log(`[并行TTS] 🎭 固定语音模式，确保对话一致性`)
       
-      // 🎯 简化的内容分析逻辑，避免性别冲突
-      // 优先使用女声，只在特定情况下使用其他语音
-      if (textLower.includes('温暖') || textLower.includes('友好') || textLower.includes('感谢')) {
-        return 'shimmer' // 温暖女声
-      } else if (textLower.includes('兴奋') || textLower.includes('太棒了') || textLower.includes('amazing')) {
-        return 'nova' // 活力女声
-      } else {
-        // 🎯 移除所有可能触发男声的逻辑，统一使用默认女声
-        return 'alloy' // 默认平衡女声
-      }
+      // 🎯 统一使用默认女声，确保整个对话过程中语音一致
+      return 'alloy' // 默认平衡女声
     } catch (error) {
       console.error('[并行TTS] 语音选择失败:', error)
       return 'alloy' // 出错时使用默认语音
@@ -444,7 +435,7 @@ export class ParallelTtsService {
       }
       
       // 🎯 智能语音和语速选择
-      const voice = await this.selectOptimalVoice(text)
+      const voice = await this.selectOptimalVoice()
       const { speed } = this.detectLanguageAndSpeed(text)
       
       console.log(`[并行TTS] 🎭 智能参数: 语音=${voice}, 语速=${speed}`)

@@ -1503,6 +1503,7 @@ const exitVoiceMode = () => {
   isWaitingResponse.value = false
   isProcessingVoice.value = false
   isSpacePressed.value = false // 确保重置空格键状态
+  isVoiceInterrupted.value = false // 🎯 重置语音中断标志
   lastVoiceResponse.value = ''
   voiceResponseText.value = '' // 清除字幕文本
   lastProcessedTranscription.value = '' // 清除重复检测缓存
@@ -1583,17 +1584,23 @@ const latestUserVoiceInput = computed(() => {
   return userInputs[userInputs.length - 1].text // 返回最新的用户输入
 })
 
-// 🎯 停止所有TTS播放和AI生成（语音打断功能）
+// 🎯 停止所有TTS播放和AI生成（语音打断功能）- 增强MCP工具调用中断
 const stopAllTTSPlayback = async () => {
   console.log('[语音打断] 🛑 停止所有TTS播放服务和AI生成')
   
   try {
+    // 🎯 设置语音中断标志，确保checkForStreamingResponse能立即响应
+    isVoiceInterrupted.value = true
+    
     // 1. 停止正在进行的AI生成过程
     const currentThreadId = chatStore.getActiveThreadId()
     if (currentThreadId) {
       console.log('[语音打断] 🔄 停止AI生成过程:', currentThreadId)
       await chatStore.cancelGenerating(currentThreadId)
       console.log('[语音打断] ✅ 已停止AI生成过程')
+      
+      // 🎯 注意：不强制修改working状态，让AI生成过程自然结束并更新状态
+      // 依靠isVoiceInterrupted标志来实现中断，避免状态不一致的风险
     }
     
     // 2. 停止并行TTS服务
@@ -1622,7 +1629,7 @@ const stopAllTTSPlayback = async () => {
     // 6. 重置语音对话状态
     isWaitingResponse.value = false
     
-    console.log('[语音打断] 🎯 所有TTS服务和AI生成已停止，状态已重置')
+    console.log('[语音打断] 🎯 所有TTS服务和AI生成已停止，状态已重置，中断标志已设置')
     
   } catch (error) {
     console.error('[语音打断] ❌ 停止TTS播放和AI生成时出错:', error)
@@ -1637,6 +1644,9 @@ const startVoiceRecording = async () => {
   
   // 🎯 语音打断功能：在开始新录音前停止所有TTS播放
   await stopAllTTSPlayback()
+  
+  // 🎯 重置语音中断标志，准备新的语音会话
+  isVoiceInterrupted.value = false
   
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -2873,6 +2883,12 @@ ${personalizedContext}`.trim()
 
     // 实时监听AI回复并播放TTS
     const checkForStreamingResponse = async () => {
+      // 🎯 录音期间不启动流式响应检查，避免干扰录音
+      if (isRecording.value) {
+        console.log('[实时语音] 🎙️ 录音期间跳过流式响应检查，避免干扰录音')
+        return
+      }
+      
       let attempts = 0
       const maxAttempts = 300 // 基础循环检查限制
       
@@ -2955,6 +2971,12 @@ ${personalizedContext}`.trim()
         // 🔧 检查是否已被用户中断（语音打断功能）
         if (!isWaitingResponse.value) {
           console.log(`[实时语音] 🛑 检测到对话已被中断，退出流式检查`)
+          return
+        }
+        
+        // 🎯 检查录音状态，如果用户开始录音则立即停止TTS检查
+        if (isRecording.value) {
+          console.log(`[实时语音] 🎙️ 检测到用户开始录音，立即停止TTS检查`)
           return
         }
         
@@ -3154,13 +3176,43 @@ ${personalizedContext}`.trim()
           // 更新lastTotalPlayableContent用于下次比较
           lastTotalPlayableContent = totalPlayableContent
           
-          // 智能完成判断 - 根据阶段调整判断逻辑
-          const shouldCompleteEarly = (() => {
-            // 如果workingStatus不是working，说明AI已完成
-            if (workingStatus !== 'working') {
-              console.log(`[实时语音] 🎯 ${currentPhase}阶段智能判断：AI工作状态已完成，允许提前结束`)
-              return true
+                  // 🎯 优先检查语音中断标志 - 确保MCP工具调用期间也能响应用户中断
+        if (isVoiceInterrupted.value) {
+          console.log(`[实时语音] 🚨 检测到用户语音中断，进行完整清理后停止`)
+          
+          // 完整的中断清理流程 - 模仿正常完成时的清理
+          try {
+            // 等待当前TTS播放完成或停止
+            if (isParallelTTSActive.value || isTTSPlaying.value) {
+              parallelTtsService.stop()
+              isParallelTTSActive.value = false
+              isTTSPlaying.value = false
             }
+            
+            // 进行内存和数据清理
+            printMemoryUsage()
+            if (emotionalMemory.value.interactionHistory.totalInteractions % 5 === 0) {
+              cleanupOldData()
+            }
+            
+            console.log(`[实时语音] 🎯 语音中断清理完成，总计用时: ${Date.now() - startTime}ms`)
+          } catch (error) {
+            console.error('[实时语音] 中断清理时出错:', error)
+          }
+          
+          // 重置状态
+          isVoiceInterrupted.value = false // 重置中断标志
+          isWaitingResponse.value = false
+          return
+        }
+        
+        // 智能完成判断 - 根据阶段调整判断逻辑
+        const shouldCompleteEarly = (() => {
+          // 如果workingStatus不是working，说明AI已完成
+          if (workingStatus !== 'working') {
+            console.log(`[实时语音] 🎯 ${currentPhase}阶段智能判断：AI工作状态已完成，允许提前结束`)
+            return true
+          }
             
             // 内容生成阶段的特殊判断
             if (isInContentGenPhase) {
@@ -3312,6 +3364,12 @@ ${personalizedContext}`.trim()
 
     // 使用并行TTS服务播放
     const playTTSWithParallelService = async (responseText: string) => {
+      // 🎯 录音期间阻止任何新的TTS播放，避免干扰录音
+      if (isRecording.value) {
+        console.log('[并行TTS] 🎙️ 录音期间跳过TTS播放，避免干扰录音')
+        return
+      }
+      
       if (!responseText.trim()) {
         console.log('[并行TTS] 跳过空文本')
         return
@@ -3787,6 +3845,9 @@ const checkPerformanceAndPause = (frameTime: number) => {
 }
 
 // 🎯 已完成智能调度系统集成
+
+// 🎯 语音中断控制标志
+const isVoiceInterrupted = ref(false)
 
 </script>
 

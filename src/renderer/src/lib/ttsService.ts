@@ -128,28 +128,9 @@ export class TTSService {
     // 结合情感调节最终语速
     const finalSpeed = Math.max(0.7, Math.min(1.3, baseSpeed * emotionAnalysis.speedModifier))
     
-    // 🎯 智能语音选择 - 增加一致性保护
-    let optimizedVoice: string
-    
-    if (TTSService.voiceConsistencyMode) {
-      // 🛡️ 语音一致性保护模式
-      optimizedVoice = this.selectVoiceWithConsistency(emotionAnalysis, text)
-    } else {
-      // 原始情感映射模式
-      const emotionVoiceMapping = {
-        excited: 'nova',      // 活力充沛
-        calm: 'alloy',        // 温和平静  
-        serious: 'echo',      // 庄重严肃
-        friendly: 'alloy',    // 友好亲切
-        empathetic: 'shimmer', // 温暖共情
-        playful: 'fable',     // 活泼有趣
-        professional: 'onyx'   // 专业权威
-      }
-      optimizedVoice = emotionVoiceMapping[emotionAnalysis.emotionType] || 'alloy'
-    }
-    
-    // 🎯 新增：异性语音回应逻辑
-    optimizedVoice = this.applyOppositeGenderLogicSync(optimizedVoice)
+    // 🎯 固定语音选择 - 确保对话一致性，禁用智能切换
+    // 🎯 新增：异性语音回应逻辑（如果启用）
+    const optimizedVoice = this.applyOppositeGenderLogicSync('alloy') // 默认使用alloy，然后根据性别设置调整
     
     // 更新最后使用的语音
     TTSService.lastUsedVoice = optimizedVoice
