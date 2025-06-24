@@ -1583,38 +1583,49 @@ const latestUserVoiceInput = computed(() => {
   return userInputs[userInputs.length - 1].text // 返回最新的用户输入
 })
 
-// 🎯 停止所有TTS播放（语音打断功能）
+// 🎯 停止所有TTS播放和AI生成（语音打断功能）
 const stopAllTTSPlayback = async () => {
-  console.log('[语音打断] 🛑 停止所有TTS播放服务')
+  console.log('[语音打断] 🛑 停止所有TTS播放服务和AI生成')
   
   try {
-    // 停止并行TTS服务
+    // 1. 停止正在进行的AI生成过程
+    const currentThreadId = chatStore.getActiveThreadId()
+    if (currentThreadId) {
+      console.log('[语音打断] 🔄 停止AI生成过程:', currentThreadId)
+      await chatStore.cancelGenerating(currentThreadId)
+      console.log('[语音打断] ✅ 已停止AI生成过程')
+    }
+    
+    // 2. 停止并行TTS服务
     if (parallelTtsService) {
       parallelTtsService.stop()
       console.log('[语音打断] ✅ 已停止ParallelTtsService')
     }
     
-    // 停止传统TTS服务
+    // 3. 停止传统TTS服务
     if (ttsService) {
       ttsService.stop()
       console.log('[语音打断] ✅ 已停止TTSService')
     }
     
-    // 停止增强TTS集成服务
+    // 4. 停止增强TTS集成服务
     if (enhancedTTSIntegration) {
       enhancedTTSIntegration.stop()
       console.log('[语音打断] ✅ 已停止EnhancedTTSIntegration')
     }
     
-    // 重置相关状态
+    // 5. 重置TTS相关状态
     isTTSPlaying.value = false
     isParallelTTSActive.value = false
     voiceResponseText.value = '' // 清除当前显示的字幕
     
-    console.log('[语音打断] 🎯 所有TTS服务已停止，状态已重置')
+    // 6. 重置语音对话状态
+    isWaitingResponse.value = false
+    
+    console.log('[语音打断] 🎯 所有TTS服务和AI生成已停止，状态已重置')
     
   } catch (error) {
-    console.error('[语音打断] ❌ 停止TTS播放时出错:', error)
+    console.error('[语音打断] ❌ 停止TTS播放和AI生成时出错:', error)
   }
 }
 
@@ -2923,6 +2934,12 @@ ${personalizedContext}`.trim()
       }
       
       while (attempts < maxAttempts && !isStreamCompleted) {
+        // 🔧 检查是否已被用户中断（语音打断功能）
+        if (!isWaitingResponse.value) {
+          console.log(`[实时语音] 🛑 检测到对话已被中断，退出流式检查`)
+          return
+        }
+        
         // 智能分阶段超时检查
         const elapsedTime = Date.now() - startTime
         const phaseElapsedTime = Date.now() - phaseStartTime

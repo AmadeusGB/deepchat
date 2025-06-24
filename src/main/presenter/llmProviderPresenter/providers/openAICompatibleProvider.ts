@@ -866,26 +866,35 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
     if (supportsFunctionCall && toolUseDetected) {
       for (const toolId in nativeToolCalls) {
         const tool = nativeToolCalls[toolId]
-        // 只有当工具名称和参数都存在且未标记为已完成时才尝试结束事件
-        if (tool.name && tool.arguments && !tool.completed) {
+        // 只有当工具名称存在且未标记为已完成时才尝试结束事件
+        if (tool.name && !tool.completed) {
+          // 🔧 修复空参数问题：如果参数为空字符串，使用空JSON对象
+          let finalArguments = tool.arguments
+          if (!finalArguments || finalArguments.trim() === '') {
+            console.info(
+              `[handleChatCompletion] Native tool ${toolId} has empty arguments, using empty object '{}'`
+            )
+            finalArguments = '{}'
+          }
+          
           try {
-            JSON.parse(tool.arguments) // 检查参数是否是有效的 JSON
+            JSON.parse(finalArguments) // 检查参数是否是有效的 JSON
             yield {
               type: 'tool_call_end',
               tool_call_id: toolId,
-              tool_call_arguments_complete: tool.arguments
+              tool_call_arguments_complete: finalArguments
             }
             tool.completed = true // 标记为已完成
           } catch (e) {
             console.error(
-              `[handleChatCompletion] Error parsing arguments for native tool ${toolId} during finalization: ${tool.arguments}`,
+              `[handleChatCompletion] Error parsing arguments for native tool ${toolId} during finalization: ${finalArguments}`,
               e
             )
-            // 即使解析失败，也尝试发送，以提供尽可能多的信息
+            // 即使解析失败，也使用空对象作为兜底
             yield {
               type: 'tool_call_end',
               tool_call_id: toolId,
-              tool_call_arguments_complete: tool.arguments
+              tool_call_arguments_complete: '{}'
             }
             tool.completed = true // 标记为已完成
           }
@@ -1010,10 +1019,9 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
               // Attempt standard JSON parse first
               parsedCall = JSON.parse(content)
               // console.log(`[parseFunctionCalls] Standard JSON.parse successful for match ${index}.`) // Log success
-            } catch (initialParseError) {
+            } catch {
               // console.warn(
-              //   `[parseFunctionCalls] Standard JSON.parse failed for match ${index}, attempting jsonrepair. Error:`,
-              //   (initialParseError as Error).message
+              //   `[parseFunctionCalls] Standard JSON.parse failed for match ${index}, attempting jsonrepair.`
               // ) // Log failure and attempt repair
               try {
                 // Fallback to jsonrepair for robustness

@@ -266,20 +266,27 @@ export class ToolManager {
 
       // Parse arguments
       let args: Record<string, unknown> | null = null
-      try {
-        args = JSON.parse(argsString)
-      } catch (error: unknown) {
-        console.warn(
-          'Error parsing tool call arguments with JSON.parse, trying jsonrepair:',
-          error instanceof Error ? error.message : String(error)
-        )
+      
+      // Handle empty or whitespace-only arguments
+      if (!argsString || argsString.trim() === '') {
+        console.info('[MCP] Tool call has empty arguments, using empty object')
+        args = {}
+      } else {
         try {
-          args = JSON.parse(jsonrepair(argsString))
-        } catch (e: unknown) {
-          console.error('Error parsing tool call arguments even after jsonrepair:', argsString, e)
-          // Decide how to handle: return error or proceed with empty args?
-          // Let's proceed with empty args for now, mirroring previous behavior.
-          args = {}
+          args = JSON.parse(argsString)
+        } catch (error: unknown) {
+          console.warn(
+            'Error parsing tool call arguments with JSON.parse, trying jsonrepair:',
+            error instanceof Error ? error.message : String(error)
+          )
+          try {
+            args = JSON.parse(jsonrepair(argsString))
+          } catch (e: unknown) {
+            console.error('Error parsing tool call arguments even after jsonrepair:', argsString, e)
+            // Decide how to handle: return error or proceed with empty args?
+            // Let's proceed with empty args for now, mirroring previous behavior.
+            args = {}
+          }
         }
       }
 

@@ -59,6 +59,26 @@ export class McpClient {
   private cachedTools: Tool[] | null = null
   private cachedPrompts: PromptListEntry[] | null = null
   private cachedResources: ResourceListEntry[] | null = null
+  // 🔧 新增：功能支持检测缓存
+  private capabilities: {
+    supportsPrompts?: boolean
+    supportsResources?: boolean
+  } = {}
+  
+  // 🎯 预设的服务器能力清单
+  private static readonly KNOWN_SERVER_CAPABILITIES: Record<string, {
+    supportsPrompts: boolean
+    supportsResources: boolean
+  }> = {
+    'playwright': { supportsPrompts: false, supportsResources: false },
+    'Artifacts': { supportsPrompts: false, supportsResources: false },
+    'deepchat-inmemory/artifacts-server': { supportsPrompts: false, supportsResources: false },
+    'memory': { supportsPrompts: false, supportsResources: true },
+    // 内置服务器通常支持prompts
+    'deepchat-inmemory/auto-prompting-server': { supportsPrompts: true, supportsResources: false },
+    'deepchat-inmemory/conversation-search-server': { supportsPrompts: false, supportsResources: true },
+    'deepchat-inmemory/deep-research-server': { supportsPrompts: false, supportsResources: false }
+  }
 
   // 处理PATH环境变量的函数
   private normalizePathEnv(paths: string[]): { key: string; value: string } {
@@ -123,6 +143,21 @@ export class McpClient {
         this.nodeRuntimePath = runtimePath
       } else {
         this.nodeRuntimePath = null
+      }
+    }
+    
+    // 🎯 初始化预设的服务器能力
+    const knownCapabilities = McpClient.KNOWN_SERVER_CAPABILITIES[serverName]
+    if (knownCapabilities) {
+      this.capabilities = { ...knownCapabilities }
+      console.info(`[MCP] Pre-configured capabilities for ${serverName}: prompts=${knownCapabilities.supportsPrompts}, resources=${knownCapabilities.supportsResources}`)
+      
+      // 如果预设不支持，直接缓存空数组，避免后续尝试
+      if (!knownCapabilities.supportsPrompts) {
+        this.cachedPrompts = []
+      }
+      if (!knownCapabilities.supportsResources) {
+        this.cachedResources = []
       }
     }
   }
@@ -508,6 +543,11 @@ export class McpClient {
 
   // 列出可用提示
   async listPrompts(): Promise<PromptListEntry[]> {
+    // 🔧 如果已知不支持prompts，直接返回空数组
+    if (this.capabilities.supportsPrompts === false) {
+      return []
+    }
+    
     // 检查缓存
     if (this.cachedPrompts !== null) {
       return this.cachedPrompts
@@ -551,9 +591,10 @@ export class McpClient {
     } catch (error) {
       // 尝试从错误对象中提取更多信息
       const errorMessage = error instanceof Error ? error.message : String(error)
-      // 如果错误表明不支持，则缓存空数组
+      // 如果错误表明不支持，则缓存空数组并记录能力
       if (errorMessage.includes('Method not found') || errorMessage.includes('not supported')) {
-        console.warn(`Server ${this.serverName} does not support listPrompts`)
+        console.info(`[MCP] Server ${this.serverName} does not support prompts (this is normal)`)
+        this.capabilities.supportsPrompts = false  // 🔧 记录不支持
         this.cachedPrompts = []
         return this.cachedPrompts
       } else {
@@ -604,6 +645,11 @@ export class McpClient {
 
   // 列出可用资源
   async listResources(): Promise<ResourceListEntry[]> {
+    // 🔧 如果已知不支持resources，直接返回空数组
+    if (this.capabilities.supportsResources === false) {
+      return []
+    }
+    
     // 检查缓存
     if (this.cachedResources !== null) {
       return this.cachedResources
@@ -639,9 +685,10 @@ export class McpClient {
     } catch (error) {
       // 尝试从错误对象中提取更多信息
       const errorMessage = error instanceof Error ? error.message : String(error)
-      // 如果错误表明不支持，则缓存空数组
+      // 如果错误表明不支持，则缓存空数组并记录能力
       if (errorMessage.includes('Method not found') || errorMessage.includes('not supported')) {
-        console.warn(`Server ${this.serverName} does not support listResources`)
+        console.info(`[MCP] Server ${this.serverName} does not support resources (this is normal)`)
+        this.capabilities.supportsResources = false  // 🔧 记录不支持
         this.cachedResources = []
         return this.cachedResources
       } else {
