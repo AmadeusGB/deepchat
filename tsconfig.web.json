@@ -12,6 +12,7 @@
     "src/preload/*.d.ts",
     "src/shared/**/*"
   ],
+  "exclude": ["src/renderer/src/node_modules"],
   "compilerOptions": {
     "composite": true,
     "baseUrl": ".",
@@ -25,6 +26,8 @@
       "@shared/*": [
         "src/shared/*"
       ]
-    }
+    },
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
   }
 }

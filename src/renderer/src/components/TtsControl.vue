@@ -1,30 +1,30 @@
 <template>
   <div class="tts-control">
     <!-- TTS状态指示器 -->
-    <div class="tts-status" v-if="tts.isActive.value">
+    <div class="tts-status" v-if="tts.isActive">
       <div class="status-indicator" :class="statusClass">
-        <div class="pulse" v-if="tts.state.value.isPlaying"></div>
+        <div class="pulse" v-if="tts.state.isPlaying"></div>
       </div>
       <span class="status-text">{{ statusText }}</span>
     </div>
 
     <!-- TTS控制按钮 -->
-    <div class="tts-controls" v-if="tts.isActive.value">
+    <div class="tts-controls" v-if="tts.isActive">
       <!-- 播放/暂停按钮 -->
       <button 
         @click="togglePlayback"
-        :disabled="!tts.canControl.value"
+        :disabled="!tts.canControl"
         class="control-btn primary"
-        :title="tts.state.value.isPlaying ? '暂停' : '恢复'"
+        :title="tts.state.isPlaying ? '暂停' : '恢复'"
       >
-        <PlayIcon v-if="!tts.state.value.isPlaying" />
+        <PlayIcon v-if="!tts.state.isPlaying" />
         <PauseIcon v-else />
       </button>
 
       <!-- 停止按钮 -->
       <button 
         @click="tts.stop"
-        :disabled="!tts.canControl.value"
+        :disabled="!tts.canControl"
         class="control-btn"
         title="停止"
       >
@@ -34,7 +34,7 @@
       <!-- 跳过按钮 -->
       <button 
         @click="tts.skip"
-        :disabled="!tts.canControl.value"
+        :disabled="!tts.canControl"
         class="control-btn"
         title="跳过当前"
       >
@@ -57,10 +57,10 @@
     </div>
 
     <!-- 策略选择 -->
-    <div class="strategy-control" v-if="tts.isActive.value && showAdvanced">
+    <div class="strategy-control" v-if="tts.isActive && showAdvanced">
       <label>播放策略：</label>
       <select 
-        :value="tts.state.value.strategy"
+        :value="tts.state.strategy"
         @change="updateStrategy"
         class="strategy-select"
       >
@@ -71,15 +71,15 @@
     </div>
 
     <!-- 队列状态 -->
-    <div class="queue-status" v-if="tts.isActive.value && tts.state.value.queueLength > 0">
-      <span>队列：{{ tts.state.value.queueLength }} 个音频块</span>
+    <div class="queue-status" v-if="tts.isActive && tts.state.queueLength > 0">
+      <span>队列：{{ tts.state.queueLength }} 个音频块</span>
       <div class="queue-progress">
         <div class="progress-bar" :style="{ width: progressWidth }"></div>
       </div>
     </div>
 
     <!-- 当前播放文本 -->
-    <div class="current-text" v-if="tts.state.value.currentText">
+    <div class="current-text" v-if="tts.state.currentText">
       <span class="text-label">正在播放：</span>
       <span class="text-content">{{ truncatedCurrentText }}</span>
     </div>
@@ -88,7 +88,7 @@
     <button 
       @click="showAdvanced = !showAdvanced"
       class="advanced-toggle"
-      v-if="tts.isActive.value"
+      v-if="tts.isActive"
     >
       {{ showAdvanced ? '隐藏高级选项' : '显示高级选项' }}
     </button>
@@ -113,7 +113,7 @@ const showAdvanced = ref(false)
 
 // 计算属性
 const statusClass = computed(() => {
-  const status = tts.state.value.status
+  const status = tts.state.status
   return {
     'status-idle': status === 'idle',
     'status-processing': status === 'processing',
@@ -124,7 +124,7 @@ const statusClass = computed(() => {
 })
 
 const statusText = computed(() => {
-  const state = tts.state.value
+  const state = tts.state
   if (state.isPlaying) return '正在播放'
   if (state.isPaused) return '已暂停'
   if (state.status === 'processing') return '处理中'
@@ -132,23 +132,23 @@ const statusText = computed(() => {
   return '就绪'
 })
 
-const volumePercent = computed(() => Math.round(tts.state.value.volume * 100))
+const volumePercent = computed(() => Math.round(tts.state.volume * 100))
 
 const progressWidth = computed(() => {
   // 简化的进度计算，实际可能需要更复杂的逻辑
-  const queueLength = tts.state.value.queueLength
+  const queueLength = tts.state.queueLength
   if (queueLength === 0) return '0%'
   return `${Math.max(10, 100 - queueLength * 10)}%`
 })
 
 const truncatedCurrentText = computed(() => {
-  const text = tts.state.value.currentText
+  const text = tts.state.currentText
   return text.length > 50 ? text.substring(0, 50) + '...' : text
 })
 
 // 方法
 const togglePlayback = () => {
-  if (tts.state.value.isPlaying) {
+  if (tts.state.isPlaying) {
     tts.pause()
   } else {
     tts.resume()

@@ -143,7 +143,7 @@ const simulatePerformanceUpdate = () => {
 }
 
 // 定时器
-let updateInterval: number | null = null
+let updateInterval: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   // 每500ms更新一次状态

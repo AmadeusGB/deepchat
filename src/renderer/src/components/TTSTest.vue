@@ -15,20 +15,11 @@
       
       <div class="flex gap-2">
         <Button 
-          @click="testGPTTTS"
+          @click="testTTS"
           :disabled="isPlaying || !testText.trim()"
           class="flex-1"
         >
-          {{ isPlaying ? '播放中...' : '测试 GPT TTS' }}
-        </Button>
-        
-        <Button 
-          @click="testBrowserTTS"
-          :disabled="isPlaying || !testText.trim()"
-          variant="outline"
-          class="flex-1"
-        >
-          {{ isPlaying ? '播放中...' : '测试浏览器 TTS' }}
+          {{ isPlaying ? '播放中...' : '测试 TTS' }}
         </Button>
       </div>
       
@@ -57,30 +48,31 @@ const testText = ref('你好，这是一个语音合成测试。Hello, this is a
 const isPlaying = ref(false)
 const error = ref('')
 
-const testGPTTTS = async () => {
+const testTTS = async () => {
   if (!testText.value.trim()) return
   
   try {
     error.value = ''
     isPlaying.value = true
-    await ttsService.playWithGPTTTS(testText.value)
+    // 使用TTS服务生成音频并播放
+    const audioBlob = await ttsService.generateAudioBlob(testText.value)
+    const audioUrl = URL.createObjectURL(audioBlob)
+    const audio = new Audio(audioUrl)
+    
+    audio.onended = () => {
+      isPlaying.value = false
+      URL.revokeObjectURL(audioUrl)
+    }
+    
+    audio.onerror = () => {
+      isPlaying.value = false
+      URL.revokeObjectURL(audioUrl)
+      error.value = 'TTS播放失败'
+    }
+    
+    await audio.play()
   } catch (err) {
-    error.value = `GPT TTS 错误: ${err instanceof Error ? err.message : String(err)}`
-  } finally {
-    isPlaying.value = false
-  }
-}
-
-const testBrowserTTS = async () => {
-  if (!testText.value.trim()) return
-  
-  try {
-    error.value = ''
-    isPlaying.value = true
-    await ttsService.playWithBrowserTTS(testText.value)
-  } catch (err) {
-    error.value = `浏览器 TTS 错误: ${err instanceof Error ? err.message : String(err)}`
-  } finally {
+    error.value = `TTS 错误: ${err instanceof Error ? err.message : String(err)}`
     isPlaying.value = false
   }
 }

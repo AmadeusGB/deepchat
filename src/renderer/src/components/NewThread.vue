@@ -536,19 +536,19 @@ let audioChunks: Blob[] = []
 
 // 🎯 性能优化：预计算正弦值表
 const SINE_TABLE_SIZE = 2048 // 2^11，使用位运算优化
-const sineTable = new Float32Array(SINE_TABLE_SIZE)
-const SINE_TABLE_MASK = SINE_TABLE_SIZE - 1
+// const SINE_TABLE_MASK = SINE_TABLE_SIZE - 1
 
-// 初始化正弦值表
+// 🎯 正弦表初始化（预计算）
+const sineTable = new Float32Array(SINE_TABLE_SIZE)
 for (let i = 0; i < SINE_TABLE_SIZE; i++) {
   sineTable[i] = Math.sin((i / SINE_TABLE_SIZE) * Math.PI * 2)
 }
 
 // 🎯 快速正弦查找函数
-const fastSin = (x: number): number => {
-  const index = Math.floor(Math.abs(x) * SINE_TABLE_SIZE / (Math.PI * 2)) & SINE_TABLE_MASK
-  return x >= 0 ? sineTable[index] : -sineTable[index]
-}
+// const fastSin = (x: number): number => {
+//   const index = Math.floor(Math.abs(x) * SINE_TABLE_SIZE / (Math.PI * 2)) & SINE_TABLE_MASK
+//   return x >= 0 ? sineTable[index] : -sineTable[index]
+// }
 
 // 🎯 快速余弦查找函数（备用）
 // const fastCos = (x: number): number => {
@@ -641,7 +641,7 @@ let dataArray: Uint8Array | null = null
 const audioLevel = ref(0) // 当前音频强度 0-1
 
 // 🎯 超简化正弦波函数 - 无缓存，无复杂计算
-const generateSineWave = (waveId: number, amplitude: number, frequency: number, phaseOffset: number) => {
+const generateSineWave = (_waveId: number, amplitude: number, _frequency: number, phaseOffset: number) => {
   const centerY = 72
   const realAmplitude = isRecording.value ? amplitude * (1 + audioLevel.value) : amplitude * 0.5
   
@@ -697,35 +697,35 @@ const keyboardEventState = ref({
 })
 
 // 🎯 新增：键盘健康检查和自动恢复机制
-const checkKeyboardListenerHealth = () => {
-  if (!isVoiceMode.value) return
-  
-  const now = Date.now()
-  
-  // 每10秒进行一次健康检查
-  if (now - keyboardListenerHealthCheck.value.lastTestTime < keyboardListenerHealthCheck.value.testInterval) {
-    return
-  }
-  
-  keyboardListenerHealthCheck.value.lastTestTime = now
-  
-  // 检查事件监听器是否仍然附加
-  const isHealthy = keyboardEventState.value.listenersAttached && 
-                   (now - keyboardEventState.value.lastKeydownTime < 60000 || 
-                    keyboardEventState.value.spaceKeyPressCount > 0)
-  
-  if (!isHealthy) {
-    keyboardListenerHealthCheck.value.failedTests++
-    console.warn(`🚨 [键盘健康检查] 检测到键盘事件监听器可能失效 (失败次数: ${keyboardListenerHealthCheck.value.failedTests}/${keyboardListenerHealthCheck.value.maxFailedTests})`)
-    
-    if (keyboardListenerHealthCheck.value.failedTests >= keyboardListenerHealthCheck.value.maxFailedTests) {
-      console.error(`🔧 [键盘自动修复] 尝试重新绑定键盘事件监听器`)
-      repairKeyboardListeners()
-    }
-  } else {
-    keyboardListenerHealthCheck.value.failedTests = 0
-  }
-}
+// const checkKeyboardListenerHealth = () => {
+//   if (!isVoiceMode.value) return
+//   
+//   const now = Date.now()
+//   
+//   // 每10秒进行一次健康检查
+//   if (now - keyboardListenerHealthCheck.value.lastTestTime < keyboardListenerHealthCheck.value.testInterval) {
+//     return
+//   }
+//   
+//   keyboardListenerHealthCheck.value.lastTestTime = now
+//   
+//   // 检查事件监听器是否仍然附加
+//   const isHealthy = keyboardEventState.value.listenersAttached && 
+//                    (now - keyboardEventState.value.lastKeydownTime < 60000 || 
+//                     keyboardEventState.value.spaceKeyPressCount > 0)
+//   
+//   if (!isHealthy) {
+//     keyboardListenerHealthCheck.value.failedTests++
+//     console.warn(`🚨 [键盘健康检查] 检测到键盘事件监听器可能失效 (失败次数: ${keyboardListenerHealthCheck.value.failedTests}/${keyboardListenerHealthCheck.value.maxFailedTests})`)
+//     
+//     if (keyboardListenerHealthCheck.value.failedTests >= keyboardListenerHealthCheck.value.maxFailedTests) {
+//       console.error(`🔧 [键盘自动修复] 尝试重新绑定键盘事件监听器`)
+//       repairKeyboardListeners()
+//     }
+//   } else {
+//     keyboardListenerHealthCheck.value.failedTests = 0
+//   }
+// }
 
 // 🎯 新增：修复键盘事件监听器
 const repairKeyboardListeners = () => {
@@ -784,52 +784,52 @@ const manualFixKeyboard = () => {
 }
 
 // 🎯 新增：长时间性能监控和诊断
-const performLongTermDiagnostics = () => {
-  const monitor = longTermPerformanceMonitor.value
-  const now = Date.now()
-  
-  // 获取内存使用情况（如果可用）
-  let memoryUsage = 0
-  if ('memory' in performance && (performance as any).memory) {
-    memoryUsage = (performance as any).memory.usedJSHeapSize / 1024 / 1024 // MB
-    monitor.memoryUsageHistory.push(memoryUsage)
-  }
-  
-  // 记录当前FPS
-  monitor.fpsHistory.push(animationPerformance.value.currentFps)
-  
-  // 记录缓存命中率
-  const totalCacheRequests = cacheHitCount + cacheMissCount
-  const cacheHitRate = totalCacheRequests > 0 ? (cacheHitCount / totalCacheRequests) : 1
-  monitor.cacheHitRateHistory.push(cacheHitRate)
-  
-  // 记录动画时间值
-  monitor.animationTimeValues.push(animationTime.value)
-  
-  // 保持历史数据在合理范围内
-  const maxHistoryLength = 100
-  if (monitor.memoryUsageHistory.length > maxHistoryLength) {
-    monitor.memoryUsageHistory.shift()
-  }
-  if (monitor.fpsHistory.length > maxHistoryLength) {
-    monitor.fpsHistory.shift()
-  }
-  if (monitor.cacheHitRateHistory.length > maxHistoryLength) {
-    monitor.cacheHitRateHistory.shift()
-  }
-  if (monitor.animationTimeValues.length > maxHistoryLength) {
-    monitor.animationTimeValues.shift()
-  }
-  
-  // 每30秒生成详细报告
-  if (now - monitor.lastReportTime >= monitor.reportInterval) {
-    generatePerformanceReport()
-    monitor.lastReportTime = now
-  }
-  
-  // 检测性能下降
-  detectPerformanceDegradation()
-}
+// const performLongTermDiagnostics = () => {
+//   const monitor = longTermPerformanceMonitor.value
+//   const now = Date.now()
+//   
+//   // 获取内存使用情况（如果可用）
+//   let memoryUsage = 0
+//   if ('memory' in performance && (performance as any).memory) {
+//     memoryUsage = (performance as any).memory.usedJSHeapSize / 1024 / 1024 // MB
+//     monitor.memoryUsageHistory.push(memoryUsage)
+//   }
+//   
+//   // 记录当前FPS
+//   monitor.fpsHistory.push(animationPerformance.value.currentFps)
+//   
+//   // 记录缓存命中率
+//   const totalCacheRequests = cacheHitCount + cacheMissCount
+//   const cacheHitRate = totalCacheRequests > 0 ? (cacheHitCount / totalCacheRequests) : 1
+//   monitor.cacheHitRateHistory.push(cacheHitRate)
+//   
+//   // 记录动画时间值
+//   monitor.animationTimeValues.push(animationTime.value)
+//   
+//   // 保持历史数据在合理范围内
+//   const maxHistoryLength = 100
+//   if (monitor.memoryUsageHistory.length > maxHistoryLength) {
+//     monitor.memoryUsageHistory.shift()
+//   }
+//   if (monitor.fpsHistory.length > maxHistoryLength) {
+//     monitor.fpsHistory.shift()
+//   }
+//   if (monitor.cacheHitRateHistory.length > maxHistoryLength) {
+//     monitor.cacheHitRateHistory.shift()
+//   }
+//   if (monitor.animationTimeValues.length > maxHistoryLength) {
+//     monitor.animationTimeValues.shift()
+//   }
+//   
+//   // 每30秒生成详细报告
+//   if (now - monitor.lastReportTime >= monitor.reportInterval) {
+//     generatePerformanceReport()
+//     monitor.lastReportTime = now
+//   }
+//   
+//   // 检测性能下降
+//   detectPerformanceDegradation()
+// }
 
 const generatePerformanceReport = () => {
   const monitor = longTermPerformanceMonitor.value
@@ -860,23 +860,23 @@ const generatePerformanceReport = () => {
   }
 }
 
-const detectPerformanceDegradation = () => {
-  const monitor = longTermPerformanceMonitor.value
-  
-  if (monitor.fpsHistory.length < 10) return
-  
-  // 比较最近10帧和前面10帧的平均FPS
-  const recentFps = monitor.fpsHistory.slice(-10).reduce((a, b) => a + b, 0) / 10
-  const previousFps = monitor.fpsHistory.slice(-20, -10).reduce((a, b) => a + b, 0) / 10
-  
-  if (previousFps > 0 && recentFps / previousFps < monitor.performanceDegradationThreshold) {
-    console.error(`🚨 [性能下降警告] FPS下降了${((1 - recentFps / previousFps) * 100).toFixed(1)}%`)
-    console.error(`   之前FPS: ${previousFps.toFixed(1)}, 现在FPS: ${recentFps.toFixed(1)}`)
-    triggerPerformanceEmergencyCleanup()
-  }
-}
+// const detectPerformanceDegradation = () => {
+//   const monitor = longTermPerformanceMonitor.value
+//   
+//   if (monitor.fpsHistory.length < 10) return
+//   
+//   // 比较最近10帧和前面10帧的平均FPS
+//   const recentFps = monitor.fpsHistory.slice(-10).reduce((a, b) => a + b, 0) / 10
+//   const previousFps = monitor.fpsHistory.slice(-20, -10).reduce((a, b) => a + b, 0) / 10
+//   
+//   if (previousFps > 0 && recentFps / previousFps < monitor.performanceDegradationThreshold) {
+//     console.error(`🚨 [性能下降警告] FPS下降了${((1 - recentFps / previousFps) * 100).toFixed(1)}%`)
+//     console.error(`   之前FPS: ${previousFps.toFixed(1)}, 现在FPS: ${recentFps.toFixed(1)}`)
+//     // triggerPerformanceEmergencyCleanup()
+//   }
+// }
 
-const performPerformanceCleanup = () => {
+const _performPerformanceCleanup = () => {
   console.log(`🧹 [定期清理] 执行性能维护`)
   
   // 1. 检查路径缓存大小（LRU缓存会自动管理大小，但我们可以记录状态）
@@ -1031,9 +1031,9 @@ const exposeDebugFunctions = () => {
 }
 
 // 🎯 增强的性能监控函数
-const updatePerformanceMetrics = (frameTime: number) => {
+const _updatePerformanceMetrics = (_frameTime: number) => {
   animationPerformance.value.frameCount++
-  animationPerformance.value.frameTimeHistory.push(frameTime)
+  animationPerformance.value.frameTimeHistory.push(_frameTime)
   
   // 保持最近60帧的历史
   if (animationPerformance.value.frameTimeHistory.length > 60) {
@@ -1046,7 +1046,7 @@ const updatePerformanceMetrics = (frameTime: number) => {
   animationPerformance.value.averageFrameTime = avgFrameTime
   
   // 🎯 连续慢帧检测
-  if (frameTime > animationConfig.maxFrameTime) {
+  if (_frameTime > animationConfig.maxFrameTime) {
     animationPerformance.value.consecutiveSlowFrames++
   } else {
     animationPerformance.value.consecutiveSlowFrames = 0
@@ -1151,7 +1151,7 @@ onBeforeUnmount(() => {
 })
 
 // 🎯 新增：自适应性能优化函数
-const adaptivePerformanceOptimization = () => {
+const _adaptivePerformanceOptimization = () => {
   const performance = animationPerformance.value
   
   // 检测Hold说话状态（连续录音超过3秒）
@@ -1193,21 +1193,6 @@ const adaptivePerformanceOptimization = () => {
 
 // 🎯 终极优化的正弦波动画系统
 const startWaveAnimation = () => {
-  let lastFrameTime = performance.now()
-  let lastAnimationUpdate = 0
-  let holdSpeakingStartTime = 0
-  
-  // 🎯 帧率限制器：根据质量等级调整目标帧率
-  const getTargetFrameInterval = () => {
-    const quality = animationPerformance.value.qualityLevel
-    switch (quality) {
-      case 'high': return 16.67 // 60fps
-      case 'medium': return 33.33 // 30fps
-      case 'low': return 50 // 20fps
-      default: return 16.67
-    }
-  }
-  
   // 🎯 超简化版动画循环 - 保留必要的系统依赖
   let frameCounter = 0
   
@@ -1861,11 +1846,11 @@ const detectTextLanguage = (text: string): string => {
   // 🚨 第三层：多维度评分检测
   const results: LanguageDetectionResult[] = [
     detectEnglish(originalText, cleanText, filteredWords),
-    detectItalian(originalText, cleanText, filteredWords),
-    detectFrench(originalText, cleanText, filteredWords),
-    detectGerman(originalText, cleanText, filteredWords),
-    detectSpanish(originalText, cleanText, filteredWords),
-    detectPortuguese(originalText, cleanText, filteredWords)
+    _detectItalian(originalText, cleanText, filteredWords),
+    _detectFrench(originalText, cleanText, filteredWords),
+    _detectGerman(originalText, cleanText, filteredWords),
+    _detectSpanish(originalText, cleanText, filteredWords),
+    _detectPortuguese(originalText, cleanText, filteredWords)
   ]
   
   // 排序并找到最佳匹配
@@ -1951,7 +1936,7 @@ const detectEnglish = (original: string, clean: string, words: string[]): Langua
 }
 
 // 🇮🇹 意大利语检测函数
-const detectItalian = (original: string, clean: string, words: string[]): LanguageDetectionResult => {
+const _detectItalian = (_original: string, clean: string, words: string[]): LanguageDetectionResult => {
   let score = 0
   const features: string[] = []
   
@@ -1998,7 +1983,7 @@ const detectItalian = (original: string, clean: string, words: string[]): Langua
 }
 
 // 🇫🇷 法语检测函数
-const detectFrench = (original: string, clean: string, words: string[]): LanguageDetectionResult => {
+const _detectFrench = (_original: string, clean: string, words: string[]): LanguageDetectionResult => {
   let score = 0
   const features: string[] = []
   
@@ -2016,7 +2001,7 @@ const detectFrench = (original: string, clean: string, words: string[]): Languag
 }
 
 // 🇩🇪 德语检测函数
-const detectGerman = (original: string, clean: string, words: string[]): LanguageDetectionResult => {
+const _detectGerman = (_original: string, clean: string, words: string[]): LanguageDetectionResult => {
   let score = 0
   const features: string[] = []
   
@@ -2034,7 +2019,7 @@ const detectGerman = (original: string, clean: string, words: string[]): Languag
 }
 
 // 🇪🇸 西班牙语检测函数
-const detectSpanish = (original: string, clean: string, words: string[]): LanguageDetectionResult => {
+const _detectSpanish = (_original: string, clean: string, words: string[]): LanguageDetectionResult => {
   let score = 0
   const features: string[] = []
   
@@ -2052,7 +2037,7 @@ const detectSpanish = (original: string, clean: string, words: string[]): Langua
 }
 
 // 🇵🇹 葡萄牙语检测函数
-const detectPortuguese = (original: string, clean: string, words: string[]): LanguageDetectionResult => {
+const _detectPortuguese = (_original: string, clean: string, words: string[]): LanguageDetectionResult => {
   let score = 0
   const features: string[] = []
   
@@ -3823,10 +3808,10 @@ let isTtsPlaying = ref(false)
 let consecutiveSlowFrames = 0
 const pauseAnimationForPerformance = ref(false)
 
-const checkPerformanceAndPause = (frameTime: number) => {
-  if (frameTime > 50) { // 超过50ms认为过慢
+const _checkPerformanceAndPause = (_frameTime: number) => {
+  if (_frameTime > 50) { // 超过50ms认为过慢
     consecutiveSlowFrames++
-    console.warn(`⚠️ [性能保护] 检测到慢帧: ${frameTime.toFixed(2)}ms (${consecutiveSlowFrames}/3)`)
+    console.warn(`⚠️ [性能保护] 检测到慢帧: ${_frameTime.toFixed(2)}ms (${consecutiveSlowFrames}/3)`)
     
     if (consecutiveSlowFrames >= 3) {
       pauseAnimationForPerformance.value = true

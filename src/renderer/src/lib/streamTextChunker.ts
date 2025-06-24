@@ -33,9 +33,9 @@ export class StreamTextChunker {
   private chunkQueue: TextChunk[] = []
 
   // 句子边界检测正则表达式
-  private readonly SENTENCE_END = /[。！？.!?]/
-  private readonly CLAUSE_BREAK = /[，；,;]/
-  private readonly WEAK_BREAK = /[：:]/
+  private readonly _SENTENCE_END = /[。！？.!?]/
+  private readonly _CLAUSE_BREAK = /[，；,;]/
+  private readonly _WEAK_BREAK = /[：:]/
 
   constructor(config: StreamChunkerConfig) {
     this.config = {

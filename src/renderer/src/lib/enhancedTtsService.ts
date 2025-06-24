@@ -344,11 +344,11 @@ class AudioQueueManager {
   private volume = 1.0
   
   private callbacks: TTSCallbacks
-  private config: TTSConfig
+  private _config: TTSConfig
   
   constructor(callbacks: TTSCallbacks, config: TTSConfig) {
     this.callbacks = callbacks
-    this.config = config
+    this._config = config
   }
 
   addAudioChunk(chunk: AudioChunk): void {
@@ -512,10 +512,10 @@ class AdaptiveDelayController {
   private userInterruptCount = 0
   private lastInterruptTime = 0
   
-  private config: TTSConfig
+  private _config: TTSConfig
   
   constructor(config: TTSConfig) {
-    this.config = config
+    this._config = config
   }
 
   recordTTSPerformance(duration: number): void {
@@ -867,26 +867,26 @@ export class EnhancedTTSService {
     }
   }
 
-  private calculateChunkConfidence(chunk: string): number {
+  private _calculateChunkConfidence(_chunk: string): number {
     let confidence = 100
     
     // 检查句子完整性（是否以句末标点结尾）
-    if (!/[。！？.!?]$/.test(chunk.trim())) {
+    if (!/[。！？.!?]$/.test(_chunk.trim())) {
       confidence -= 40  // 不完整句子大幅降低信心度
     }
     
     // 检查是否包含逗号分割（逗号分割降低连贯性）
-    if (chunk.includes('，') || chunk.includes(',')) {
-      const parts = chunk.split(/[，,]/)
+    if (_chunk.includes('，') || _chunk.includes(',')) {
+      const parts = _chunk.split(/[，,]/)
       if (parts.length > 2) {
         confidence -= 15  // 多逗号分割适度降低信心度
       }
     }
     
     // 长度评估
-    if (chunk.length < 5) {
+    if (_chunk.length < 5) {
       confidence -= 20  // 过短
-    } else if (chunk.length > 150) {
+    } else if (_chunk.length > 150) {
       confidence -= 10  // 过长
     }
     

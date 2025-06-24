@@ -151,7 +151,7 @@ export class TTSService {
   /**
    * 🛡️ 带一致性保护的智能语音选择
    */
-  private selectVoiceWithConsistency(emotionAnalysis: {
+  private _selectVoiceWithConsistency(_emotionAnalysis: {
     emotionType: 'excited' | 'calm' | 'serious' | 'friendly' | 'empathetic' | 'playful' | 'professional'
     intensity: number
     speedModifier: number
@@ -164,9 +164,9 @@ export class TTSService {
     
     // 🎯 情感强度阈值检查 - 提高切换门槛
     const emotionThreshold = 0.3 // 从0.07提高到0.3，避免误判
-    const isStrongEmotion = emotionAnalysis.intensity >= emotionThreshold
+    const isStrongEmotion = _emotionAnalysis.intensity >= emotionThreshold
     
-    console.log(`🛡️ [语音一致性分析] 技术内容: ${isTechnicalContent}, 情感强度: ${emotionAnalysis.intensity.toFixed(3)}, 阈值: ${emotionThreshold}`)
+    console.log(`🛡️ [语音一致性分析] 技术内容: ${isTechnicalContent}, 情感强度: ${_emotionAnalysis.intensity.toFixed(3)}, 阈值: ${emotionThreshold}`)
     
     // 🚫 技术内容强制使用专业语音
     if (isTechnicalContent) {
@@ -176,7 +176,7 @@ export class TTSService {
     
     // 🚫 情感强度不足，保持当前语音
     if (!isStrongEmotion) {
-      console.log(`   📊 情感强度不足(${emotionAnalysis.intensity.toFixed(3)} < ${emotionThreshold})，保持当前语音: ${currentVoice}`)
+      console.log(`   📊 情感强度不足(${_emotionAnalysis.intensity.toFixed(3)} < ${emotionThreshold})，保持当前语音: ${currentVoice}`)
       return currentVoice
     }
     
@@ -191,7 +191,7 @@ export class TTSService {
       professional: 'onyx'   // 专业权威
     }
     
-    const targetVoice = emotionVoiceMapping[emotionAnalysis.emotionType] || currentVoice
+    const targetVoice = emotionVoiceMapping[_emotionAnalysis.emotionType] || currentVoice
     
     // 🔄 性别切换保护 - 避免男女声突然切换
     const maleVoices = ['onyx', 'echo']
