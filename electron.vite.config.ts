@@ -42,6 +42,9 @@ export default defineConfig({
         'axios'
       ]
     },
+    esbuild: {
+      logOverride: { 'this-is-undefined-in-esm': 'silent' }
+    },
     resolve: {
       alias: {
         '@': resolve('src/renderer/src'),
@@ -61,7 +64,7 @@ export default defineConfig({
     plugins: [
       monacoEditorPlugin({
         languageWorkers: ['editorWorkerService', 'typescript', 'css', 'html', 'json'],
-        customDistPath(_root, buildOutDir, _base) {
+        customDistPath(_root, buildOutDir) {
           return path.resolve(buildOutDir, 'monacoeditorwork')
         },
       }),
@@ -74,10 +77,19 @@ export default defineConfig({
     ],
     build: {
       minify: 'esbuild',
+      chunkSizeWarningLimit: 1000,
       rollupOptions: {
         input: {
           shell: resolve('src/renderer/shell/index.html'),
           index: resolve('src/renderer/index.html')
+        },
+        output: {
+          manualChunks: {
+            'monaco-editor': ['monaco-editor'],
+            'vue-vendor': ['vue', 'vue-router', 'pinia'],
+            'ui-vendor': ['@radix-icons/vue', 'lucide-vue-next'],
+            'utility-vendor': ['axios', 'nanoid', 'compare-versions']
+          }
         }
       }
     }
