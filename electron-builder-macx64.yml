@@ -28,7 +28,7 @@ extraResources:
   - from: ./runtime/
     to: app.asar.unpacked/runtime
     filter: ['**/*']
-afterSign: scripts/notarize.js
+# afterSign: scripts/notarize.js  # 临时禁用，用于开发测试
 afterPack: scripts/afterPack.js
 electronLanguages:
   - zh-CN
