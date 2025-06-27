@@ -16,6 +16,7 @@ import TranslatePopup from '@/components/popup/TranslatePopup.vue'
 
 // Stagewise development mode flag
 const isDev = import.meta.env.DEV
+const isStageWiseInitialized = ref(false)
 
 const route = useRoute()
 const configPresenter = usePresenter('configPresenter')
@@ -178,8 +179,9 @@ onMounted(() => {
   document.body.classList.add(themeStore.themeMode)
   document.body.classList.add(settingsStore.fontSizeClass)
 
-  // Initialize stagewise toolbar in development
-  if (isDev) {
+  // Initialize stagewise toolbar in development (only once)
+  if (isDev && !isStageWiseInitialized.value) {
+    isStageWiseInitialized.value = true
     // Use dynamic import with string to avoid TypeScript module resolution issues
     Promise.all([
       import('@stagewise/toolbar-vue').catch(() => null),
@@ -187,6 +189,7 @@ onMounted(() => {
     ]).then(([toolbarModule, pluginModule]) => {
       if (!toolbarModule || !pluginModule) {
         console.log('Stagewise toolbar not available in development')
+        isStageWiseInitialized.value = false
         return
       }
       
@@ -208,6 +211,7 @@ onMounted(() => {
       })
     }).catch(() => {
       console.log('Stagewise toolbar not available in development')
+      isStageWiseInitialized.value = false
     })
   }
 
@@ -298,8 +302,9 @@ onMounted(() => {
 
   watch(
     () => artifactStore.isOpen,
-    () => {
-      chatStore.isSidebarOpen = false
+    (isOpen) => {
+      // 当 artifacts 打开时关闭侧边栏，关闭时重新打开侧边栏
+      chatStore.isSidebarOpen = !isOpen
     }
   )
 })

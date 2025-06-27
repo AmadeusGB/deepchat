@@ -9,9 +9,22 @@
         <img src="@/assets/figma-icons/dper.png" alt="DeepChat" class="figma-logo" />
       </div>
       
-      <!-- Search histories 按钮 -->
+      <!-- Search histories 输入框 -->
       <div class="figma-search-histories">
-        <span>Search histories</span>
+        <Icon icon="lucide:search" class="search-icon" />
+        <input
+          v-model="searchQuery"
+          type="text"
+          :placeholder="t('sidebar.searchHistories')"
+          class="search-input"
+          @input="handleSearch"
+        />
+        <Icon 
+          v-if="searchQuery"
+          icon="lucide:x" 
+          class="clear-icon" 
+          @click="clearSearch"
+        />
       </div>
 
       <!-- 新会话按钮 -->
@@ -43,7 +56,7 @@
       
       <!-- 可滚动的会话列表 -->
       <ScrollArea ref="scrollAreaRef" class="flex-1" @scroll="handleScroll">
-        <div v-for="thread in chatStore.threads" :key="thread.dt" class="space-y-2.5 mb-3">
+        <div v-for="thread in filteredThreads" :key="thread.dt" class="space-y-2.5 mb-3">
           <div class="text-xs font-semibold text-muted-foreground px-2">{{ thread.dt }}</div>
           <ul class="space-y-2.5">
             <ThreadItem
@@ -126,7 +139,7 @@ import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@iconify/vue'
 import ThreadItem from './ThreadItem.vue'
-import { ref, onMounted, nextTick, onBeforeUnmount } from 'vue'
+import { ref, onMounted, nextTick, onBeforeUnmount, computed } from 'vue'
 import { usePresenter } from '@/composables/usePresenter'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Input } from '@/components/ui/input'
@@ -157,6 +170,41 @@ const currentPage = ref(1) // 当前页码
 // const searchQuery = ref('')
 
 const windowSize = useWindowSize()
+
+// 搜索功能
+const searchQuery = ref('')
+
+// 计算过滤后的线程列表
+const filteredThreads = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return chatStore.threads
+  }
+  
+  const query = searchQuery.value.toLowerCase().trim()
+  return chatStore.threads.map(thread => ({
+    ...thread,
+    dtThreads: thread.dtThreads.filter(dtThread => 
+      dtThread.title.toLowerCase().includes(query)
+    )
+  })).filter(thread => thread.dtThreads.length > 0)
+})
+
+// 处理搜索
+const handleSearch = () => {
+  // 搜索时滚动到顶部
+  nextTick(() => {
+    const viewportElement = scrollAreaRef.value?.$el?.querySelector('.h-full.w-full') as HTMLElement
+    if (viewportElement) {
+      viewportElement.scrollTop = 0
+    }
+  })
+}
+
+// 清除搜索
+const clearSearch = () => {
+  searchQuery.value = ''
+  handleSearch()
+}
 
 // 创建新会话
 const createNewThread = async () => {
@@ -380,7 +428,7 @@ onBeforeUnmount(() => {
 .figma-search-histories {
   background: rgba(255, 255, 255, 0.5);
   border-radius: 15px;
-  padding: 10px 20px;
+  padding: 10px 16px;
   font-family: 'Montserrat', sans-serif;
   font-weight: 400;
   font-size: 13px;
@@ -388,9 +436,53 @@ onBeforeUnmount(() => {
   color: #898989;
   display: flex;
   align-items: center;
-  width: 100%;
+  gap: 8px;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.2s ease;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.figma-search-histories:focus-within {
+  border-color: rgba(73, 90, 245, 0.4);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.search-icon {
+  width: 16px;
+  height: 16px;
+  color: #898989;
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  color: #2d3748;
+  line-height: 1.219;
+}
+
+.search-input::placeholder {
+  color: #898989;
+}
+
+.clear-icon {
+  width: 14px;
+  height: 14px;
+  color: #898989;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.2s ease;
+}
+
+.clear-icon:hover {
+  color: #495AF5;
 }
 
 /* New Chat button styling - 基于Figma设计 */
@@ -449,6 +541,28 @@ onBeforeUnmount(() => {
   background: rgba(40, 40, 40, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #898989;
+}
+
+.dark .figma-search-histories:focus-within {
+  border-color: rgba(73, 90, 245, 0.6);
+  background: rgba(40, 40, 40, 0.8);
+}
+
+.dark .search-input {
+  color: #ffffff;
+}
+
+.dark .search-input::placeholder {
+  color: #898989;
+}
+
+.dark .search-icon,
+.dark .clear-icon {
+  color: #898989;
+}
+
+.dark .clear-icon:hover {
+  color: #495AF5;
 }
 
 .dark .figma-historical-title {
