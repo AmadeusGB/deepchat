@@ -159,9 +159,9 @@
       </div>
       
       <!-- Fixed bottom section aligned with sidebar -->
-      <div class="absolute bottom-0 left-0 right-0 flex flex-col items-center" style="padding-bottom: 20px;">
+      <div class="absolute bottom-0 left-0 right-0 flex flex-col items-center" style="padding-bottom: 20px; padding-left: 60px; padding-right: 30px;">
         <!-- Example cards container aligned with input (hidden in voice mode) -->
-        <div v-if="!isVoiceMode" class="figma-example-cards-container w-full max-w-4xl mb-6">
+        <div v-if="!isVoiceMode" class="figma-example-cards-container w-full mb-6">
           <div class="figma-example-cards-grid">
             <div class="figma-example-card" @click="insertExample('Help me adjust the node to the fastest node in the United States.')">
               Help me adjust the node to the fastest node in the United States.
@@ -179,7 +179,7 @@
         </div>
         
         <!-- Input area aligned with sidebar bottom -->
-        <div class="figma-input-container w-full max-w-4xl">
+        <div class="figma-input-container w-full">
           <!-- Voice mode input (hidden in auto mode) -->
           <div v-if="isVoiceMode" class="figma-voice-input-container flex items-center gap-4">
             <div class="figma-voice-input-box opacity-50">
@@ -3848,39 +3848,45 @@ const isVoiceInterrupted = ref(false)
 
 /* Figma-inspired example cards */
 .figma-example-card {
-  background: rgba(240, 240, 240, 0.3);
+  background: rgba(255, 255, 255, 0.35);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(156, 156, 156, 0.4);
-  border-radius: 20px;
-  padding: 15px 20px;
-  font-family: 'Montserrat', sans-serif;
-  font-weight: 400;
-  font-size: 12px;
-  line-height: 1.219;
-  color: #000000;
-  width: 195px;
-  height: 78px;
+  border: 1px solid rgba(156, 156, 156, 0.3);
+  border-radius: 16px;
+  padding: 18px 22px;
+  font-family: 'Inter', 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #2d3748;
+  width: 100%;
+  min-height: 85px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
   box-shadow: 
-    -2px 4px 10px 0px rgba(145, 145, 145, 0.05), 
-    -7px 17px 18px 0px rgba(145, 145, 145, 0.04), 
-    -15px 37px 24px 0px rgba(145, 145, 145, 0.03), 
-    -27px 66px 29px 0px rgba(145, 145, 145, 0.01), 
-    -42px 103px 31px 0px rgba(145, 145, 145, 0),
-    inset 0px 4px 4px 0px rgba(255, 255, 255, 0.25), 
-    inset 0px -5px 4px 0px rgba(255, 255, 255, 0.25);
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    0 4px 16px rgba(0, 0, 0, 0.02),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .figma-example-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px) scale(1.02);
+  background: rgba(255, 255, 255, 0.45);
+  border-color: rgba(73, 90, 245, 0.2);
   box-shadow: 
-    -3px 6px 12px 0px rgba(145, 145, 145, 0.08), 
-    -9px 20px 22px 0px rgba(145, 145, 145, 0.06);
+    0 8px 24px rgba(0, 0, 0, 0.08),
+    0 12px 40px rgba(73, 90, 245, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.figma-example-card:active {
+  transform: translateY(-1px) scale(1.01);
+  transition-duration: 0.1s;
 }
 
 /* Dark mode for example cards */
@@ -3892,40 +3898,45 @@ const isVoiceInterrupted = ref(false)
 
 /* Figma-inspired example cards container */
 .figma-example-cards-container {
-  padding: 0 20px;
+  padding: 0;
 }
 
 .figma-example-cards-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  justify-content: space-between;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  justify-items: center;
+  align-items: center;
 }
 
-/* Responsive grid layout for example cards */
+/* Responsive grid layout for example cards - 始终保持4列一排 */
 @media (max-width: 1024px) {
   .figma-example-cards-grid {
-    justify-content: center;
     gap: 12px;
+  }
+  
+  .figma-example-card {
+    font-size: 12px;
+    padding: 16px 14px;
+    min-height: 80px;
   }
 }
 
 @media (max-width: 768px) {
   .figma-example-cards-grid {
-    flex-direction: column;
-    align-items: center;
+    gap: 8px;
   }
   
   .figma-example-card {
-    width: 100%;
-    max-width: 300px;
+    font-size: 11px;
+    padding: 14px 10px;
+    min-height: 75px;
   }
 }
 
 /* Figma-inspired input container */
 .figma-input-container {
-  padding: 0 20px;
+  padding: 0;
 }
 
 .figma-input-wrapper {

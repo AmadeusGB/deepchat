@@ -460,7 +460,6 @@
   
   /* 对话页面输入框内部容器样式覆盖 */
   .figma-chat-input .figma-chat-input-inner {
-    background: transparent !important;
     border: none !important;
     box-shadow: none !important;
   }

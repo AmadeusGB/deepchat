@@ -1,12 +1,12 @@
 <template>
   <div
-    class="w-full max-w-4xl mx-auto"
+    class="w-full"
     @mouseenter="isDragging = false"
   >
     <TooltipProvider>
       <!-- 正常聊天界面 -->
       <div
-        class="bg-card border border-border rounded-lg focus-within:border-primary py-2 px-1 flex flex-col gap-2 shadow-sm relative figma-chat-input-inner"
+        class="bg-card border border-border rounded-lg focus-within:border-primary py-3 px-4 flex flex-col gap-2 shadow-sm relative figma-chat-input-inner"
         :class="{
           'ring-2 ring-ring': isDragging
         }"
