@@ -1,5 +1,7 @@
 <template>
   <div class="w-full h-full flex-row flex">
+
+    
     <div
       :class="[
         'flex-1 w-0 h-full transition-all duration-200 max-lg:!mr-0',
@@ -26,7 +28,12 @@
         <!-- 主聊天区域 -->
         <div class="flex-1 flex flex-col w-0">
           <!-- 新会话 - 🎯 语音模式下即使有activeThreadId也显示NewThread -->
-          <NewThread v-if="!chatStore.getActiveThreadId() || newThreadRef?.isVoiceMode" ref="newThreadRef" />
+          <NewThread 
+            v-if="!chatStore.getActiveThreadId() || newThreadRef?.isVoiceMode" 
+            ref="newThreadRef" 
+            @exit-voice-mode="handleExitVoiceMode"
+
+          />
           <template v-else>
             <!-- 聊天内容区域 -->
             <ChatView />
@@ -57,6 +64,12 @@ const title = useTitle()
 
 // 🎯 NewThread组件引用，用于访问语音模式状态
 const newThreadRef = ref()
+
+// 🎯 处理退出语音模式事件
+const handleExitVoiceMode = () => {
+  console.log('[ChatTabView] 📱 收到退出语音模式事件')
+  // 这里可以添加额外的处理逻辑，比如刷新组件状态等
+}
 
 // 添加标题更新逻辑
 const updateTitle = () => {

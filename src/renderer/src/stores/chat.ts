@@ -14,6 +14,7 @@ import router from '@/router'
 import { useI18n } from 'vue-i18n'
 import { useSoundStore } from './sound'
 import { useTTS } from '@/lib/enhancedTtsIntegration'
+import { parallelTtsService } from '@/lib/parallelTtsService'
 
 // 定义会话工作状态类型
 export type WorkingStatus = 'working' | 'error' | 'completed' | 'none'
@@ -192,6 +193,10 @@ export const useChatStore = defineStore('chat', () => {
 
   const setActiveThread = async (threadId: string) => {
     const tabId = getTabId()
+    
+    // 🔧 修复：切换线程时停止TTS播放
+    parallelTtsService.stop()
+    
     const threadsWorkingStatus = getThreadsWorkingStatus()
     if (
       threadsWorkingStatus.get(threadId) === 'completed' ||
@@ -222,7 +227,13 @@ export const useChatStore = defineStore('chat', () => {
 
   const clearActiveThread = async () => {
     const tabId = getTabId()
-    if (!getActiveThreadId()) return
+    
+    // 🔧 修复：停止所有TTS播放
+    parallelTtsService.stop()
+    
+    if (!getActiveThreadId()) {
+      return
+    }
     await threadP.clearActiveThread(tabId)
     setActiveThreadId(null)
   }

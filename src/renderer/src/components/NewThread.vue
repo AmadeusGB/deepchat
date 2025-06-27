@@ -193,9 +193,8 @@
               />
             </div>
             <Button
-              class="figma-text-chat-button opacity-50"
-              disabled
-              @click="exitVoiceMode"
+              class="figma-text-chat-button"
+              @click="switchToTextChat"
             >
               {{ t('chat.input.textChat') }}
             </Button>
@@ -288,7 +287,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount, readonly } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, readonly, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
@@ -334,6 +333,11 @@ const isVoiceMode = ref(false)
 defineExpose({
   isVoiceMode: readonly(isVoiceMode)
 })
+
+// 🎯 定义事件发射器，用于与父组件通信
+const emit = defineEmits<{
+  'exit-voice-mode': []
+}>()
 
 const isRecording = ref(false)
 const isTranscribing = ref(false)
@@ -953,7 +957,7 @@ const enableDeepPerformanceAnalysis = () => {
     console.log(`   📦 缓存: ${pathCache.size}/${animationConfig.pathCacheSize} (命中率:${((cacheHitCount / (cacheHitCount + cacheMissCount)) * 100).toFixed(1)}%)`)
     console.log(`   ⏰ 动画时间: ${animationTime.value.toFixed(0)} (是否巨大: ${animationTime.value > 500000 ? '是' : '否'})`)
     console.log(`   🎬 总帧数: ${longTermPerformanceMonitor.value.totalFrames}`)
-    console.log(`   🎙️ 录音状态: ${isRecording.value ? '录音中' : '空闲'}, 🔊TTS: ${isTtsPlaying.value ? '播放中' : '停止'}`)
+    // console.log(`   🎙️ 录音状态: ${isRecording.value ? '录音中' : '空闲'}, 🔊TTS: ${isTtsPlaying.value ? '播放中' : '停止'}`)
     console.log(`   🔍 质量等级: ${animationPerformance.value.qualityLevel}`)
     
     // 检查异常状态
@@ -1254,89 +1258,11 @@ const startWaveAnimation = () => {
   longTermPerformanceMonitor.value.cacheHitRateHistory = []
   longTermPerformanceMonitor.value.animationTimeValues = []
   
-  // 🎯 立即测试监控系统
-  console.log(`🔬 [性能监控] 系统已启动，开始监控`)
-  console.log(`🔬 [性能监控] 初始时间: ${new Date().toLocaleTimeString()}`)
-  console.log(`🔬 [性能监控] 每30秒将自动生成性能报告`)
+  // 性能监控已禁用
   
-  // 🎯 立即生成第一次报告（5秒后）
-  setTimeout(() => {
-    console.log(`🔬 [性能监控] === 首次性能检查 ===`)
-    generatePerformanceReport()
-  }, 5000)
+  // 性能监控已禁用
   
-  // 🎯 3秒后首次监控测试
-  setTimeout(() => {
-    const runtimeSeconds = (Date.now() - longTermPerformanceMonitor.value.startTime) / 1000
-    console.log(`🔬 [首次监控-${runtimeSeconds.toFixed(0)}s] 动画时间=${(animationTime.value/1000).toFixed(1)}s, 缓存=${pathCache.size}/${animationConfig.pathCacheSize}, FPS=${animationPerformance.value.currentFps.toFixed(1)}`)
-    console.log(`🔬 [提醒] 正常情况下，您现在应该能看到每10秒的监控输出`)
-  }, 3000)
-  
-  // 🎯 启动定时器监控系统
-  let monitorInterval10s: NodeJS.Timeout | null = null
-  let monitorInterval30s: NodeJS.Timeout | null = null
-  
-  // 每10秒基础监控
-  monitorInterval10s = setInterval(() => {
-    if (!isVoiceMode.value) {
-      if (monitorInterval10s) {
-        clearInterval(monitorInterval10s)
-        monitorInterval10s = null
-      }
-      return
-    }
-    
-    const runtimeSeconds = (Date.now() - longTermPerformanceMonitor.value.startTime) / 1000
-    console.log(`🔬 [${runtimeSeconds.toFixed(0)}s] 动画时间=${(animationTime.value/1000).toFixed(1)}s, 缓存=${pathCache.size}/${animationConfig.pathCacheSize}, FPS=${animationPerformance.value.currentFps.toFixed(1)}`)
-    
-    // 关键问题快速检测
-    if (animationTime.value > 600000) {
-      console.error(`🚨 [紧急] 动画时间超过10分钟，建议立即重置！`)
-    }
-  }, 10000)
-  
-  // 每30秒详细监控
-  monitorInterval30s = setInterval(() => {
-    if (!isVoiceMode.value) {
-      if (monitorInterval30s) {
-        clearInterval(monitorInterval30s)
-        monitorInterval30s = null
-      }
-      return
-    }
-    
-    const runtimeSeconds = (Date.now() - longTermPerformanceMonitor.value.startTime) / 1000
-    console.log(`\n🔬 ===== 自动性能监控报告 (${runtimeSeconds.toFixed(0)}秒) =====`)
-    console.log(`🔬 [监控] 帧数: ${animationPerformance.value.frameCount}`)
-    console.log(`🔬 [监控] 当前FPS: ${animationPerformance.value.currentFps.toFixed(1)}`)
-    console.log(`🔬 [监控] 路径缓存: ${pathCache.size}/${animationConfig.pathCacheSize}`)
-    console.log(`🔬 [监控] 动画时间: ${animationTime.value.toFixed(0)}ms`)
-    console.log(`🔬 [监控] 缓存命中率: ${((cacheHitCount / (cacheHitCount + cacheMissCount)) * 100).toFixed(1)}%`)
-    
-    // 检查内存使用
-    if ('memory' in performance) {
-      const mem = (performance as any).memory
-      if (mem) {
-        const used = (mem.usedJSHeapSize / 1024 / 1024).toFixed(1)
-        const total = (mem.totalJSHeapSize / 1024 / 1024).toFixed(1)
-        console.log(`🔬 [监控] 内存使用: ${used}MB / ${total}MB`)
-      }
-    }
-    
-    // 性能问题检测
-    if (animationTime.value > 500000) {
-      console.warn(`⚠️ [自动检测] 动画时间值过大: ${animationTime.value.toFixed(0)}ms - 可能影响性能`)
-    }
-    if (pathCache.size >= animationConfig.pathCacheSize) {
-      console.warn(`⚠️ [自动检测] 缓存已满，频繁LRU可能影响性能`)
-    }
-    const cacheHitRate = cacheHitCount / (cacheHitCount + cacheMissCount)
-    if (cacheHitRate < 0.8) {
-      console.warn(`⚠️ [自动检测] 缓存命中率低 (${(cacheHitRate * 100).toFixed(1)}%)`)
-    }
-    
-    console.log(`🔬 =====================================\n`)
-  }, 30000)
+  // 定时器监控系统已禁用
   
   console.log('[波浪性能] 🚀 启动终极优化版动画系统')
   console.log(`   🎯 预计算正弦表: ${SINE_TABLE_SIZE}个值`)
@@ -1391,28 +1317,9 @@ const stopWaveAnimation = () => {
   stopAudioAnalysis()
 }
 
-// 🎯 立即执行的性能检查函数
+  // 🎯 立即执行的性能检查函数（已禁用）
 const immediatePerformanceCheck = () => {
-  console.log(`🔬 [立即检查] === 当前性能状态 ===`)
-  console.log(`🔬 [立即检查] 时间: ${new Date().toLocaleTimeString()}`)
-  console.log(`🔬 [立即检查] 语音模式: ${isVoiceMode.value}`)
-  console.log(`🔬 [立即检查] 录音状态: ${isRecording.value}`)
-  console.log(`🔬 [立即检查] TTS播放: ${isTtsPlaying.value}`)
-  console.log(`🔬 [立即检查] 动画帧数: ${animationPerformance.value.frameCount}`)
-  console.log(`🔬 [立即检查] 当前FPS: ${animationPerformance.value.currentFps.toFixed(1)}`)
-  console.log(`🔬 [立即检查] 路径缓存: ${pathCache.size}/${animationConfig.pathCacheSize}`)
-  console.log(`🔬 [立即检查] 动画时间: ${animationTime.value.toFixed(0)}ms`)
-  
-  // 检查内存（如果可用）
-  if ('memory' in performance) {
-    const mem = (performance as any).memory
-    if (mem) {
-      const used = (mem.usedJSHeapSize / 1024 / 1024).toFixed(1)
-      console.log(`🔬 [立即检查] 内存使用: ${used}MB`)
-    }
-  }
-  
-  console.log(`🔬 [立即检查] ========================`)
+  // 性能监控已禁用
 }
 
 // 🎯 增强的语音模式进入函数
@@ -1421,14 +1328,11 @@ const enterVoiceMode = () => {
   
   isVoiceMode.value = true
   
-  // 🎯 立即执行性能检查
-  setTimeout(() => {
-    immediatePerformanceCheck()
-  }, 2000) // 2秒后检查，确保动画已启动
+  // 性能检查已禁用
   
   // 🎯 禁用chat.ts的TTS服务，避免冲突
   enhancedTTSIntegration.setGloballyDisabled(true)
-  console.log('[语音模式] 🚫 禁用chat.ts的TTS服务')
+  // console.log('[语音模式] 🚫 禁用chat.ts的TTS服务')
   
   // 🎯 重置所有键盘相关状态
   isSpacePressed.value = false
@@ -1457,18 +1361,66 @@ const enterVoiceMode = () => {
   console.log(`[语音模式] 🔍 键盘监听器状态: attached=${keyboardEventState.value.listenersAttached}`)
 }
 
+// 🎯 切换到文字聊天模式
+const switchToTextChat = async () => {
+  console.log('[语音模式] 🔄 切换到文字聊天模式')
+  
+  // 如果有语音对话历史，同步到传统聊天界面
+  if (voiceConversationHistory.value.length > 0) {
+    await syncVoiceHistoryToTextChat()
+  } else {
+    // 如果没有语音历史，只是简单退出语音模式
+    exitVoiceMode()
+  }
+}
+
+// 🎯 同步语音对话历史到文字聊天界面
+const syncVoiceHistoryToTextChat = async () => {
+  try {
+    console.log('[语音同步] 🔄 开始同步语音对话历史到文字界面')
+    
+    // 获取当前活跃的语音线程ID
+    const currentThreadId = chatStore.getActiveThreadId()
+    
+    if (currentThreadId) {
+      console.log('[语音同步] ✅ 检测到活跃线程，切换到传统聊天界面:', currentThreadId)
+      
+      // 🎯 先退出语音模式，清理所有语音相关状态
+      exitVoiceMode()
+      
+      // 🎯 使用nextTick确保语音模式状态完全重置后再切换界面
+      await nextTick()
+      
+      // 🎯 关键：使用传统的setActiveThread方法，触发UI跳转
+      await chatStore.setActiveThread(currentThreadId)
+      
+      console.log('[语音同步] 🎯 已切换到传统聊天界面，用户可以查看对话历史')
+    } else {
+      console.log('[语音同步] ⚠️ 未检测到活跃线程，简单退出语音模式')
+      exitVoiceMode()
+    }
+  } catch (error) {
+    console.error('[语音同步] ❌ 同步语音历史失败:', error)
+    // 如果同步失败，至少要退出语音模式
+    exitVoiceMode()
+  }
+}
+
 // 🎯 增强的语音模式退出函数
 const exitVoiceMode = () => {
   console.log('[语音模式] 🔇 退出语音模式')
   
   isVoiceMode.value = false
   
+  // 🎯 通知父组件语音模式已退出
+  emit('exit-voice-mode')
+  
   // 🎯 禁用键盘健康检查
   keyboardListenerHealthCheck.value.isActive = false
   
   // 🎯 重新启用chat.ts的TTS服务
   enhancedTTSIntegration.setGloballyDisabled(false)
-  console.log('[语音模式] ✅ 重新启用chat.ts的TTS服务')
+  // console.log('[语音模式] ✅ 重新启用chat.ts的TTS服务')
   
   // 停止录音
   if (isRecording.value) {
@@ -1571,7 +1523,7 @@ const latestUserVoiceInput = computed(() => {
 
 // 🎯 停止所有TTS播放和AI生成（语音打断功能）- 增强MCP工具调用中断
 const stopAllTTSPlayback = async () => {
-  console.log('[语音打断] 🛑 停止所有TTS播放服务和AI生成')
+  // console.log('[语音打断] 🛑 停止所有TTS播放服务和AI生成')
   
   try {
     // 🎯 设置语音中断标志，确保checkForStreamingResponse能立即响应
@@ -1591,19 +1543,19 @@ const stopAllTTSPlayback = async () => {
     // 2. 停止并行TTS服务
     if (parallelTtsService) {
       parallelTtsService.stop()
-      console.log('[语音打断] ✅ 已停止ParallelTtsService')
+      // console.log('[语音打断] ✅ 已停止ParallelTtsService')
     }
     
     // 3. 停止传统TTS服务
     if (ttsService) {
       ttsService.stop()
-      console.log('[语音打断] ✅ 已停止TTSService')
+      // console.log('[语音打断] ✅ 已停止TTSService')
     }
     
     // 4. 停止增强TTS集成服务
     if (enhancedTTSIntegration) {
       enhancedTTSIntegration.stop()
-      console.log('[语音打断] ✅ 已停止EnhancedTTSIntegration')
+      // console.log('[语音打断] ✅ 已停止EnhancedTTSIntegration')
     }
     
     // 5. 重置TTS相关状态
@@ -1614,7 +1566,7 @@ const stopAllTTSPlayback = async () => {
     // 6. 重置语音对话状态
     isWaitingResponse.value = false
     
-    console.log('[语音打断] 🎯 所有TTS服务和AI生成已停止，状态已重置，中断标志已设置')
+    // console.log('[语音打断] 🎯 所有TTS服务和AI生成已停止，状态已重置，中断标志已设置')
     
   } catch (error) {
     console.error('[语音打断] ❌ 停止TTS播放和AI生成时出错:', error)
@@ -1653,7 +1605,7 @@ const startVoiceRecording = async () => {
     mediaRecorder.start()
     isRecording.value = true
     
-    console.log('[语音打断] 🎙️ 开始新的语音录制，已停止所有TTS播放')
+    // console.log('[语音打断] 🎙️ 开始新的语音录制，已停止所有TTS播放')
     
     // 初始化音频分析
     await initAudioAnalysis(stream)
@@ -2961,7 +2913,7 @@ ${personalizedContext}`.trim()
         
         // 🎯 检查录音状态，如果用户开始录音则立即停止TTS检查
         if (isRecording.value) {
-          console.log(`[实时语音] 🎙️ 检测到用户开始录音，立即停止TTS检查`)
+          // console.log(`[实时语音] 🎙️ 检测到用户开始录音，立即停止TTS检查`)
           return
         }
         
@@ -3061,7 +3013,7 @@ ${personalizedContext}`.trim()
             })
           } else {
             // 简化日志
-            console.log(`[实时语音] ⚡ ${currentPhase}阶段检查 ${attempts} (${dynamicDelay}ms): 内容块=${contentBlocks.length}, 工具=${toolCallBlocks.length}, 队列=${ttsStatus.queueLength}`)
+            // console.log(`[实时语音] ⚡ ${currentPhase}阶段检查 ${attempts} (${dynamicDelay}ms): 内容块=${contentBlocks.length}, 工具=${toolCallBlocks.length}, 队列=${ttsStatus.queueLength}`)
           }
           
           // 检查新的内容块
@@ -3248,7 +3200,7 @@ ${personalizedContext}`.trim()
           // 检查是否完成 - 修复逻辑冲突
           if (!workingStatus || shouldCompleteEarly) {
             const completionReason = !workingStatus ? 'AI工作完成' : '智能提前完成'
-            console.log(`[实时语音] ${completionReason}，当前阶段: ${currentPhase}，等待并行TTS播放完成`)
+            // console.log(`[实时语音] ${completionReason}，当前阶段: ${currentPhase}，等待并行TTS播放完成`)
             const status = parallelTtsService.getStatus()
             console.log('[实时语音] 完成时状态:', {
               currentPhase,
@@ -3273,13 +3225,13 @@ ${personalizedContext}`.trim()
               await new Promise(resolve => setTimeout(resolve, 500))
               
               const status = parallelTtsService.getStatus()
-              console.log(`[实时语音] 等待并行TTS完成 (${waitCount}):`, {
-                队列剩余: status.queueLength,
-                处理中: status.processingChunks,
-                就绪: status.readyChunks,
-                播放中: status.isPlaying,
-                等待时间: waitCount * 0.5 + 's'
-              })
+              // console.log(`[实时语音] 等待并行TTS完成 (${waitCount}):`, {
+              //   队列剩余: status.queueLength,
+              //   处理中: status.processingChunks,
+              //   就绪: status.readyChunks,
+              //   播放中: status.isPlaying,
+              //   等待时间: waitCount * 0.5 + 's'
+              // })
               
               // 更新状态
               if (status.queueLength === 0 && !status.isPlaying) {
@@ -3351,16 +3303,16 @@ ${personalizedContext}`.trim()
     const playTTSWithParallelService = async (responseText: string) => {
       // 🎯 录音期间阻止任何新的TTS播放，避免干扰录音
       if (isRecording.value) {
-        console.log('[并行TTS] 🎙️ 录音期间跳过TTS播放，避免干扰录音')
+        // console.log('[并行TTS] 🎙️ 录音期间跳过TTS播放，避免干扰录音')
         return
       }
       
       if (!responseText.trim()) {
-        console.log('[并行TTS] 跳过空文本')
+        // console.log('[并行TTS] 跳过空文本')
         return
       }
       
-      console.log(`[并行TTS] 添加文字到播放队列 (${responseText.length}字符)`)
+      // console.log(`[并行TTS] 添加文字到播放队列 (${responseText.length}字符)`)
       
       try {
         // 直接添加到并行TTS服务（现在有去重机制）
@@ -3376,7 +3328,7 @@ ${personalizedContext}`.trim()
         const status = parallelTtsService.getStatus()
         ttsOptimizer.updateQueueLength(status.queueLength)
         
-        console.log(`[并行TTS] 文字已添加到并行处理队列, 当前队列长度: ${status.queueLength}`)
+        // console.log(`[并行TTS] 文字已添加到并行处理队列, 当前队列长度: ${status.queueLength}`)
       } catch (error) {
         console.error('[并行TTS] 添加文字失败:', error)
         throw error
@@ -3760,6 +3712,41 @@ watch(
     }
   },
   { immediate: true }
+)
+
+// 🔧 修复：监听活跃线程ID变化，当清空线程时停止语音监控
+watch(
+  () => chatStore.getActiveThreadId(),
+  (newThreadId, oldThreadId) => {
+    console.log('🔧 [NewThread] 活跃线程变化:', { oldThreadId, newThreadId })
+    
+    // 当线程被清空时，停止所有语音相关活动
+    if (oldThreadId && !newThreadId) {
+      console.log('🔧 [NewThread] 检测到线程被清空，停止语音监控和TTS播放')
+      
+      // 停止语音监控循环
+      isWaitingResponse.value = false
+      
+      // 🔧 关键修复：重置语音模式，回到初始hello界面
+      isVoiceMode.value = false
+      console.log('🔧 [NewThread] 重置语音模式为false，回到hello界面')
+      
+      // 停止TTS播放
+      if (isParallelTTSActive.value || isTTSPlaying.value) {
+        parallelTtsService.stop()
+        isParallelTTSActive.value = false
+        isTTSPlaying.value = false
+      }
+      
+      // 重置其他语音相关状态
+      isVoiceInterrupted.value = false
+      isRecording.value = false
+      isTranscribing.value = false
+      voiceResponseText.value = ''
+      
+      console.log('🔧 [NewThread] 语音监控和TTS已停止，界面已重置')
+    }
+  }
 )
 
 const handleSend = async (content: UserMessageContent) => {

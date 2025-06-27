@@ -211,7 +211,7 @@ const createNewThread = async () => {
   try {
     await chatStore.createNewEmptyThread()
   } catch (error) {
-    console.error(t('common.error.createChatFailed'), error)
+    console.error('创建新对话失败:', error)
   }
 }
 
