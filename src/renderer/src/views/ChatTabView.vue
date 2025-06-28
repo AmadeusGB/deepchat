@@ -69,40 +69,29 @@ const isVoiceModeActive = ref(false)
 
 // 🎯 处理退出语音模式事件
 const handleExitVoiceMode = () => {
-  console.log('[ChatTabView] 📱 收到退出语音模式事件')
   // 🔧 更新独立的语音模式状态
   isVoiceModeActive.value = false
-  console.log('[ChatTabView] ✅ 已更新语音模式状态为false')
 }
 
 // 🎯 新增：处理进入语音模式事件
 const handleEnterVoiceMode = async () => {
-  console.log('[ChatTabView] 🎙️ 收到进入语音模式事件')
-  console.log('[ChatTabView] 🎙️ 当前活跃线程ID:', chatStore.getActiveThreadId())
-  console.log('[ChatTabView] 🎙️ 正在生成的线程:', Array.from(chatStore.generatingThreadIds))
-  console.log('[ChatTabView] 🎙️ 当前语音模式状态:', isVoiceModeActive.value)
-  
   const activeThreadId = chatStore.getActiveThreadId()
   
   // 🔧 关键修复1：如果有正在生成的线程，先停止生成
   if (activeThreadId && chatStore.generatingThreadIds.has(activeThreadId)) {
-    console.log('[ChatTabView] 🛑 检测到活跃线程正在生成，停止生成状态')
     try {
       await chatStore.cancelGenerating(activeThreadId)
-      console.log('[ChatTabView] ✅ 已停止线程生成状态')
     } catch (error) {
-      console.warn('[ChatTabView] ⚠️ 停止生成状态失败:', error)
+      // 静默处理错误
     }
   }
   
   // 🔧 关键修复2：立即设置语音模式状态（锁定状态）
-  console.log('[ChatTabView] 🔒 锁定语音模式状态为true，防止组件卸载')
   isVoiceModeActive.value = true
   
   // 🔧 强化：在下一个事件循环中再次确认状态
   await nextTick()
   if (!isVoiceModeActive.value) {
-    console.error('[ChatTabView] ❌ 语音模式状态被意外重置，重新设置')
     isVoiceModeActive.value = true
   }
   
@@ -111,19 +100,12 @@ const handleEnterVoiceMode = async () => {
   
   // 🔧 关键修复3：调用NewThread的enterVoiceMode，传递现有线程信息
   if (newThreadRef.value) {
-    console.log('[ChatTabView] 🎙️ NewThread已渲染，调用enterVoiceMode，现有线程ID:', activeThreadId)
-    
     try {
       // 调用NewThread的enterVoiceMode，并告知要继续使用现有线程
       newThreadRef.value.enterVoiceMode(activeThreadId)
-      console.log('[ChatTabView] 🎙️ 已成功调用enterVoiceMode并传递现有线程')
     } catch (error) {
-      console.error('[ChatTabView] ❌ 调用enterVoiceMode失败:', error)
+      // 静默处理错误
     }
-  } else {
-    console.error('[ChatTabView] ❌ NewThread组件未能渲染')
-    // 如果NewThread渲染失败，暂时不重置语音模式状态，等待用户操作
-    console.warn('[ChatTabView] ⚠️ 保持语音模式状态，等待用户操作')
   }
 }
 
@@ -157,26 +139,13 @@ watch(
   { deep: true }
 )
 
-// 🔧 添加状态变化监听器，追踪问题
+// 状态变化监听器（已移除调试日志）
 watch(isVoiceModeActive, (newValue, oldValue) => {
-  console.log('[ChatTabView] 🔍 isVoiceModeActive状态变化:', {
-    从: oldValue,
-    到: newValue,
-    时间: new Date().toLocaleTimeString(),
-    activeThreadId: chatStore.getActiveThreadId(),
-    渲染条件: !chatStore.getActiveThreadId() || newValue
-  })
+  // 静默监听状态变化
 }, { immediate: true })
 
-// 🔧 添加activeThreadId变化监听器
 watch(() => chatStore.getActiveThreadId(), (newThreadId, oldThreadId) => {
-  console.log('[ChatTabView] 🔍 activeThreadId状态变化:', {
-    从: oldThreadId,
-    到: newThreadId,
-    时间: new Date().toLocaleTimeString(),
-    语音模式: isVoiceModeActive.value,
-    渲染条件: !newThreadId || isVoiceModeActive.value
-  })
+  // 静默监听线程ID变化
 })
 
 </script>

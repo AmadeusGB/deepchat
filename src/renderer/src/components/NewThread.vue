@@ -694,7 +694,8 @@ const keyboardEventState = ref({
   lastKeydownTime: 0,
   lastKeyupTime: 0,
   spaceKeyPressCount: 0,
-  debugMode: false
+  debugMode: false,
+  lastIgnoreLogTime: 0  // 🔧 新增：最后一次忽略日志的时间，用于防止日志刷屏
 })
 
 // 🎯 新增：键盘健康检查和自动恢复机制
@@ -1028,6 +1029,8 @@ const exposeDebugFunctions = () => {
     console.log(`   - window.triggerPerformanceEmergencyCleanup() - 紧急性能清理`);
     console.log(`   - window.enableDeepPerformanceAnalysis() - 启用深度性能分析`);
     console.log(`   - window.immediatePerformanceCheck() - 立即性能检查`);
+    console.log(`⚡ [性能优化] 已优化键盘事件和日志输出，减少性能影响`);
+    console.log(`   💡 提示：如需查看完整调试日志，请调用 window.enableKeyboardDebugMode()`);
   }
 }
 
@@ -1497,7 +1500,7 @@ const exitVoiceMode = () => {
   console.log(`[语音模式] 🔍 最终键盘统计: 累计按键${keyboardEventState.value.spaceKeyPressCount}次`)
 }
 
-// 🎯 增强的键盘按下事件处理
+// 🎯 优化的键盘按下事件处理（减少性能影响）
 const handleKeyDown = (event: KeyboardEvent) => {
   // 更新状态追踪
   keyboardEventState.value.lastKeydownTime = Date.now()
@@ -1514,8 +1517,15 @@ const handleKeyDown = (event: KeyboardEvent) => {
     console.log(`🎙️ [键盘事件] 空格键按下，开始录音 (累计按键次数: ${keyboardEventState.value.spaceKeyPressCount})`)
     startVoiceRecording()
   } else if (event.code === 'Space') {
-    // 记录被忽略的空格键事件，帮助调试
-    console.warn(`⚠️ [键盘事件] 空格键被忽略: isSpacePressed=${isSpacePressed.value}, isRecording=${isRecording.value}`)
+    // 🔧 性能优化：减少重复日志输出，只在调试模式或首次忽略时输出
+    const currentTime = Date.now()
+    const lastIgnoreTime = keyboardEventState.value.lastIgnoreLogTime || 0
+    
+    // 只在调试模式下或距离上次日志超过500ms时输出（防止日志刷屏）
+    if (keyboardEventState.value.debugMode || (currentTime - lastIgnoreTime) > 500) {
+      console.warn(`⚠️ [键盘事件] 空格键被忽略: isSpacePressed=${isSpacePressed.value}, isRecording=${isRecording.value}`)
+      keyboardEventState.value.lastIgnoreLogTime = currentTime
+    }
   }
 }
 
@@ -2711,14 +2721,19 @@ ${personalizedContext}`.trim()
         familiarityLevel: emotionalMemory.value.personalContext.familiarityLevel
       }
       
-      console.log('🧠 [内存监控] 语音对话数据统计:', memoryInfo)
+      // 🔧 性能优化：只在调试模式或数据异常时输出日志
+      const isDataAbnormal = memoryInfo.voiceHistoryCount > 50 || memoryInfo.playedBlocksCount > 100
       
-      // 如果数据过多，发出警告
-      if (memoryInfo.voiceHistoryCount > 50) {
-        console.warn('⚠️ [内存警告] 语音对话历史过多:', memoryInfo.voiceHistoryCount)
-      }
-      if (memoryInfo.playedBlocksCount > 100) {
-        console.warn('⚠️ [内存警告] 已播放内容块过多:', memoryInfo.playedBlocksCount)
+      if (keyboardEventState.value.debugMode || isDataAbnormal) {
+        console.log('🧠 [内存监控] 语音对话数据统计:', memoryInfo)
+        
+        // 如果数据过多，发出警告
+        if (memoryInfo.voiceHistoryCount > 50) {
+          console.warn('⚠️ [内存警告] 语音对话历史过多:', memoryInfo.voiceHistoryCount)
+        }
+        if (memoryInfo.playedBlocksCount > 100) {
+          console.warn('⚠️ [内存警告] 已播放内容块过多:', memoryInfo.playedBlocksCount)
+        }
       }
       
       return memoryInfo
@@ -3059,10 +3074,8 @@ ${personalizedContext}`.trim()
               isPlaying: isTTSPlaying.value,
               performance: pollingOptimizer.getPerformanceReport()
             })
-          } else {
-            // 简化日志
-            // console.log(`[实时语音] ⚡ ${currentPhase}阶段检查 ${attempts} (${dynamicDelay}ms): 内容块=${contentBlocks.length}, 工具=${toolCallBlocks.length}, 队列=${ttsStatus.queueLength}`)
           }
+          // 🔧 性能优化：移除简化日志，减少控制台输出
           
           // 检查新的内容块
           if (assistantContent && Array.isArray(assistantContent)) {
