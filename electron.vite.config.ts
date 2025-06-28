@@ -77,18 +77,91 @@ export default defineConfig({
     ],
     build: {
       minify: 'esbuild',
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 1500,
       rollupOptions: {
         input: {
           shell: resolve('src/renderer/shell/index.html'),
           index: resolve('src/renderer/index.html')
         },
         output: {
-          manualChunks: {
-            'monaco-editor': ['monaco-editor'],
-            'vue-vendor': ['vue', 'vue-router', 'pinia'],
-            'ui-vendor': ['@radix-icons/vue', 'lucide-vue-next'],
-            'utility-vendor': ['axios', 'nanoid', 'compare-versions']
+          manualChunks: (id) => {
+            if (id.includes('monaco-editor')) {
+              return 'monaco-editor'
+            }
+            
+            if (id.includes('/node_modules/') && (
+              id.includes('highlight.js') || 
+              id.includes('shiki') ||
+              id.includes('/languages/') ||
+              id.includes('/themes/')
+            )) {
+              return 'syntax-highlighting'
+            }
+            
+            if (id.includes('/node_modules/vue/') || 
+                id.includes('/node_modules/vue-router/') || 
+                id.includes('/node_modules/pinia/')) {
+              return 'vue-vendor'
+            }
+            
+            if (id.includes('/node_modules/@radix-icons/') || 
+                id.includes('/node_modules/lucide-vue-next/') ||
+                id.includes('/node_modules/radix-vue/') ||
+                id.includes('/node_modules/@iconify/')) {
+              return 'ui-vendor'
+            }
+            
+            if (id.includes('/node_modules/@tiptap/')) {
+              return 'editor-vendor'
+            }
+            
+            if (id.includes('/node_modules/mermaid/') ||
+                id.includes('/node_modules/d3/') ||
+                id.includes('/node_modules/cytoscape/')) {
+              return 'chart-vendor'
+            }
+            
+            if (id.includes('/node_modules/@anthropic-ai/') ||
+                id.includes('/node_modules/openai/') ||
+                id.includes('/node_modules/@google/genai/') ||
+                id.includes('/node_modules/ollama/')) {
+              return 'ai-vendor'
+            }
+            
+            if (id.includes('/node_modules/axios/') || 
+                id.includes('/node_modules/nanoid/') || 
+                id.includes('/node_modules/compare-versions/') ||
+                id.includes('/node_modules/lodash/') ||
+                id.includes('/node_modules/uuid/')) {
+              return 'utility-vendor'
+            }
+            
+            if (id.includes('/node_modules/pdf-parse/') ||
+                id.includes('/node_modules/mammoth/') ||
+                id.includes('/node_modules/xlsx/') ||
+                id.includes('/node_modules/file-type/')) {
+              return 'file-vendor'
+            }
+            
+            if (id.includes('/node_modules/crypto/') ||
+                id.includes('/node_modules/better-sqlite3/')) {
+              return 'crypto-vendor'
+            }
+            
+            if (id.includes('/node_modules/@vueuse/')) {
+              return 'vueuse-vendor'
+            }
+            
+            if (id.includes('/node_modules/vue-i18n/')) {
+              return 'i18n-vendor'
+            }
+            
+            if (id.includes('/node_modules/') && !id.includes('/src/')) {
+              return 'vendor'
+            }
+            
+            // 默认返回undefined，让Rollup自动处理
+            return undefined
           }
         }
       }
