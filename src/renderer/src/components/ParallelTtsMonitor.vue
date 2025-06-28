@@ -21,8 +21,16 @@
           <span class="value ready">{{ status.readyChunks }}</span>
         </div>
         <div class="status-item">
+          <span class="label">错误:</span>
+          <span class="value error">{{ status.errorChunks }}</span>
+        </div>
+        <div class="status-item">
           <span class="label">队列长度:</span>
           <span class="value">{{ status.queueLength }}</span>
+        </div>
+        <div class="status-item">
+          <span class="label">失败率:</span>
+          <span :class="['value', failureRateClass]">{{ status.failureRate.recent }}%</span>
         </div>
       </div>
       
@@ -30,7 +38,7 @@
       <div class="concurrency-status">
         <div class="progress-bar">
           <div class="progress-fill" :style="{ width: concurrencyPercentage + '%' }"></div>
-          <span class="progress-text">并发: {{ status.activeRequests }}/8</span>
+          <span class="progress-text">并发: {{ status.activeRequests }}/{{ status.config?.maxConcurrent || 8 }}</span>
         </div>
       </div>
       
@@ -75,9 +83,13 @@ const status = ref({
   totalChunks: 0,
   readyChunks: 0,
   processingChunks: 0,
+  errorChunks: 0,
   queueLength: 0,
   isPlaying: false,
-  activeRequests: 0
+  activeRequests: 0,
+  failureRate: { recent: 0, overall: 0 },
+  config: { maxConcurrent: 3, timeoutMs: 15000, maxRetries: 3 },
+  stats: { totalAttempts: 0, totalFailures: 0 }
 })
 
 // 性能数据
@@ -95,7 +107,8 @@ const updateStatus = () => {
 
 // 计算属性
 const concurrencyPercentage = computed(() => {
-  return (status.value.activeRequests / 8) * 100
+  const maxConcurrent = status.value.config?.maxConcurrent || 8
+  return (status.value.activeRequests / maxConcurrent) * 100
 })
 
 const averageLatency = computed(() => {
@@ -122,6 +135,15 @@ const efficiencyClass = computed(() => {
   if (score >= 80) return 'excellent'
   if (score >= 60) return 'good'
   if (score >= 40) return 'fair'
+  return 'poor'
+})
+
+// 🔧 失败率样式类
+const failureRateClass = computed(() => {
+  const rate = status.value.failureRate.recent
+  if (rate <= 5) return 'excellent'
+  if (rate <= 15) return 'good'
+  if (rate <= 30) return 'fair'
   return 'poor'
 })
 
@@ -219,6 +241,7 @@ onUnmounted(() => {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-bottom: 12px;
+  /* 🔧 自动适应行数以容纳更多状态项 */
 }
 
 .status-item {
@@ -243,6 +266,10 @@ onUnmounted(() => {
 
 .value.ready {
   color: #00ff00;
+}
+
+.value.error {
+  color: #ff4444;
 }
 
 .concurrency-status {

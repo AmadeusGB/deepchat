@@ -2892,13 +2892,15 @@ ${personalizedContext}`.trim()
       let attempts = 0
       const maxAttempts = 300 // 基础循环检查限制
       
-      // 智能分阶段超时配置
-      const timeoutConfig = {
-        baseTimeout: 120000,        // 基础超时：2分钟
-        mcpToolPhaseTimeout: 300000, // MCP工具调用阶段：5分钟
-        contentGenPhaseTimeout: 900000, // 内容生成阶段：15分钟
-        titleGenPhaseTimeout: 60000    // 标题生成阶段：1分钟额外时间
-      }
+              // 智能分阶段超时配置
+        const timeoutConfig = {
+          baseTimeout: 120000,        // 基础超时：2分钟
+          mcpToolPhaseTimeout: 300000, // MCP工具调用阶段：5分钟
+          contentGenPhaseTimeout: 900000, // 内容生成阶段：15分钟
+          titleGenPhaseTimeout: 60000,    // 标题生成阶段：1分钟额外时间
+          // 🔧 添加简短回答检测：如果内容很少且AI已完成，提前退出
+          shortContentTimeout: 30000   // 简短内容超时：30秒
+        }
       
       const startTime = Date.now() // 开始时间记录
              let currentPhase: string = 'initial' // 当前阶段: initial, mcp_tools, content_generation, title_generation
@@ -2947,15 +2949,31 @@ ${personalizedContext}`.trim()
          return newPhase
        }
       
-      // 获取当前阶段的超时限制
-      const getCurrentPhaseTimeout = () => {
-        switch (currentPhase) {
-          case 'mcp_tools': return timeoutConfig.mcpToolPhaseTimeout
-          case 'content_generation': return timeoutConfig.contentGenPhaseTimeout
-          case 'title_generation': return timeoutConfig.titleGenPhaseTimeout
-          default: return timeoutConfig.baseTimeout
+              // 获取当前阶段的超时限制
+        const getCurrentPhaseTimeout = () => {
+          switch (currentPhase) {
+            case 'mcp_tools': return timeoutConfig.mcpToolPhaseTimeout
+            case 'content_generation': return timeoutConfig.contentGenPhaseTimeout
+            case 'title_generation': return timeoutConfig.titleGenPhaseTimeout
+            default: return timeoutConfig.baseTimeout
+          }
         }
-      }
+        
+        // 🔧 检测简短内容完成状态
+        const isShortContentCompleted = (contentBlocks: any[], workingStatus: string, elapsedTime: number) => {
+          if (workingStatus !== 'working' && contentBlocks.length <= 2 && elapsedTime > timeoutConfig.shortContentTimeout) {
+            const totalContentLength = contentBlocks.reduce((total, block) => {
+              return total + (extractPlainTextFromContent(block.content || '').length || 0)
+            }, 0)
+            
+            // 如果内容少于200字符且AI已完成工作，认为是简短回答
+            if (totalContentLength < 200) {
+              console.log(`[实时语音] 🎯 检测到简短回答完成: ${totalContentLength}字符，${contentBlocks.length}块，耗时${elapsedTime}ms`)
+              return true
+            }
+          }
+          return false
+        }
       
       // 获取当前阶段的检查间隔
       const getCurrentPhaseDelay = (defaultDelay: number) => {
@@ -2988,6 +3006,19 @@ ${personalizedContext}`.trim()
         if (phaseElapsedTime > currentPhaseTimeout) {
           console.warn(`[阶段超时] ⏰ 阶段"${currentPhase}"超时 (${phaseElapsedTime}ms > ${currentPhaseTimeout}ms)，进入内容完整播放模式`)
           break
+        }
+        
+        // 🔧 提前检测简短内容完成，避免不必要的长时间等待
+        const preCheckMessages = chatStore.getMessages()
+        const preCheckLastMessage = preCheckMessages[preCheckMessages.length - 1]
+        if (preCheckLastMessage && preCheckLastMessage.role === 'assistant' && Array.isArray(preCheckLastMessage.content)) {
+          const preCheckContentBlocks = preCheckLastMessage.content.filter(block => block.type === 'content')
+          const preCheckWorkingStatus = chatStore.getThreadWorkingStatus(threadId)
+          
+          if (isShortContentCompleted(preCheckContentBlocks, preCheckWorkingStatus || 'unknown', elapsedTime)) {
+            console.log(`[实时语音] ✅ 简短内容完成检测：提前退出等待循环`)
+            break
+          }
         }
         
         // 智能动态轮询延迟计算

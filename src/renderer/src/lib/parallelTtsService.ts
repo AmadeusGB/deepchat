@@ -37,6 +37,14 @@ export class ParallelTtsService {
   // 添加文本去重机制
   private textHashCache: Set<string> = new Set()
   
+  // 🔧 失败率统计（用于动态调整）
+  private processingStats = {
+    totalAttempts: 0,
+    totalFailures: 0,
+    recentAttempts: [] as boolean[], // true=成功, false=失败
+    maxRecentSize: 20 // 保持最近20次的记录
+  }
+  
   // 🎯 新增：服务实例管理
   private instanceId: string
   
@@ -44,10 +52,10 @@ export class ParallelTtsService {
   private configPresenter = usePresenter('configPresenter')
 
   private config: TtsConfig = {
-    maxConcurrent: 5,         // 提高并发度从3→5
+    maxConcurrent: 3,         // 🔧 降低并发从5→3，减少API压力和限流风险
     chunkSize: { min: 15, max: 180 },  // 与新的分块器保持一致
-    maxRetries: 1,            // 减少重试次数从2→1，避免重试循环
-    timeoutMs: 8000,          // 减少超时时间从15s→8s，提高响应性
+    maxRetries: 3,            // 🔧 增加重试次数从1→3，应对网络波动
+    timeoutMs: 15000,         // 🔧 增加超时时间从8s→15s，适应API响应时间
     enablePreloading: true
   }
 
@@ -218,6 +226,47 @@ export class ParallelTtsService {
     this.textHashCache.delete(hash)
   }
 
+  // 🔧 记录处理结果并计算失败率
+  private recordProcessingResult(isSuccess: boolean): void {
+    this.processingStats.totalAttempts++
+    if (!isSuccess) {
+      this.processingStats.totalFailures++
+    }
+    
+    // 更新最近记录
+    this.processingStats.recentAttempts.push(isSuccess)
+    if (this.processingStats.recentAttempts.length > this.processingStats.maxRecentSize) {
+      this.processingStats.recentAttempts.shift()
+    }
+  }
+
+  // 🔧 计算当前失败率
+  private calculateFailureRate(): { recent: number; overall: number } {
+    const recentFailures = this.processingStats.recentAttempts.filter(success => !success).length
+    const recentTotal = this.processingStats.recentAttempts.length
+    const recentRate = recentTotal > 0 ? recentFailures / recentTotal : 0
+    
+    const overallRate = this.processingStats.totalAttempts > 0 ? 
+      this.processingStats.totalFailures / this.processingStats.totalAttempts : 0
+    
+    return { recent: recentRate, overall: overallRate }
+  }
+
+  // 🔧 动态调整并发数
+  private adjustConcurrencyBasedOnFailureRate(): void {
+    const { recent } = this.calculateFailureRate()
+    
+    if (recent > 0.3 && this.config.maxConcurrent > 1) {
+      // 失败率超过30%，降低并发
+      this.config.maxConcurrent = Math.max(1, this.config.maxConcurrent - 1)
+      console.warn(`[并行TTS] 🔻 高失败率检测 (${(recent * 100).toFixed(1)}%)，降低并发至 ${this.config.maxConcurrent}`)
+    } else if (recent < 0.1 && this.config.maxConcurrent < 5) {
+      // 失败率低于10%，可以尝试增加并发
+      this.config.maxConcurrent = Math.min(5, this.config.maxConcurrent + 1)
+      console.log(`[并行TTS] 🔺 低失败率检测 (${(recent * 100).toFixed(1)}%)，提升并发至 ${this.config.maxConcurrent}`)
+    }
+  }
+
   // 添加文本到处理队列
   async addText(text: string): Promise<void> {
     // 🎯 检查播放权限
@@ -345,20 +394,40 @@ export class ParallelTtsService {
       chunk.status = 'ready'
       chunk.duration = Date.now() - chunk.startTime!
 
+      // 🔧 记录成功统计
+      this.recordProcessingResult(true)
+
       console.log(`[并行TTS] 块 ${chunk.position} 处理完成: ${chunk.duration}ms`)
 
     } catch (error) {
-      console.error(`[并行TTS] 块 ${chunk.position} 处理失败:`, error)
+      // 🔧 记录失败并增强错误日志
+      this.recordProcessingResult(false)
+      const failureRate = this.calculateFailureRate()
+      
+             console.error(`[并行TTS] 块 ${chunk.position} 处理失败 (第${chunk.retryCount + 1}次):`, {
+         error: error instanceof Error ? error.message : String(error),
+         textLength: chunk.text.length,
+         activeRequests: this.activeRequests,
+         recentFailureRate: `${(failureRate.recent * 100).toFixed(1)}%`,
+         overallFailureRate: `${(failureRate.overall * 100).toFixed(1)}%`
+       })
       
       chunk.retryCount++
       if (chunk.retryCount < this.config.maxRetries) {
         console.log(`[并行TTS] 重试块 ${chunk.position} (${chunk.retryCount}/${this.config.maxRetries})`)
         chunk.status = 'pending'
-        // 减少重试延迟从1000ms→500ms，提高响应性
-        setTimeout(() => this.processChunk(chunk), 500)
+        
+        // 🔧 指数退避重试延迟：500ms, 1s, 2s, 4s
+        const retryDelay = Math.min(500 * Math.pow(2, chunk.retryCount - 1), 4000)
+        console.log(`[并行TTS] 重试延迟: ${retryDelay}ms`)
+        
+        setTimeout(() => this.processChunk(chunk), retryDelay)
       } else {
         chunk.status = 'error'
         console.error(`[并行TTS] 块 ${chunk.position} 最终失败，跳过继续处理`)
+        
+        // 🔧 根据失败率动态调整并发数
+        this.adjustConcurrencyBasedOnFailureRate()
       }
     } finally {
       this.activeRequests--
@@ -497,6 +566,9 @@ export class ParallelTtsService {
           // 清理已播放文本的哈希
           this.cleanupTextHash(chunk.text)
           
+          // 🔧 从chunks Map中移除已完成的块，防止数据累积
+          this.chunks.delete(chunk.id)
+          
           this.playQueue.shift() // 移除已播放的块
         } catch (error) {
           console.error(`[并行TTS] 播放块 ${chunk.position} 失败:`, error)
@@ -505,6 +577,9 @@ export class ParallelTtsService {
           // 即使播放失败也清理哈希，避免永久阻塞
           this.cleanupTextHash(chunk.text)
           
+          // 🔧 从chunks Map中移除失败的块，防止数据累积
+          this.chunks.delete(chunk.id)
+          
           this.playQueue.shift() // 跳过错误的块
         }
       } else {
@@ -512,6 +587,9 @@ export class ParallelTtsService {
         
         // 清理错误块的哈希
         this.cleanupTextHash(chunk.text)
+        
+        // 🔧 从chunks Map中移除跳过的错误块
+        this.chunks.delete(chunk.id)
         
         this.playQueue.shift()
       }
@@ -678,6 +756,7 @@ export class ParallelTtsService {
     // 重置播放时间
     this.nextPlayTime = 0
     
+    // 🔧 彻底清理所有状态
     this.isPlaying = false
     this.playQueue.length = 0
     this.chunks.clear()
@@ -687,7 +766,33 @@ export class ParallelTtsService {
     // 清理文本哈希缓存
     this.textHashCache.clear()
     
-    console.log(`[并行TTS] 停止播放`)
+    // 🔧 重置处理统计（可选，保留历史统计用于分析）
+    // this.processingStats = {
+    //   totalAttempts: 0,
+    //   totalFailures: 0,
+    //   recentAttempts: [],
+    //   maxRecentSize: 20
+    // }
+    
+    console.log(`[并行TTS] 停止播放，已清理所有状态`)
+  }
+
+  // 🔧 重置所有统计数据（用于彻底清理）
+  resetStats(): void {
+    this.processingStats = {
+      totalAttempts: 0,
+      totalFailures: 0,
+      recentAttempts: [],
+      maxRecentSize: 20
+    }
+    console.log(`[并行TTS] 统计数据已重置`)
+  }
+
+  // 🔧 强制清理所有数据（包括统计）
+  forceCleanup(): void {
+    this.stop()
+    this.resetStats()
+    console.log(`[并行TTS] 强制清理完成`)
   }
 
   // 获取状态
@@ -695,18 +800,68 @@ export class ParallelTtsService {
     const totalChunks = this.chunks.size
     const readyChunks = Array.from(this.chunks.values()).filter(c => c.status === 'ready').length
     const processingChunks = Array.from(this.chunks.values()).filter(c => c.status === 'processing').length
+    const errorChunks = Array.from(this.chunks.values()).filter(c => c.status === 'error').length
     const queueLength = this.playQueue.length
+    const failureRate = this.calculateFailureRate()
 
     return {
       totalChunks,
       readyChunks,
       processingChunks,
+      errorChunks,
       queueLength,
       isPlaying: this.isPlaying,
-      activeRequests: this.activeRequests
+      activeRequests: this.activeRequests,
+      // 🔧 新增失败率和性能监控信息
+      failureRate: {
+        recent: Number((failureRate.recent * 100).toFixed(1)),
+        overall: Number((failureRate.overall * 100).toFixed(1))
+      },
+      config: {
+        maxConcurrent: this.config.maxConcurrent,
+        timeoutMs: this.config.timeoutMs,
+        maxRetries: this.config.maxRetries
+      },
+      stats: {
+        totalAttempts: this.processingStats.totalAttempts,
+        totalFailures: this.processingStats.totalFailures
+      }
     }
   }
 }
 
 // 创建全局实例
-export const parallelTtsService = new ParallelTtsService() 
+export const parallelTtsService = new ParallelTtsService()
+
+// 🔧 暴露全局TTS状态查看方法到控制台
+if (typeof window !== 'undefined') {
+  ;(window as typeof window & { getTTSStatus: () => object }).getTTSStatus = () => {
+    const status = parallelTtsService.getStatus()
+    console.log('🔍 [TTS状态监控] 当前状态:', status)
+    
+    if (status.failureRate.recent > 20) {
+      console.warn(`⚠️ [TTS警告] 最近失败率较高: ${status.failureRate.recent}%`)
+    }
+    if (status.errorChunks > 0) {
+      console.warn(`⚠️ [TTS警告] 发现 ${status.errorChunks} 个错误块`)
+    }
+    
+    return status
+  }
+  
+  // 🔧 暴露数据清理方法
+  ;(window as typeof window & { resetTTSStats: () => void }).resetTTSStats = () => {
+    parallelTtsService.resetStats()
+    console.log('🧹 [TTS清理] 统计数据已重置')
+  }
+
+  ;(window as typeof window & { forceCleanupTTS: () => void }).forceCleanupTTS = () => {
+    parallelTtsService.forceCleanup()
+    console.log('🧹 [TTS清理] 强制清理完成')
+  }
+
+  console.log('🛠️ [TTS调试] 已暴露全局方法:')
+  console.log('   - window.getTTSStatus() - 查看TTS状态和失败率')
+  console.log('   - window.resetTTSStats() - 重置统计数据')
+  console.log('   - window.forceCleanupTTS() - 强制清理所有数据')
+}
