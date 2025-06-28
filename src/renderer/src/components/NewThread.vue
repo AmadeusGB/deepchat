@@ -329,10 +329,7 @@ const settingsStore = useSettingsStore()
 // 语音模式状态
 const isVoiceMode = ref(false)
 
-// 🎯 暴露语音模式状态给父组件
-defineExpose({
-  isVoiceMode: readonly(isVoiceMode)
-})
+// 暴露方法将在enterVoiceMode定义后进行
 
 // 🎯 定义事件发射器，用于与父组件通信
 const emit = defineEmits<{
@@ -1125,11 +1122,28 @@ const initAudioAnalysis = async (stream: MediaStream) => {
 onBeforeUnmount(() => {
   console.log('[组件生命周期] NewThread组件即将卸载，清理语音相关资源')
   
+  // 🔧 检查是否在语音消息提交过程中
+  const isInVoiceMessageSubmission = isTranscribing.value || isProcessingVoice.value || isWaitingResponse.value
+  
+  if (isInVoiceMessageSubmission) {
+    console.warn('[组件生命周期] ⚠️ 检测到语音消息提交过程中，这可能是渲染条件问题导致的意外卸载')
+    console.warn('[组件生命周期] 🔧 当前状态:', {
+      isVoiceMode: isVoiceMode.value,
+      isTranscribing: isTranscribing.value,
+      isProcessingVoice: isProcessingVoice.value,
+      isWaitingResponse: isWaitingResponse.value,
+      activeThreadId: chatStore.getActiveThreadId()
+    })
+  }
+  
   // 🎯 禁用键盘健康检查
   keyboardListenerHealthCheck.value.isActive = false
   
   // 清理语音模式
   if (isVoiceMode.value) {
+    if (isInVoiceMessageSubmission) {
+      console.warn('[组件生命周期] 🚨 在语音消息提交过程中退出语音模式，这可能导致界面异常切换')
+    }
     exitVoiceMode()
   }
   
@@ -1323,10 +1337,21 @@ const immediatePerformanceCheck = () => {
 }
 
 // 🎯 增强的语音模式进入函数
-const enterVoiceMode = () => {
+const enterVoiceMode = (existingThreadId?: string) => {
   console.log('[语音模式] 🎙️ 进入语音模式')
+  console.log('[语音模式] 🔧 接收到的现有线程ID:', existingThreadId)
+  console.log('[语音模式] 🔧 当前活跃线程ID:', chatStore.getActiveThreadId())
+  console.log('[语音模式] 🔧 当前isVoiceMode状态:', isVoiceMode.value)
   
   isVoiceMode.value = true
+  
+  // 🔧 添加线程状态验证日志
+  if (existingThreadId) {
+    console.log('[语音模式] ✅ 从ChatView切换到语音模式，应该继续使用线程:', existingThreadId)
+    console.log('[语音模式] 🔧 预期行为：语音消息提交时应该复用此线程而不是创建新线程')
+  } else {
+    console.log('[语音模式] 🆕 新启动语音模式，没有现有线程')
+  }
   
   // 性能检查已禁用
   
@@ -1360,6 +1385,12 @@ const enterVoiceMode = () => {
   console.log('[语音模式] ✅ 语音模式初始化完成，键盘监听已启用')
   console.log(`[语音模式] 🔍 键盘监听器状态: attached=${keyboardEventState.value.listenersAttached}`)
 }
+
+// 🎯 暴露语音模式状态和方法给父组件
+defineExpose({
+  isVoiceMode: readonly(isVoiceMode),
+  enterVoiceMode
+})
 
 // 🎯 切换到文字聊天模式
 const switchToTextChat = async () => {
@@ -2623,19 +2654,36 @@ ${personalizedContext}`.trim()
     console.log(`[多语言系统] 构建语音优化系统提示词，检测语言: ${detectedLangName}`)
     console.log(`[多语言系统] 🎯 使用纯多语言提示词，避免默认提示词干扰`)
     
-    // 🎯 语音模式：创建后台聊天线程（避免UI跳转）
-    const threadId = await chatStore.createThread(text, {
-      providerId: activeModel.value.providerId,
-      modelId: activeModel.value.id,
-      systemPrompt: multilingualSystemPrompt,
-      temperature: temperature.value,
-      contextLength: contextLength.value,
-      maxTokens: maxTokens.value,
-      artifacts: artifacts.value as 0 | 1
-    })
+    // 🎯 语音模式：智能线程管理（连续对话复用线程）
+    let threadId = chatStore.getActiveThreadId()
     
-    // 🎯 语音模式：仅在内部设置活跃线程，不触发UI跳转
-    await chatStore.setActiveThreadForVoiceMode(threadId)
+    console.log('🎙️ [语音线程] 线程管理决策:')
+    console.log('  - 当前活跃线程ID:', threadId)
+    console.log('  - 当前语音模式状态:', isVoiceMode.value)
+    console.log('  - 决策条件: 无线程?', !threadId, '非语音模式?', !isVoiceMode.value)
+    
+    if (!threadId || !isVoiceMode.value) {
+      // 如果没有活跃线程或当前不在语音模式，创建新线程
+      console.log('🎙️ [语音线程] 📝 创建新的语音对话线程')
+      console.log('  - 原因: 无活跃线程或非语音模式')
+      threadId = await chatStore.createThread(text, {
+        providerId: activeModel.value.providerId,
+        modelId: activeModel.value.id,
+        systemPrompt: multilingualSystemPrompt,
+        temperature: temperature.value,
+        contextLength: contextLength.value,
+        maxTokens: maxTokens.value,
+        artifacts: artifacts.value as 0 | 1
+      })
+      
+      // 🎯 语音模式：仅在内部设置活跃线程，不触发UI跳转
+      await chatStore.setActiveThreadForVoiceMode(threadId)
+      console.log('🎙️ [语音线程] ✅ 新线程已创建并设置:', threadId)
+    } else {
+      // 如果已有活跃线程且在语音模式，继续使用现有线程
+      console.log('🎙️ [语音线程] ♻️ 继续使用现有语音对话线程:', threadId)
+      console.log('  - 好处: 保持对话连续性，用户可以看到之前的对话历史')
+    }
     
     // 构建消息内容
     const messageContent: UserMessageContent = {

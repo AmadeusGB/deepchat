@@ -17,6 +17,7 @@
         :disabled="!chatStore.getActiveThreadId() || isGenerating"
         @send="handleSend"
         @file-upload="handleFileUpload"
+        @voice-mode="handleVoiceMode"
         class="figma-input-wrapper"
         @toolbar-toggle="handleToolbarToggle"
       >
@@ -64,6 +65,11 @@ const themeStore = useThemeStore()
 const messageList = ref()
 const showToolbar = ref(true)
 
+const emit = defineEmits<{
+  mounted: []
+  enterVoiceMode: []
+}>()
+
 // 确保工具栏初始状态正确
 const initToolbar = async () => {
   showToolbar.value = true
@@ -91,6 +97,12 @@ const handleSend = async (msg: UserMessageContent) => {
 
 const handleFileUpload = () => {
   scrollToBottom()
+}
+
+const handleVoiceMode = () => {
+  console.log('[ChatView] 🎙️ 用户点击麦克风，请求进入语音模式')
+  // 发出事件通知父组件进入语音模式
+  emit('enterVoiceMode')
 }
 
 const handleToolbarToggle = (visible: boolean) => {

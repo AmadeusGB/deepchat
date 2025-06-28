@@ -176,7 +176,7 @@
                   variant="outline"
                   size="icon"
                   class="w-7 h-7 text-xs rounded-lg"
-                  :disabled="disabledSend"
+                  :disabled="disabledMicrophone"
                   @click="handleMicrophoneClick"
                 >
                   <Icon 
@@ -638,6 +638,12 @@ const emitSend = async () => {
 
 // 语音录音相关函数
 const handleMicrophoneClick = () => {
+  console.log('[ChatInput] 🎙️ 麦克风按钮点击，当前状态:')
+  console.log('  - activeThreadId:', chatStore.getActiveThreadId())
+  console.log('  - generatingThreadIds:', Array.from(chatStore.generatingThreadIds))
+  console.log('  - disabledSend:', disabledSend.value)
+  console.log('  - inputText.length:', inputText.value.length)
+  
   // 在NewThread页面，点击麦克风按钮进入语音模式
   emit('voice-mode')
 }
@@ -857,6 +863,13 @@ const disabledSend = computed(() => {
       currentContextLength.value > (props.contextLength ?? chatStore.chatConfig.contextLength)
     )
   }
+  return false
+})
+
+// 🎙️ 麦克风按钮的独立禁用逻辑
+const disabledMicrophone = computed(() => {
+  // 麦克风按钮允许在任何时候点击，包括AI生成过程中
+  // 这样用户可以在AI回复过程中切换到语音模式
   return false
 })
 
