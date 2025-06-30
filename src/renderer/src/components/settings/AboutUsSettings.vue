@@ -49,11 +49,14 @@
           </Button>
 
           <!-- 检查更新按钮 -->
+          <!-- ========== 临时禁用版本更新功能 ========== -->
+          <!-- 说明：由于是二次开发项目，暂时禁用检查更新按钮 -->
+          <!-- 恢复方法：删除 disabled 属性和下面的注释即可重新启用 -->
           <Button
             variant="outline"
             size="sm"
-            class="mb-2 text-xs"
-            :disabled="upgrade.isChecking || upgrade.isDownloading || upgrade.isRestarting"
+            class="mb-2 text-xs opacity-50"
+            :disabled="true"
             @click="handleCheckUpdate"
           >
             <Icon
@@ -73,9 +76,10 @@
               {{ t('update.installNow') }}
             </span>
             <span v-else>
-              {{ t('about.checkUpdateButton') }}
+              {{ t('about.checkUpdateButton') }} (已禁用)
             </span>
           </Button>
+          <!-- ============================================= -->
         </div>
 
         <!-- <div class="text-sm text-muted-foreground p-6 rounded-lg shadow-md bg-card border">

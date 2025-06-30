@@ -221,6 +221,13 @@ export class UpgradePresenter implements IUpgradePresenter {
 
   // 处理应用获得焦点事件
   private handleAppFocus(): void {
+    // ========== 临时禁用版本更新功能 ==========
+    // 说明：禁用应用获得焦点时的自动更新检查
+    // 恢复方法：删除下面的 return 语句即可重新启用
+    console.log('自动版本检查已临时禁用')
+    return
+    // ========================================
+
     const now = Date.now()
     const twelveHoursInMs = 12 * 60 * 60 * 1000 // 12小时的毫秒数
     // 如果距离上次检查更新超过12小时，则重新检查
@@ -230,6 +237,14 @@ export class UpgradePresenter implements IUpgradePresenter {
   }
 
   async checkUpdate(): Promise<void> {
+    // ========== 临时禁用版本更新功能 ==========
+    // 说明：由于是二次开发项目，暂时禁用原作者的版本更新系统
+    // 恢复方法：删除下面的 return 语句即可重新启用
+    // 注意：恢复时需要修改 getVersionCheckBaseUrl() 中的 API 地址
+    console.log('版本更新检查已临时禁用')
+    return
+    // ========================================
+
     if (this._lock) {
       return
     }
