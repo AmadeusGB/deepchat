@@ -48,6 +48,17 @@ const getUpdateMarkerFilePath = () => {
   return path.join(app.getPath('userData'), 'auto_update_marker.json')
 }
 
+// 处理错误消息的辅助函数
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  return String(error)
+}
+
 export class UpgradePresenter implements IUpgradePresenter {
   private _lock: boolean = false
   private _status: UpdateStatus = 'not-available'
@@ -316,9 +327,9 @@ export class UpgradePresenter implements IUpgradePresenter {
         this._status = 'not-available'
         eventBus.sendToRenderer(UPDATE_EVENTS.STATUS_CHANGED, SendTarget.ALL_WINDOWS, { status: this._status })
       }
-    } catch (error: Error | unknown) {
+    } catch (err) {
       this._status = 'error'
-      this._error = error instanceof Error ? error.message : String(error)
+      this._error = getErrorMessage(err)
       eventBus.sendToRenderer(UPDATE_EVENTS.STATUS_CHANGED, SendTarget.ALL_WINDOWS, {
         status: this._status,
         error: this._error
@@ -370,9 +381,9 @@ export class UpgradePresenter implements IUpgradePresenter {
       })
       autoUpdater.downloadUpdate()
       return true
-    } catch (error: Error | unknown) {
+    } catch (err) {
       this._status = 'error'
-      this._error = error instanceof Error ? error.message : String(error)
+      this._error = getErrorMessage(err)
       eventBus.sendToRenderer(UPDATE_EVENTS.STATUS_CHANGED, SendTarget.ALL_WINDOWS, {
         status: this._status,
         error: this._error
@@ -397,7 +408,7 @@ export class UpgradePresenter implements IUpgradePresenter {
     } catch (e) {
       console.error('退出并安装失败', e)
       eventBus.sendToRenderer(UPDATE_EVENTS.ERROR, SendTarget.ALL_WINDOWS, {
-        error: e instanceof Error ? e.message : String(e)
+        error: getErrorMessage(e)
       })
     }
   }
@@ -417,7 +428,7 @@ export class UpgradePresenter implements IUpgradePresenter {
     } catch (e) {
       console.error('重启更新失败', e)
       eventBus.sendToRenderer(UPDATE_EVENTS.ERROR, SendTarget.ALL_WINDOWS, {
-        error: e instanceof Error ? e.message : String(e)
+        error: getErrorMessage(e)
       })
       return false
     }
@@ -436,7 +447,7 @@ export class UpgradePresenter implements IUpgradePresenter {
     } catch (e) {
       console.error('重启失败', e)
       eventBus.sendToRenderer(UPDATE_EVENTS.ERROR, SendTarget.ALL_WINDOWS, {
-        error: e instanceof Error ? e.message : String(e)
+        error: getErrorMessage(e)
       })
     }
   }
