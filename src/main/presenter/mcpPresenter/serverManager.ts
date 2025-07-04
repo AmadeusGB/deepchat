@@ -7,6 +7,7 @@ import { NOTIFICATION_EVENTS } from '@/events'
 import { MCP_EVENTS } from '@/events'
 import { getErrorMessageLabels } from '@shared/i18n'
 
+
 const NPM_REGISTRY_LIST = [
   'https://registry.npmjs.org/',
   'https://r.cnpmjs.org/',
@@ -17,9 +18,25 @@ export class ServerManager {
   private clients: Map<string, McpClient> = new Map()
   private configPresenter: IConfigPresenter
   private npmRegistry: string | null = null
+  
+  // 添加防抖机制
+  private updateDebounceTimer: NodeJS.Timeout | null = null
+  private readonly DEBOUNCE_DELAY = 100 // 100ms防抖延迟
 
   constructor(configPresenter: IConfigPresenter) {
     this.configPresenter = configPresenter
+  }
+
+  // 防抖发送CLIENT_LIST_UPDATED事件
+  private debouncedClientListUpdate(): void {
+    if (this.updateDebounceTimer) {
+      clearTimeout(this.updateDebounceTimer)
+    }
+    
+    this.updateDebounceTimer = setTimeout(() => {
+      eventBus.send(MCP_EVENTS.CLIENT_LIST_UPDATED, SendTarget.ALL_WINDOWS)
+      this.updateDebounceTimer = null
+    }, this.DEBOUNCE_DELAY)
   }
 
   // 测试npm registry速度并返回最佳选择
@@ -186,7 +203,7 @@ export class ServerManager {
 
       throw error
     } finally {
-      eventBus.send(MCP_EVENTS.CLIENT_LIST_UPDATED, SendTarget.ALL_WINDOWS)
+      this.debouncedClientListUpdate()
     }
   }
 
@@ -230,7 +247,7 @@ export class ServerManager {
       this.clients.delete(name)
 
       console.info(`MCP server ${name} has been stopped`)
-      eventBus.send(MCP_EVENTS.CLIENT_LIST_UPDATED, SendTarget.ALL_WINDOWS)
+      this.debouncedClientListUpdate()
     } catch (error) {
       console.error(`Failed to stop MCP server ${name}:`, error)
       throw error
