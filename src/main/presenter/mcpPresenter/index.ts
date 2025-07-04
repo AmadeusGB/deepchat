@@ -198,11 +198,14 @@ export class McpPresenter implements IMCPPresenter {
       // 检查服务器是否正在运行
       const isServerRunning = this.serverManager.isServerRunning(customPromptsServerName)
 
+      let statusChanged = false
+
       if (hasCustomPrompts && !isServerRunning) {
         // 有自定义提示词但服务器未运行，启动服务器
         try {
           await this.serverManager.startServer(customPromptsServerName)
           eventBus.send(MCP_EVENTS.SERVER_STARTED, SendTarget.ALL_WINDOWS, customPromptsServerName)
+          statusChanged = true
         } catch (error) {
           console.error(`Failed to start custom prompts server ${customPromptsServerName}:`, error)
         }
@@ -211,6 +214,7 @@ export class McpPresenter implements IMCPPresenter {
         try {
           await this.serverManager.stopServer(customPromptsServerName)
           eventBus.send(MCP_EVENTS.SERVER_STOPPED, SendTarget.ALL_WINDOWS, customPromptsServerName)
+          statusChanged = true
         } catch (error) {
           console.error(`Failed to stop custom prompts server ${customPromptsServerName}:`, error)
         }
@@ -220,13 +224,16 @@ export class McpPresenter implements IMCPPresenter {
           await this.serverManager.stopServer(customPromptsServerName)
           await this.serverManager.startServer(customPromptsServerName)
           eventBus.send(MCP_EVENTS.SERVER_STARTED, SendTarget.ALL_WINDOWS, customPromptsServerName)
+          statusChanged = true
         } catch (error) {
           console.error(`Failed to restart custom prompts server ${customPromptsServerName}:`, error)
         }
       }
 
-      // 通知客户端列表已更新
-      eventBus.send(MCP_EVENTS.CLIENT_LIST_UPDATED, SendTarget.ALL_WINDOWS)
+      // 只有状态实际改变时才通知客户端列表已更新
+      if (statusChanged) {
+        eventBus.send(MCP_EVENTS.CLIENT_LIST_UPDATED, SendTarget.ALL_WINDOWS)
+      }
     } catch (error) {
       console.error('Failed to manage custom prompts server:', error)
     }
