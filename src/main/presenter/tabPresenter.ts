@@ -101,8 +101,7 @@ export class TabPresenter implements ITabPresenter {
     const view = new WebContentsView({
       webPreferences: {
         preload: join(__dirname, '../preload/index.mjs'),
-        sandbox: false,
-        devTools: is.dev
+        sandbox: false
       }
     })
 

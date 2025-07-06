@@ -85,10 +85,12 @@ export default defineConfig({
         },
         output: {
           manualChunks: (id) => {
+            // Monaco Editor 单独分块
             if (id.includes('monaco-editor')) {
               return 'monaco-editor'
             }
             
+            // 语法高亮相关
             if (id.includes('/node_modules/') && (
               id.includes('highlight.js') || 
               id.includes('shiki') ||
@@ -98,69 +100,33 @@ export default defineConfig({
               return 'syntax-highlighting'
             }
             
+            // Vue 生态系统保持在一起
             if (id.includes('/node_modules/vue/') || 
                 id.includes('/node_modules/vue-router/') || 
-                id.includes('/node_modules/pinia/')) {
+                id.includes('/node_modules/pinia/') ||
+                id.includes('/node_modules/vue-i18n/') ||
+                id.includes('/node_modules/@vueuse/')) {
               return 'vue-vendor'
             }
             
-            if (id.includes('/node_modules/@radix-icons/') || 
-                id.includes('/node_modules/lucide-vue-next/') ||
-                id.includes('/node_modules/radix-vue/') ||
-                id.includes('/node_modules/@iconify/')) {
-              return 'ui-vendor'
-            }
-            
-            if (id.includes('/node_modules/@tiptap/')) {
-              return 'editor-vendor'
-            }
-            
+            // 图表相关库
             if (id.includes('/node_modules/mermaid/') ||
                 id.includes('/node_modules/d3/') ||
                 id.includes('/node_modules/cytoscape/')) {
               return 'chart-vendor'
             }
             
-            if (id.includes('/node_modules/@anthropic-ai/') ||
-                id.includes('/node_modules/openai/') ||
-                id.includes('/node_modules/@google/genai/') ||
-                id.includes('/node_modules/ollama/')) {
-              return 'ai-vendor'
+            // 编辑器相关
+            if (id.includes('/node_modules/@tiptap/')) {
+              return 'editor-vendor'
             }
             
-            if (id.includes('/node_modules/axios/') || 
-                id.includes('/node_modules/nanoid/') || 
-                id.includes('/node_modules/compare-versions/') ||
-                id.includes('/node_modules/lodash/') ||
-                id.includes('/node_modules/uuid/')) {
-              return 'utility-vendor'
-            }
-            
-            if (id.includes('/node_modules/pdf-parse/') ||
-                id.includes('/node_modules/mammoth/') ||
-                id.includes('/node_modules/xlsx/') ||
-                id.includes('/node_modules/file-type/')) {
-              return 'file-vendor'
-            }
-            
-            if (id.includes('/node_modules/crypto/') ||
-                id.includes('/node_modules/better-sqlite3/')) {
-              return 'crypto-vendor'
-            }
-            
-            if (id.includes('/node_modules/@vueuse/')) {
-              return 'vueuse-vendor'
-            }
-            
-            if (id.includes('/node_modules/vue-i18n/')) {
-              return 'i18n-vendor'
-            }
-            
+            // 其他所有 node_modules 依赖合并到一个 vendor chunk
             if (id.includes('/node_modules/') && !id.includes('/src/')) {
               return 'vendor'
             }
             
-            // 默认返回undefined，让Rollup自动处理
+            // 应用代码不进行手动分块，让 Rollup 自动处理
             return undefined
           }
         }

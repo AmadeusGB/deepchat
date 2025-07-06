@@ -496,8 +496,7 @@ export class WindowPresenter implements IWindowPresenter {
       trafficLightPosition: process.platform === 'darwin' ? { x: 12, y: 12 } : undefined, // macOS 红绿灯按钮位置
       webPreferences: {
         preload: join(__dirname, '../preload/index.mjs'), // Preload 脚本路径
-        sandbox: false, // 禁用沙箱，允许 preload 访问 Node.js API
-        devTools: is.dev // 开发模式下启用 DevTools
+        sandbox: false // 禁用沙箱，允许 preload 访问 Node.js API
       },
       roundedCorners: true // Windows 11 圆角
     })
@@ -784,11 +783,6 @@ export class WindowPresenter implements IWindowPresenter {
       })
     }
 
-    // 开发模式下可选开启 DevTools
-    if (is.dev) {
-      // shellWindow.webContents.openDevTools({ mode: 'detach' });
-    }
-
     console.log(`Shell window ${windowId} created successfully.`)
     return windowId // 返回新创建窗口的 ID
   }
@@ -906,7 +900,7 @@ export class WindowPresenter implements IWindowPresenter {
   }
 
   /**
-   * 向“默认”标签页发送消息。
+   * 向"默认"标签页发送消息。
    * 优先级：焦点窗口的活动标签页 > 第一个窗口的活动标签页 > 第一个窗口的第一个标签页。
    * @param channel 消息通道。
    * @param switchToTarget 发送消息后是否切换到目标窗口和标签页。默认为 false。
