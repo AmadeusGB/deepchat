@@ -8,7 +8,17 @@ import { ttsCoordinator } from './ttsCoordinator'
 // 类型定义
 export interface TTSOptions {
   apiKey: string
-  voice?: 'alloy' | 'ash' | 'ballad' | 'coral' | 'echo' | 'fable' | 'nova' | 'onyx' | 'sage' | 'shimmer'
+  voice?:
+    | 'alloy'
+    | 'ash'
+    | 'ballad'
+    | 'coral'
+    | 'echo'
+    | 'fable'
+    | 'nova'
+    | 'onyx'
+    | 'sage'
+    | 'shimmer'
   speed?: number
   volume?: number
   model?: 'tts-1' | 'tts-1-hd'
@@ -71,35 +81,36 @@ class SmartTextChunker {
   private config: TTSConfig
   private textBuffer = ''
   private position = 0
-  
+
   // 句子完整性保护缓冲区
   // private sentenceBuffer = ''
   private pendingCompleteChunks: TextChunk[] = []
-  
+
   constructor(config: TTSConfig) {
     this.config = config
   }
 
   addText(newText: string): TextChunk[] {
     if (!newText) return []
-    
+
     this.textBuffer += newText
     return this.processBufferWithSentenceProtection()
   }
 
   finalize(): TextChunk[] {
     const chunks: TextChunk[] = [...this.pendingCompleteChunks]
-    
+
     // 处理剩余的完整句子
     const finalSentences = this.extractCompleteSentences(this.textBuffer)
-    chunks.push(...finalSentences.map(text => this.createChunk(text.trim())))
-    
+    chunks.push(...finalSentences.map((text) => this.createChunk(text.trim())))
+
     // 处理最后的不完整片段（如果有实际内容）
     const remainingText = this.textBuffer.trim()
-    if (remainingText && remainingText.length >= 10) { // 至少10字符才处理不完整片段
+    if (remainingText && remainingText.length >= 10) {
+      // 至少10字符才处理不完整片段
       chunks.push(this.createChunk(remainingText))
     }
-    
+
     this.reset()
     this.pendingCompleteChunks = []
     return chunks
@@ -108,16 +119,16 @@ class SmartTextChunker {
   private processBufferWithSentenceProtection(): TextChunk[] {
     const chunks: TextChunk[] = [...this.pendingCompleteChunks]
     this.pendingCompleteChunks = []
-    
+
     // 提取完整句子
     const completeSentences = this.extractCompleteSentences(this.textBuffer)
-    
+
     if (completeSentences.length > 0) {
       // 根据策略处理完整句子
       const processedChunks = this.processCompleteSentences(completeSentences)
       chunks.push(...processedChunks)
     }
-    
+
     return chunks
   }
 
@@ -126,26 +137,26 @@ class SmartTextChunker {
    */
   private extractCompleteSentences(text: string): string[] {
     const completeSentences: string[] = []
-    
+
     // 真正的句末标点符号（不包括逗号、分号、冒号等）
     const sentenceEndPattern = /[。！？.!?]/g
-    
+
     let lastIndex = 0
     let match: RegExpExecArray | null
-    
+
     while ((match = sentenceEndPattern.exec(text)) !== null) {
       const sentenceEnd = match.index + 1
       const sentence = text.substring(lastIndex, sentenceEnd).trim()
-      
+
       if (sentence) {
         completeSentences.push(sentence)
         lastIndex = sentenceEnd
       }
     }
-    
+
     // 更新textBuffer，移除已提取的完整句子
     this.textBuffer = text.substring(lastIndex)
-    
+
     return completeSentences
   }
 
@@ -154,7 +165,7 @@ class SmartTextChunker {
    */
   private processCompleteSentences(sentences: string[]): TextChunk[] {
     const chunks: TextChunk[] = []
-    
+
     switch (this.config.chunkingStrategy) {
       case 'realtime':
         // 超低延迟：但保持句子完整性
@@ -171,7 +182,7 @@ class SmartTextChunker {
       default:
         chunks.push(...this.balancedSentenceChunking(sentences))
     }
-    
+
     return chunks
   }
 
@@ -180,7 +191,7 @@ class SmartTextChunker {
    */
   private realtimeSentenceChunking(sentences: string[]): TextChunk[] {
     const chunks: TextChunk[] = []
-    
+
     for (const sentence of sentences) {
       // 即使是实时策略，也要保证句子完整性
       if (sentence.length <= this.config.maxChunkSize) {
@@ -188,10 +199,10 @@ class SmartTextChunker {
       } else {
         // 超长句子需要在合适位置分割（保持子句完整性）
         const subChunks = this.splitLongSentence(sentence)
-        chunks.push(...subChunks.map(text => this.createChunk(text)))
+        chunks.push(...subChunks.map((text) => this.createChunk(text)))
       }
     }
-    
+
     return chunks
   }
 
@@ -201,22 +212,22 @@ class SmartTextChunker {
   private balancedSentenceChunking(sentences: string[]): TextChunk[] {
     const chunks: TextChunk[] = []
     let currentChunk = ''
-    
+
     for (const sentence of sentences) {
       const potentialLength = currentChunk.length + sentence.length
-      
+
       if (!currentChunk) {
         // 第一个句子
         currentChunk = sentence
       } else if (potentialLength <= this.config.maxChunkSize) {
         // 可以合并
         currentChunk += sentence
-        
+
         // 如果达到理想长度，立即输出
         if (potentialLength >= this.config.minChunkSize) {
           chunks.push(this.createChunk(currentChunk))
           currentChunk = ''
-      }
+        }
       } else {
         // 无法合并，输出当前块
         if (currentChunk) {
@@ -225,7 +236,7 @@ class SmartTextChunker {
         currentChunk = sentence
       }
     }
-    
+
     // 检查是否有待处理的块
     if (currentChunk) {
       if (currentChunk.length >= this.config.minChunkSize) {
@@ -235,7 +246,7 @@ class SmartTextChunker {
         this.pendingCompleteChunks.push(this.createChunk(currentChunk))
       }
     }
-    
+
     return chunks
   }
 
@@ -244,13 +255,13 @@ class SmartTextChunker {
    */
   private preciseSentenceChunking(sentences: string[]): TextChunk[] {
     const chunks: TextChunk[] = []
-    
+
     // 检查是否有段落分割符
     const fullText = sentences.join('')
     if (fullText.includes('\n') || fullText.includes('\r')) {
       // 有段落分割，按段落处理
-      const paragraphs = fullText.split(/[\r\n]+/).filter(p => p.trim())
-      chunks.push(...paragraphs.map(p => this.createChunk(p.trim())))
+      const paragraphs = fullText.split(/[\r\n]+/).filter((p) => p.trim())
+      chunks.push(...paragraphs.map((p) => this.createChunk(p.trim())))
     } else {
       // 无段落分割，累积更多句子
       const combinedText = sentences.join('')
@@ -261,7 +272,7 @@ class SmartTextChunker {
         this.pendingCompleteChunks.push(this.createChunk(combinedText))
       }
     }
-    
+
     return chunks
   }
 
@@ -270,18 +281,18 @@ class SmartTextChunker {
    */
   private splitLongSentence(sentence: string): string[] {
     const chunks: string[] = []
-    
+
     // 在逗号、分号等处分割，但保持子句完整性
     const subClausePattern = /([^，；,;]*[，；,;]\s*)/g
-    
+
     let currentChunk = ''
     let lastIndex = 0
     let match: RegExpExecArray | null
-    
+
     while ((match = subClausePattern.exec(sentence)) !== null) {
       const subClause = match[1]
       const potentialLength = currentChunk.length + subClause.length
-      
+
       if (potentialLength <= this.config.maxChunkSize) {
         currentChunk += subClause
       } else {
@@ -292,7 +303,7 @@ class SmartTextChunker {
       }
       lastIndex = match.index + match[1].length
     }
-    
+
     // 处理剩余部分
     const remaining = sentence.substring(lastIndex)
     if (remaining.trim()) {
@@ -303,15 +314,15 @@ class SmartTextChunker {
         } else {
           chunks.push(currentChunk.trim())
           chunks.push(remaining.trim())
-      }
+        }
       } else {
         chunks.push(remaining.trim())
       }
     } else if (currentChunk) {
       chunks.push(currentChunk.trim())
     }
-    
-    return chunks.filter(chunk => chunk.length > 0)
+
+    return chunks.filter((chunk) => chunk.length > 0)
   }
 
   private createChunk(text: string, priority = 0): TextChunk {
@@ -342,10 +353,10 @@ class AudioQueueManager {
   private isPlaying = false
   private isPaused = false
   private volume = 1.0
-  
+
   private callbacks: TTSCallbacks
   private _config: TTSConfig
-  
+
   constructor(callbacks: TTSCallbacks, config: TTSConfig) {
     this.callbacks = callbacks
     this._config = config
@@ -353,15 +364,19 @@ class AudioQueueManager {
 
   addAudioChunk(chunk: AudioChunk): void {
     // 按位置顺序插入
-    const insertIndex = this.audioQueue.findIndex(item => item.textChunk.position > chunk.textChunk.position)
+    const insertIndex = this.audioQueue.findIndex(
+      (item) => item.textChunk.position > chunk.textChunk.position
+    )
     if (insertIndex === -1) {
       this.audioQueue.push(chunk)
     } else {
       this.audioQueue.splice(insertIndex, 0, chunk)
     }
-    
-    console.log(`[增强TTS] 音频块已加入队列: "${chunk.textChunk.text.substring(0, 20)}..." (队列长度: ${this.audioQueue.length})`)
-    
+
+    console.log(
+      `[增强TTS] 音频块已加入队列: "${chunk.textChunk.text.substring(0, 20)}..." (队列长度: ${this.audioQueue.length})`
+    )
+
     // 如果没有正在播放，开始播放
     if (!this.isPlaying && !this.isPaused) {
       this.startPlayback()
@@ -370,10 +385,10 @@ class AudioQueueManager {
 
   async startPlayback(): Promise<void> {
     if (this.isPlaying || this.isPaused) return
-    
+
     this.isPlaying = true
     this.callbacks.onStart?.()
-    
+
     await this.playNextChunk()
   }
 
@@ -396,12 +411,12 @@ class AudioQueueManager {
   stopPlayback(): void {
     this.isPlaying = false
     this.isPaused = false
-    
+
     if (this.playingChunk?.audio) {
       this.playingChunk.audio.pause()
       this.playingChunk.audio.currentTime = 0
     }
-    
+
     this.cleanupAudioResources()
   }
 
@@ -478,7 +493,7 @@ class AudioQueueManager {
 
   private cleanupAudioResources(): void {
     // 清理队列中的音频资源
-    this.audioQueue.forEach(chunk => {
+    this.audioQueue.forEach((chunk) => {
       if (chunk.audioUrl) {
         URL.revokeObjectURL(chunk.audioUrl)
       }
@@ -511,9 +526,9 @@ class AdaptiveDelayController {
   private performanceHistory: number[] = []
   private userInterruptCount = 0
   private lastInterruptTime = 0
-  
+
   private _config: TTSConfig
-  
+
   constructor(config: TTSConfig) {
     this._config = config
   }
@@ -531,8 +546,10 @@ class AdaptiveDelayController {
   }
 
   getOptimalStrategy(): TTSConfig['chunkingStrategy'] {
-    const avgPerformance = this.performanceHistory.reduce((a, b) => a + b, 0) / this.performanceHistory.length
-    const recentInterrupts = Date.now() - this.lastInterruptTime < 60000 ? this.userInterruptCount : 0
+    const avgPerformance =
+      this.performanceHistory.reduce((a, b) => a + b, 0) / this.performanceHistory.length
+    const recentInterrupts =
+      Date.now() - this.lastInterruptTime < 60000 ? this.userInterruptCount : 0
 
     // 如果用户经常中断，使用更实时的策略
     if (recentInterrupts > 3) {
@@ -550,7 +567,7 @@ class AdaptiveDelayController {
 
   getOptimalChunkSize(): { min: number; max: number } {
     const strategy = this.getOptimalStrategy()
-    
+
     switch (strategy) {
       case 'realtime':
         return { min: 8, max: 25 }
@@ -572,18 +589,18 @@ export class EnhancedTTSService {
   private options: TTSOptions
   private config: TTSConfig
   private callbacks: TTSCallbacks
-  
+
   private textChunker: SmartTextChunker
   private audioManager: AudioQueueManager
   private adaptiveController: AdaptiveDelayController
-  
+
   private status: TTSStatus = 'idle'
   private activeRequests = new Set<string>()
   private processTimeout: NodeJS.Timeout | null = null
-  
+
   // 🎯 新增：服务实例管理
   private instanceId: string
-  
+
   constructor(options: TTSOptions, callbacks: TTSCallbacks = {}) {
     this.options = {
       voice: 'alloy',
@@ -598,12 +615,12 @@ export class EnhancedTTSService {
     // 默认配置 - 优化分块大小以提高TTS效率
     this.config = {
       chunkingStrategy: 'balanced',
-      minChunkSize: 120,  // 增加最小分块大小，减少TTS API开销
-      maxChunkSize: 300,  // 增加最大分块大小，提高处理效率
+      minChunkSize: 120, // 增加最小分块大小，减少TTS API开销
+      maxChunkSize: 300, // 增加最大分块大小，提高处理效率
       adaptiveDelay: true,
       maxRetries: 3,
-      timeoutMs: 15000,   // 增加超时时间适应更大的文本块
-      maxConcurrent: 4,   // 增加并发数以提高处理速度
+      timeoutMs: 15000, // 增加超时时间适应更大的文本块
+      maxConcurrent: 4, // 增加并发数以提高处理速度
       enablePreloading: true,
       showVisualFeedback: true
     }
@@ -611,17 +628,17 @@ export class EnhancedTTSService {
     this.textChunker = new SmartTextChunker(this.config)
     this.audioManager = new AudioQueueManager(this.callbacks, this.config)
     this.adaptiveController = new AdaptiveDelayController(this.config)
-    
+
     // 🎯 生成实例ID并注册到协调器
     this.instanceId = `enhanced_tts_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    
+
     ttsCoordinator.registerService(
       this.instanceId,
       'EnhancedTTSService (Streaming)',
       90, // 高优先级，但低于ParallelTtsService
       () => this.stop()
     )
-    
+
     console.log(`🎯 [增强TTS] 实例 ${this.instanceId} 初始化完成`)
   }
 
@@ -659,13 +676,13 @@ export class EnhancedTTSService {
       console.warn('[增强TTS] 被其他高优先级服务阻止')
       return
     }
-    
+
     if (!text || this.status === 'stopped') return
 
     console.log(`[增强TTS] 接收文本: "${text.substring(0, 30)}..."`)
-    
+
     const chunks = this.textChunker.addText(text)
-    chunks.forEach(chunk => this.processTextChunk(chunk))
+    chunks.forEach((chunk) => this.processTextChunk(chunk))
 
     // 设置自适应延迟处理
     if (this.config.adaptiveDelay) {
@@ -680,10 +697,10 @@ export class EnhancedTTSService {
    */
   finish(): void {
     console.log('[增强TTS] 完成文本输入，处理剩余内容')
-    
+
     const remainingChunks = this.textChunker.finalize()
-    remainingChunks.forEach(chunk => this.processTextChunk(chunk))
-    
+    remainingChunks.forEach((chunk) => this.processTextChunk(chunk))
+
     if (this.processTimeout) {
       clearTimeout(this.processTimeout)
       this.processTimeout = null
@@ -711,16 +728,16 @@ export class EnhancedTTSService {
    */
   stop(): void {
     console.log('[增强TTS] 停止TTS服务')
-    
+
     this.audioManager.stopPlayback()
     this.textChunker.reset()
     this.activeRequests.clear()
-    
+
     if (this.processTimeout) {
       clearTimeout(this.processTimeout)
       this.processTimeout = null
     }
-    
+
     this.updateStatus('stopped')
   }
 
@@ -773,17 +790,16 @@ export class EnhancedTTSService {
       const startTime = Date.now()
       const audioBlob = await this.synthesizeText(chunk.text)
       const duration = Date.now() - startTime
-      
+
       this.adaptiveController.recordTTSPerformance(duration)
-      
+
       const audioChunk = await this.createAudioChunk(chunk, audioBlob)
       this.audioManager.addAudioChunk(audioChunk)
-      
+
       this.callbacks.onAudioReady?.(chunk.id, audioChunk.duration)
-      
     } catch (error) {
       console.error(`[增强TTS] 处理文本块失败: "${chunk.text}"`, error)
-      
+
       if (chunk.retryCount < this.config.maxRetries) {
         chunk.retryCount++
         console.log(`[增强TTS] 重试第 ${chunk.retryCount} 次: "${chunk.text}"`)
@@ -800,7 +816,7 @@ export class EnhancedTTSService {
     const response = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.options.apiKey}`,
+        Authorization: `Bearer ${this.options.apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -822,7 +838,7 @@ export class EnhancedTTSService {
   private async createAudioChunk(textChunk: TextChunk, audioBlob: Blob): Promise<AudioChunk> {
     const audioUrl = URL.createObjectURL(audioBlob)
     const audio = new Audio(audioUrl)
-    
+
     // 获取音频时长
     const duration = await new Promise<number>((resolve) => {
       audio.addEventListener('loadedmetadata', () => {
@@ -856,7 +872,7 @@ export class EnhancedTTSService {
 
     this.processTimeout = setTimeout(() => {
       const chunks = this.textChunker.addText('')
-      chunks.forEach(chunk => this.processTextChunk(chunk))
+      chunks.forEach((chunk) => this.processTextChunk(chunk))
     }, 200)
   }
 
@@ -869,32 +885,35 @@ export class EnhancedTTSService {
 
   private _calculateChunkConfidence(_chunk: string): number {
     let confidence = 100
-    
+
     // 检查句子完整性（是否以句末标点结尾）
     if (!/[。！？.!?]$/.test(_chunk.trim())) {
-      confidence -= 40  // 不完整句子大幅降低信心度
+      confidence -= 40 // 不完整句子大幅降低信心度
     }
-    
+
     // 检查是否包含逗号分割（逗号分割降低连贯性）
     if (_chunk.includes('，') || _chunk.includes(',')) {
       const parts = _chunk.split(/[，,]/)
       if (parts.length > 2) {
-        confidence -= 15  // 多逗号分割适度降低信心度
+        confidence -= 15 // 多逗号分割适度降低信心度
       }
     }
-    
+
     // 长度评估
     if (_chunk.length < 5) {
-      confidence -= 20  // 过短
+      confidence -= 20 // 过短
     } else if (_chunk.length > 150) {
-      confidence -= 10  // 过长
+      confidence -= 10 // 过长
     }
-    
+
     return Math.max(0, confidence)
   }
 }
 
 // 导出工厂函数
-export function createEnhancedTTS(options: TTSOptions, callbacks?: TTSCallbacks): EnhancedTTSService {
+export function createEnhancedTTS(
+  options: TTSOptions,
+  callbacks?: TTSCallbacks
+): EnhancedTTSService {
   return new EnhancedTTSService(options, callbacks)
-} 
+}

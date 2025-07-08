@@ -31,7 +31,7 @@ const categories = [
   { id: 'travel', name: t('components.emojiPicker.travel', 'Travel & Places'), icon: '✈️' },
   { id: 'activities', name: t('components.emojiPicker.activities', 'Activities'), icon: '⚽' },
   { id: 'objects', name: t('components.emojiPicker.objects', 'Objects'), icon: '💡' },
-  { id: 'symbols', name: t('components.emojiPicker.symbols', 'Symbols'), icon: '❤️' },
+  { id: 'symbols', name: t('components.emojiPicker.symbols', 'Symbols'), icon: '❤️' }
 ]
 
 // Emoji data by category

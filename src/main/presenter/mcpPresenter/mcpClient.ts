@@ -64,19 +64,25 @@ export class McpClient {
     supportsPrompts?: boolean
     supportsResources?: boolean
   } = {}
-  
+
   // 🎯 预设的服务器能力清单
-  private static readonly KNOWN_SERVER_CAPABILITIES: Record<string, {
-    supportsPrompts: boolean
-    supportsResources: boolean
-  }> = {
-    'playwright': { supportsPrompts: false, supportsResources: false },
-    'Artifacts': { supportsPrompts: false, supportsResources: false },
+  private static readonly KNOWN_SERVER_CAPABILITIES: Record<
+    string,
+    {
+      supportsPrompts: boolean
+      supportsResources: boolean
+    }
+  > = {
+    playwright: { supportsPrompts: false, supportsResources: false },
+    Artifacts: { supportsPrompts: false, supportsResources: false },
     'deepchat-inmemory/artifacts-server': { supportsPrompts: false, supportsResources: false },
-    'memory': { supportsPrompts: false, supportsResources: true },
+    memory: { supportsPrompts: false, supportsResources: true },
     // 内置服务器通常支持prompts
     'deepchat-inmemory/auto-prompting-server': { supportsPrompts: true, supportsResources: false },
-    'deepchat-inmemory/conversation-search-server': { supportsPrompts: false, supportsResources: true },
+    'deepchat-inmemory/conversation-search-server': {
+      supportsPrompts: false,
+      supportsResources: true
+    },
     'deepchat-inmemory/deep-research-server': { supportsPrompts: false, supportsResources: false }
   }
 
@@ -145,13 +151,15 @@ export class McpClient {
         this.nodeRuntimePath = null
       }
     }
-    
+
     // 🎯 初始化预设的服务器能力
     const knownCapabilities = McpClient.KNOWN_SERVER_CAPABILITIES[serverName]
     if (knownCapabilities) {
       this.capabilities = { ...knownCapabilities }
-      console.info(`[MCP] Pre-configured capabilities for ${serverName}: prompts=${knownCapabilities.supportsPrompts}, resources=${knownCapabilities.supportsResources}`)
-      
+      console.info(
+        `[MCP] Pre-configured capabilities for ${serverName}: prompts=${knownCapabilities.supportsPrompts}, resources=${knownCapabilities.supportsResources}`
+      )
+
       // 如果预设不支持，直接缓存空数组，避免后续尝试
       if (!knownCapabilities.supportsPrompts) {
         this.cachedPrompts = []
@@ -547,7 +555,7 @@ export class McpClient {
     if (this.capabilities.supportsPrompts === false) {
       return []
     }
-    
+
     // 检查缓存
     if (this.cachedPrompts !== null) {
       return this.cachedPrompts
@@ -579,8 +587,7 @@ export class McpClient {
                 : undefined,
             arguments:
               typeof p === 'object' && p !== null && 'arguments' in p ? p.arguments : undefined,
-            files:
-              typeof p === 'object' && p !== null && 'files' in p ? p.files : undefined
+            files: typeof p === 'object' && p !== null && 'files' in p ? p.files : undefined
           })) as PromptListEntry[]
           // 缓存结果
           this.cachedPrompts = validPrompts
@@ -594,7 +601,7 @@ export class McpClient {
       // 如果错误表明不支持，则缓存空数组并记录能力
       if (errorMessage.includes('Method not found') || errorMessage.includes('not supported')) {
         console.info(`[MCP] Server ${this.serverName} does not support prompts (this is normal)`)
-        this.capabilities.supportsPrompts = false  // 🔧 记录不支持
+        this.capabilities.supportsPrompts = false // 🔧 记录不支持
         this.cachedPrompts = []
         return this.cachedPrompts
       } else {
@@ -649,7 +656,7 @@ export class McpClient {
     if (this.capabilities.supportsResources === false) {
       return []
     }
-    
+
     // 检查缓存
     if (this.cachedResources !== null) {
       return this.cachedResources
@@ -688,7 +695,7 @@ export class McpClient {
       // 如果错误表明不支持，则缓存空数组并记录能力
       if (errorMessage.includes('Method not found') || errorMessage.includes('not supported')) {
         console.info(`[MCP] Server ${this.serverName} does not support resources (this is normal)`)
-        this.capabilities.supportsResources = false  // 🔧 记录不支持
+        this.capabilities.supportsResources = false // 🔧 记录不支持
         this.cachedResources = []
         return this.cachedResources
       } else {

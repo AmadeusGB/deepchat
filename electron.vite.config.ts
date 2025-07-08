@@ -37,10 +37,7 @@ export default defineConfig({
   },
   renderer: {
     optimizeDeps: {
-      include: [
-        'monaco-editor',
-        'axios'
-      ]
+      include: ['monaco-editor', 'axios']
     },
     esbuild: {
       logOverride: { 'this-is-undefined-in-esm': 'silent' }
@@ -66,7 +63,7 @@ export default defineConfig({
         languageWorkers: ['editorWorkerService', 'typescript', 'css', 'html', 'json'],
         customDistPath(_root, buildOutDir) {
           return path.resolve(buildOutDir, 'monacoeditorwork')
-        },
+        }
       }),
       vue(),
       svgLoader(),
@@ -84,50 +81,13 @@ export default defineConfig({
           index: resolve('src/renderer/index.html')
         },
         output: {
-          manualChunks: (id) => {
-            // Monaco Editor 单独分块
-            if (id.includes('monaco-editor')) {
-              return 'monaco-editor'
-            }
-            
-            // 语法高亮相关
-            if (id.includes('/node_modules/') && (
-              id.includes('highlight.js') || 
-              id.includes('shiki') ||
-              id.includes('/languages/') ||
-              id.includes('/themes/')
-            )) {
-              return 'syntax-highlighting'
-            }
-            
-            // Vue 生态系统保持在一起
-            if (id.includes('/node_modules/vue/') || 
-                id.includes('/node_modules/vue-router/') || 
-                id.includes('/node_modules/pinia/') ||
-                id.includes('/node_modules/vue-i18n/') ||
-                id.includes('/node_modules/@vueuse/')) {
-              return 'vue-vendor'
-            }
-            
-            // 图表相关库
-            if (id.includes('/node_modules/mermaid/') ||
-                id.includes('/node_modules/d3/') ||
-                id.includes('/node_modules/cytoscape/')) {
-              return 'chart-vendor'
-            }
-            
-            // 编辑器相关
-            if (id.includes('/node_modules/@tiptap/')) {
-              return 'editor-vendor'
-            }
-            
-            // 其他所有 node_modules 依赖合并到一个 vendor chunk
-            if (id.includes('/node_modules/') && !id.includes('/src/')) {
-              return 'vendor'
-            }
-            
-            // 应用代码不进行手动分块，让 Rollup 自动处理
-            return undefined
+          manualChunks: {
+            'monaco-editor': ['monaco-editor'],
+            'vue-vendor': ['vue', 'vue-router', 'pinia', 'vue-i18n', '@vueuse/core'],
+            'chart-vendor': ['mermaid'],
+            'editor-vendor': ['@tiptap/core', '@tiptap/vue-3'],
+            'ui-vendor': ['@radix-icons/vue', 'lucide-vue-next', 'radix-vue'],
+            'utility-vendor': ['axios', 'nanoid', 'compare-versions']
           }
         }
       }

@@ -14,6 +14,7 @@ EventBus 类提供了主进程和渲染进程之间精确的事件通信机制�
 ## 主要方法
 
 ### 1. 仅发送到主进程
+
 ```typescript
 import { eventBus } from '@/main/eventbus'
 
@@ -23,6 +24,7 @@ eventBus.sendToMain('shortcut:create-new-tab', windowId)
 ```
 
 ### 2. 发送到特定窗口
+
 ```typescript
 import { eventBus } from '@/main/eventbus'
 
@@ -31,6 +33,7 @@ eventBus.sendToWindow('custom-event', windowId, data)
 ```
 
 ### 3. 发送到渲染进程
+
 ```typescript
 import { eventBus, SendTarget } from '@/main/eventbus'
 
@@ -42,6 +45,7 @@ eventBus.sendToRenderer('deeplink:mcp-install', SendTarget.DEFAULT_TAB, data)
 ```
 
 ### 4. 同时发送到主进程和渲染进程（推荐）
+
 ```typescript
 // 最常用的方法：确保主进程和渲染进程都能收到事件
 eventBus.send('config:provider-changed', SendTarget.ALL_WINDOWS, providers)
@@ -51,7 +55,9 @@ eventBus.send('sync:backup-completed', SendTarget.ALL_WINDOWS, timestamp)
 ## 事件分类指南
 
 ### 仅主进程内部
+
 适用于窗口管理、标签页操作等不需要渲染进程知道的事件：
+
 ```typescript
 eventBus.sendToMain('window:created', windowId)
 eventBus.sendToMain('window:focused', windowId)
@@ -59,21 +65,27 @@ eventBus.sendToMain('shortcut:create-new-window')
 ```
 
 ### 仅渲染进程
+
 适用于纯 UI 更新，主进程不需要处理的事件：
+
 ```typescript
 eventBus.sendToRenderer('notification:show-error', SendTarget.ALL_WINDOWS, error)
 eventBus.sendToRenderer('ui:theme-changed', SendTarget.ALL_WINDOWS, theme)
 ```
 
 ### 主进程 + 渲染进程
+
 适用于配置变更、状态同步等需要两端都知道的事件：
+
 ```typescript
 eventBus.send('config:language-changed', SendTarget.ALL_WINDOWS, language)
 eventBus.send('sync:backup-started', SendTarget.ALL_WINDOWS)
 ```
 
 ### 特定窗口通信
+
 适用于需要与特定窗口通信的场景：
+
 ```typescript
 eventBus.sendToWindow('window:specific-action', targetWindowId, actionData)
 ```
@@ -82,14 +94,15 @@ eventBus.sendToWindow('window:specific-action', targetWindowId, actionData)
 
 ```typescript
 enum SendTarget {
-  ALL_WINDOWS = 'all_windows',    // 广播到所有窗口（默认，推荐）
-  DEFAULT_TAB = 'default_tab'     // 发送到默认标签页（特殊场景）
+  ALL_WINDOWS = 'all_windows', // 广播到所有窗口（默认，推荐）
+  DEFAULT_TAB = 'default_tab' // 发送到默认标签页（特殊场景）
 }
 ```
 
 ## 初始化和配置
 
 ### WindowPresenter 设置
+
 ```typescript
 import { eventBus } from '@/main/eventbus'
 import { WindowPresenter } from '@/main/windowPresenter'
@@ -102,6 +115,7 @@ eventBus.setWindowPresenter(windowPresenter)
 ## 最佳实践
 
 ### 1. 配置变更事件
+
 ```typescript
 // 在配置更新时，通知所有标签页
 setLanguage(language: string) {
@@ -111,6 +125,7 @@ setLanguage(language: string) {
 ```
 
 ### 2. 窗口管理事件
+
 ```typescript
 // 窗口相关事件通常只需要主进程知道
 onWindowCreated(windowId: number) {
@@ -119,6 +134,7 @@ onWindowCreated(windowId: number) {
 ```
 
 ### 3. 用户交互事件
+
 ```typescript
 // 快捷键等用户操作，可能需要发送到特定目标
 onZoomIn() {
@@ -128,6 +144,7 @@ onZoomIn() {
 ```
 
 ### 4. 错误处理事件
+
 ```typescript
 // 明确指定错误事件的发送目标
 onStreamError(error: Error) {
@@ -139,6 +156,7 @@ onStreamError(error: Error) {
 ```
 
 ### 5. 流事件处理
+
 ```typescript
 // 处理各种流事件，明确指定发送目标
 handleConversationEvents() {
@@ -186,6 +204,7 @@ eventBus.sendToRenderer('ui:update', SendTarget.DEFAULT_TAB, data)
 ## 常见场景示例
 
 ### 配置系统
+
 ```typescript
 class ConfigManager {
   updateLanguage(language: string) {
@@ -197,6 +216,7 @@ class ConfigManager {
 ```
 
 ### 通知系统
+
 ```typescript
 class NotificationManager {
   showError(message: string) {
@@ -207,6 +227,7 @@ class NotificationManager {
 ```
 
 ### 快捷键处理
+
 ```typescript
 class ShortcutManager {
   handleGoSettings() {

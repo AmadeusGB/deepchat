@@ -5,21 +5,25 @@
 版本更新功能已临时禁用，具体修改位置：
 
 ### 1. 主要逻辑禁用
+
 **文件**: `src/main/presenter/upgradePresenter/index.ts`
 
-**位置**: 
+**位置**:
+
 - `checkUpdate()` 方法 (第235行左右)
 - `handleAppFocus()` 方法 (第225行左右)
 
 **修改内容**: 在方法开头添加了 `return` 语句
 
 ### 2. UI界面禁用
+
 **文件**: `src/renderer/src/components/settings/AboutUsSettings.vue`
 
 **位置**: 检查更新按钮 (第55行左右)
 
-**修改内容**: 
-- 添加了 `:disabled="true"` 
+**修改内容**:
+
+- 添加了 `:disabled="true"`
 - 按钮文本改为 "检查更新 (已禁用)"
 - 添加了 `opacity-50` 样式
 
@@ -28,6 +32,7 @@
 ### 快速恢复 (推荐)
 
 1. **恢复主要逻辑**:
+
    - 打开 `src/main/presenter/upgradePresenter/index.ts`
    - 找到两个带有 `========== 临时禁用版本更新功能 ==========` 注释的代码块
    - 删除每个代码块中的 `return` 语句 (保留其他代码)
@@ -64,4 +69,4 @@
 ---
 
 **文件创建时间**: 2025-06-28  
-**禁用原因**: 二次开发项目，暂时禁用原作者的更新系统 
+**禁用原因**: 二次开发项目，暂时禁用原作者的更新系统

@@ -30,6 +30,7 @@ docker run --rm -v $(pwd):/app/dist deepchat-builder
 ### 构建产物
 
 构建完成后，在项目的`dist`目录下会生成以下文件：
+
 - Linux可执行文件
 - 相关依赖和资源文件
 - AppImage或deb包（取决于构建配置）
@@ -45,11 +46,13 @@ docker run --rm -v $(pwd):/app/dist deepchat-builder
 ## 常见问题
 
 1. **构建失败**
+
    - 检查网络连接
    - 确认磁盘空间充足
    - 查看Docker日志获取详细错误信息
 
 2. **依赖问题**
+
    - 可能需要手动安装一些系统级依赖
    - 确保node-gyp正确安装
    - 如果遇到网络问题，检查镜像源配置
@@ -61,7 +64,8 @@ docker run --rm -v $(pwd):/app/dist deepchat-builder
 ## 技术支持
 
 如果在构建过程中遇到问题，请：
+
 1. 查看构建日志
 2. 检查系统要求
 3. 在项目Issue中搜索相关问题
-4. 如果问题仍然存在，请创建新的Issue并提供详细的错误信息 
+4. 如果问题仍然存在，请创建新的Issue并提供详细的错误信息

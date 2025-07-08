@@ -513,19 +513,16 @@ export const useMcpStore = defineStore('mcp', () => {
   // 🎯 新增：按需加载方法
   const ensureResourcesLoaded = async () => {
     if (!config.value.mcpEnabled) return false
-    
+
     // 如果已经加载过了，直接返回
     if (tools.value.length > 0 || clients.value.length > 0) {
       return true
     }
-    
+
     console.log('🔧 [MCP优化] 开始按需加载MCP资源...')
-    
+
     try {
-      await Promise.all([
-        loadTools(),
-        loadClients()
-      ])
+      await Promise.all([loadTools(), loadClients()])
       console.log('🔧 [MCP优化] MCP资源按需加载完成')
       return true
     } catch (error) {
@@ -539,7 +536,7 @@ export const useMcpStore = defineStore('mcp', () => {
     if (loadToolsDebounceTimer) {
       clearTimeout(loadToolsDebounceTimer)
     }
-    
+
     loadToolsDebounceTimer = setTimeout(async () => {
       await loadTools()
       loadToolsDebounceTimer = null

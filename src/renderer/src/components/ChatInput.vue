@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="w-full"
-    @mouseenter="isDragging = false"
-  >
+  <div class="w-full" @mouseenter="isDragging = false">
     <TooltipProvider>
       <!-- 正常聊天界面 -->
       <div
@@ -60,13 +57,15 @@
                   class="w-7 h-7 text-xs rounded-lg"
                   @click="showToolbar = !showToolbar"
                 >
-                  <Icon 
-                    :icon="showToolbar ? 'lucide:chevron-left' : 'lucide:chevron-right'" 
-                    class="w-4 h-4" 
+                  <Icon
+                    :icon="showToolbar ? 'lucide:chevron-left' : 'lucide:chevron-right'"
+                    class="w-4 h-4"
                   />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{{ showToolbar ? t('chat.input.hideToolbar') : t('chat.input.showToolbar') }}</TooltipContent>
+              <TooltipContent>{{
+                showToolbar ? t('chat.input.hideToolbar') : t('chat.input.showToolbar')
+              }}</TooltipContent>
             </Tooltip>
 
             <!-- 工具栏内容 (条件渲染) -->
@@ -148,7 +147,7 @@
 
               <McpToolsList />
             </template>
-            
+
             <!-- {{ t('chat.input.fileSelect') }} -->
             <slot name="addon-buttons"></slot>
           </div>
@@ -179,10 +178,7 @@
                   :disabled="disabledMicrophone"
                   @click="handleMicrophoneClick"
                 >
-                  <Icon 
-                    icon="lucide:mic" 
-                    class="w-4 h-4" 
-                  />
+                  <Icon icon="lucide:mic" class="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -395,9 +391,9 @@ const currentContextLengthText = computed(() => {
 })
 
 const emit = defineEmits<{
-  'send': [messageContent: UserMessageContent],
-  'file-upload': [files: MessageFile[]],
-  'toolbar-toggle': [visible: boolean],
+  send: [messageContent: UserMessageContent]
+  'file-upload': [files: MessageFile[]]
+  'toolbar-toggle': [visible: boolean]
   'voice-mode': []
 }>()
 
@@ -643,12 +639,10 @@ const handleMicrophoneClick = () => {
   console.log('  - generatingThreadIds:', Array.from(chatStore.generatingThreadIds))
   console.log('  - disabledSend:', disabledSend.value)
   console.log('  - inputText.length:', inputText.value.length)
-  
+
   // 在NewThread页面，点击麦克风按钮进入语音模式
   emit('voice-mode')
 }
-
-
 
 // 语音录音功能暂时禁用，保留代码以备将来使用
 // const startRecording = async () => {
@@ -696,10 +690,10 @@ const handleMicrophoneClick = () => {
 //   try {
 //     // 创建音频文件
 //     const audioBlob = new Blob(audioChunks.value, { type: 'audio/wav' })
-    
+
 //     // 调用语音转文字
 //     const transcription = await transcribeAudio(audioBlob)
-    
+
 //     if (transcription.trim()) {
 //       // 将转录结果添加到输入框
 //       const currentText = inputText.value
@@ -707,7 +701,7 @@ const handleMicrophoneClick = () => {
 //       inputText.value = newText
 //       editor.commands.setContent(newText)
 //       editor.commands.focus('end')
-      
+
 //       toast({
 //         title: t('chat.input.voiceSuccess'),
 //         description: t('chat.input.voiceTranscriptionComplete'),
@@ -776,16 +770,18 @@ const deleteFile = (idx: number) => {
 }
 
 // 处理来自 Prompt 的文件
-const handlePromptFiles = async (files: Array<{
-  id: string
-  name: string
-  type: string
-  size: number
-  path: string
-  description?: string
-  content?: string
-  createdAt: number
-}>) => {
+const handlePromptFiles = async (
+  files: Array<{
+    id: string
+    name: string
+    type: string
+    size: number
+    path: string
+    description?: string
+    content?: string
+    createdAt: number
+  }>
+) => {
   if (!files || files.length === 0) return
 
   let addedCount = 0
@@ -794,7 +790,7 @@ const handlePromptFiles = async (files: Array<{
   for (const fileItem of files) {
     try {
       // 检查文件是否已存在（基于文件名去重）
-      const exists = selectedFiles.value.some(f => f.name === fileItem.name)
+      const exists = selectedFiles.value.some((f) => f.name === fileItem.name)
       if (exists) {
         continue
       }
@@ -1026,8 +1022,6 @@ onUnmounted(() => {
 watch(showToolbar, (newValue) => {
   emit('toolbar-toggle', newValue)
 })
-
-
 
 onMounted(() => {
   initSettings()

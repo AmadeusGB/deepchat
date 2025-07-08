@@ -75,9 +75,7 @@
             <span v-else-if="upgrade.isReadyToInstall">
               {{ t('update.installNow') }}
             </span>
-            <span v-else>
-              {{ t('about.checkUpdateButton') }} (已禁用)
-            </span>
+            <span v-else> {{ t('about.checkUpdateButton') }} (已禁用) </span>
           </Button>
           <!-- ============================================= -->
         </div>

@@ -1,10 +1,9 @@
 ---
 name: Feature request
 about: Suggest an idea for this project
-title: "[Feature]"
+title: '[Feature]'
 labels: enhancement
 assignees: ''
-
 ---
 
 **Is your feature request related to a problem? Please describe.**
@@ -20,6 +19,7 @@ A clear and concise description of any alternative solutions or features you've 
 Add any other context or screenshots about the feature request here.
 
 ---
+
 **你的功能请求是否与某个问题有关？请描述一下。**
 请对问题进行清晰扼要的描述。例如：我希望能支持xxx功能，类似yyy的zzz操作
 

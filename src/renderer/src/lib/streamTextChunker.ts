@@ -1,7 +1,7 @@
 /**
  * 专业级流式文本分块处理器
  * 专门解决AI流式输出中的句子完整性问题
- * 
+ *
  * 核心原理：
  * 1. 流式输入累积缓冲
  * 2. 句子边界智能识别
@@ -10,10 +10,10 @@
  */
 
 export interface StreamChunkerConfig {
-  minChunkSize: number    // 最小分块大小 (字符)
-  maxChunkSize: number    // 最大分块大小 (字符)
-  strategy: 'realtime' | 'balanced' | 'precise'  // 分块策略
-  flushTimeout?: number   // 强制刷新超时 (毫秒)
+  minChunkSize: number // 最小分块大小 (字符)
+  maxChunkSize: number // 最大分块大小 (字符)
+  strategy: 'realtime' | 'balanced' | 'precise' // 分块策略
+  flushTimeout?: number // 强制刷新超时 (毫秒)
 }
 
 export interface TextChunk {
@@ -21,7 +21,7 @@ export interface TextChunk {
   text: string
   position: number
   type: 'complete_sentence' | 'partial_sentence' | 'clause'
-  confidence: number  // 完整性置信度 0-1
+  confidence: number // 完整性置信度 0-1
   timestamp: number
 }
 
@@ -61,7 +61,7 @@ export class StreamTextChunker {
    */
   finish(): TextChunk[] {
     const chunks = this.processBuffer(true)
-    
+
     // 处理最后的不完整内容
     if (this.buffer.trim()) {
       const remainingChunk = this.createChunk(
@@ -117,7 +117,7 @@ export class StreamTextChunker {
    */
   private realtimeProcessing(isFinal: boolean): TextChunk[] {
     const chunks: TextChunk[] = []
-    
+
     // 提取完整句子
     const completeSentences = this.extractCompleteSentences()
     for (const sentence of completeSentences) {
@@ -126,18 +126,14 @@ export class StreamTextChunker {
       } else {
         // 超长句子分解为子句
         const clauses = this.splitIntoGoodClauses(sentence)
-        chunks.push(...clauses.map(clause => 
-          this.createChunk(clause, 'clause', 0.8)
-        ))
+        chunks.push(...clauses.map((clause) => this.createChunk(clause, 'clause', 0.8)))
       }
     }
 
     // 如果是最终处理或缓冲区较大，处理子句
     if (isFinal || this.buffer.length >= this.config.minChunkSize) {
       const clauses = this.extractGoodClauses()
-      chunks.push(...clauses.map(clause => 
-        this.createChunk(clause, 'clause', 0.7)
-      ))
+      chunks.push(...clauses.map((clause) => this.createChunk(clause, 'clause', 0.7)))
     }
 
     return chunks
@@ -148,20 +144,20 @@ export class StreamTextChunker {
    */
   private balancedProcessing(isFinal: boolean): TextChunk[] {
     const chunks: TextChunk[] = []
-    
+
     // 提取完整句子
     const completeSentences = this.extractCompleteSentences()
-    
+
     // 合并短句子
     let currentChunk = ''
     for (const sentence of completeSentences) {
       const potentialLength = currentChunk.length + sentence.length
-      
+
       if (!currentChunk) {
         currentChunk = sentence
       } else if (potentialLength <= this.config.maxChunkSize) {
         currentChunk += sentence
-        
+
         // 达到理想大小就输出
         if (potentialLength >= this.config.minChunkSize) {
           chunks.push(this.createChunk(currentChunk, 'complete_sentence', 1.0))
@@ -172,14 +168,12 @@ export class StreamTextChunker {
         if (currentChunk) {
           chunks.push(this.createChunk(currentChunk, 'complete_sentence', 1.0))
         }
-        
+
         if (sentence.length <= this.config.maxChunkSize) {
           chunks.push(this.createChunk(sentence, 'complete_sentence', 1.0))
         } else {
           const clauses = this.splitIntoGoodClauses(sentence)
-          chunks.push(...clauses.map(clause => 
-            this.createChunk(clause, 'clause', 0.8)
-          ))
+          chunks.push(...clauses.map((clause) => this.createChunk(clause, 'clause', 0.8)))
         }
         currentChunk = ''
       }
@@ -203,14 +197,14 @@ export class StreamTextChunker {
    */
   private preciseProcessing(isFinal: boolean): TextChunk[] {
     const chunks: TextChunk[] = []
-    
+
     // 只有在充分积累或最终处理时才输出
     const completeSentences = this.extractCompleteSentences()
-    
+
     if (completeSentences.length >= 2 || isFinal) {
       // 按段落或长文本合并
       const combinedText = completeSentences.join('')
-      
+
       if (combinedText.length >= this.config.minChunkSize * 1.5) {
         chunks.push(this.createChunk(combinedText, 'complete_sentence', 1.0))
       } else if (isFinal && combinedText) {
@@ -230,10 +224,10 @@ export class StreamTextChunker {
   private extractCompleteSentences(): string[] {
     const sentences: string[] = []
     const sentencePattern = /([^。！？.!?]*[。！？.!?])/g
-    
+
     let match: RegExpExecArray | null
     let lastIndex = 0
-    
+
     while ((match = sentencePattern.exec(this.buffer)) !== null) {
       const sentence = match[1].trim()
       if (sentence) {
@@ -241,10 +235,10 @@ export class StreamTextChunker {
         lastIndex = match.index + match[1].length
       }
     }
-    
+
     // 更新缓冲区
     this.buffer = this.buffer.substring(lastIndex)
-    
+
     return sentences
   }
 
@@ -253,24 +247,25 @@ export class StreamTextChunker {
    */
   private extractGoodClauses(): string[] {
     const clauses: string[] = []
-    
+
     // 在逗号、分号处寻找合适的分割点
     const clausePattern = /([^，；,;]*[，；,;])/g
-    
+
     let match: RegExpExecArray | null
     let lastIndex = 0
-    
+
     while ((match = clausePattern.exec(this.buffer)) !== null) {
       const clause = match[1].trim()
-      if (clause && clause.length >= 10) { // 至少10字符才算有意义的子句
+      if (clause && clause.length >= 10) {
+        // 至少10字符才算有意义的子句
         clauses.push(clause)
         lastIndex = match.index + match[1].length
       }
     }
-    
+
     // 更新缓冲区
     this.buffer = this.buffer.substring(lastIndex)
-    
+
     return clauses
   }
 
@@ -279,16 +274,16 @@ export class StreamTextChunker {
    */
   private splitIntoGoodClauses(sentence: string): string[] {
     const clauses: string[] = []
-    
+
     // 优先在逗号、分号处分割
     const parts = sentence.split(/([，；,;])/)
-    
+
     let currentClause = ''
     for (let i = 0; i < parts.length; i += 2) {
       const part = parts[i] || ''
       const punctuation = parts[i + 1] || ''
       const segment = part + punctuation
-      
+
       if (!currentClause) {
         currentClause = segment
       } else if ((currentClause + segment).length <= this.config.maxChunkSize) {
@@ -300,12 +295,12 @@ export class StreamTextChunker {
         currentClause = segment
       }
     }
-    
+
     if (currentClause.trim()) {
       clauses.push(currentClause.trim())
     }
-    
-    return clauses.filter(clause => clause.length > 0)
+
+    return clauses.filter((clause) => clause.length > 0)
   }
 
   /**
@@ -313,9 +308,11 @@ export class StreamTextChunker {
    */
   private shouldForceFlush(): boolean {
     const timeSinceLastFlush = Date.now() - this.lastFlushTime
-    return Boolean(this.config.flushTimeout) && 
-           timeSinceLastFlush > (this.config.flushTimeout || 0) &&
-           this.buffer.length > 0
+    return (
+      Boolean(this.config.flushTimeout) &&
+      timeSinceLastFlush > (this.config.flushTimeout || 0) &&
+      this.buffer.length > 0
+    )
   }
 
   /**
@@ -323,32 +320,26 @@ export class StreamTextChunker {
    */
   private forceFlushBuffer(): TextChunk[] {
     const chunks: TextChunk[] = []
-    
+
     if (this.buffer.trim()) {
       // 尝试提取子句
       const clauses = this.extractGoodClauses()
       if (clauses.length > 0) {
-        chunks.push(...clauses.map(clause => 
-          this.createChunk(clause, 'clause', 0.6)
-        ))
+        chunks.push(...clauses.map((clause) => this.createChunk(clause, 'clause', 0.6)))
       } else if (this.buffer.length >= 20) {
         // 至少20字符才强制输出
         chunks.push(this.createChunk(this.buffer.trim(), 'partial_sentence', 0.4))
         this.buffer = ''
       }
     }
-    
+
     return chunks
   }
 
   /**
    * 创建文本块
    */
-  private createChunk(
-    text: string, 
-    type: TextChunk['type'], 
-    confidence: number
-  ): TextChunk {
+  private createChunk(text: string, type: TextChunk['type'], confidence: number): TextChunk {
     return {
       id: `chunk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       text: text.trim(),
@@ -380,4 +371,4 @@ export class StreamTextChunker {
       timeSinceLastFlush: Date.now() - this.lastFlushTime
     }
   }
-} 
+}

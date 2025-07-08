@@ -30,9 +30,9 @@ Welcome to DeepChat! This guide will walk you through installing DeepChat, confi
 
 To get started with DeepChat, download the latest version for your operating system from the [GitHub Releases page](https://github.com/ThinkInAIXYZ/deepchat/releases).
 
--   **Windows**: Download the `.exe` installer.
--   **macOS**: Download the `.dmg` installation file.
--   **Linux**: Download the `.AppImage` or `.deb` installation file.
+- **Windows**: Download the `.exe` installer.
+- **macOS**: Download the `.dmg` installation file.
+- **Linux**: Download the `.AppImage` or `.deb` installation file.
 
 After downloading, run the installer and follow the on-screen instructions to complete the installation.
 
@@ -47,6 +47,7 @@ DeepChat supports a wide range of LLM providers, both cloud-based and local.
 ### Cloud LLM Providers
 
 DeepChat supports various cloud LLMs, including:
+
 - DeepSeek
 - OpenAI (including Azure OpenAI)
 - Silicon Flow
@@ -67,6 +68,7 @@ DeepChat supports various cloud LLMs, including:
 - And any provider compatible with OpenAI, Gemini, or Anthropic API formats.
 
 To configure a cloud provider:
+
 1.  Select the provider from the list.
 2.  Enter your API key and any other required credentials.
 3.  Save the configuration.
@@ -74,82 +76,84 @@ To configure a cloud provider:
 ### Local Models (Ollama)
 
 DeepChat has integrated support for Ollama, allowing you to manage and use local models without command-line operations.
+
 1.  In the "Model Providers" tab, select Ollama.
 2.  DeepChat allows you to:
-    *   Download Ollama models directly within the application.
-    *   Manage your existing Ollama models (deploy, run, remove).
+    - Download Ollama models directly within the application.
+    - Manage your existing Ollama models (deploy, run, remove).
 3.  Once configured, you can select your local models when starting a new chat.
 
 ## Basic Chat Functionalities
 
 ### Creating New Conversations
 
--   Click the **"+" button** (usually prominently displayed) to start a new chat session.
--   You will typically be prompted to select the LLM you wish to use for this conversation from your configured providers.
+- Click the **"+" button** (usually prominently displayed) to start a new chat session.
+- You will typically be prompted to select the LLM you wish to use for this conversation from your configured providers.
 
 ### Sending Messages
 
--   Type your message into the input field at the bottom of the chat window.
--   Press Enter or click the send button to send your message to the LLM.
+- Type your message into the input field at the bottom of the chat window.
+- Press Enter or click the send button to send your message to the LLM.
 
 ### Forking Conversations
 
--   If you want to explore a different line of thought or ask a follow-up question without altering the current conversation flow, you can fork the conversation.
--   Look for a "Fork" option on a specific message or for the entire conversation. This will create a new, separate chat session that branches off from the point you selected.
+- If you want to explore a different line of thought or ask a follow-up question without altering the current conversation flow, you can fork the conversation.
+- Look for a "Fork" option on a specific message or for the entire conversation. This will create a new, separate chat session that branches off from the point you selected.
 
 ### Retrying Messages
 
--   If you're not satisfied with a response or if an error occurred, you can retry sending your message or ask the LLM to generate a new response.
--   This feature often allows you to get multiple variations of an answer.
+- If you're not satisfied with a response or if an error occurred, you can retry sending your message or ask the LLM to generate a new response.
+- This feature often allows you to get multiple variations of an answer.
 
 ### Multi-Window and Multi-Tab
 
 DeepChat supports a multi-window and multi-tab architecture, similar to a web browser. This allows for:
--   Parallel multi-session operations.
--   Non-blocking experience, improving efficiency when working with multiple models or conversations simultaneously.
+
+- Parallel multi-session operations.
+- Non-blocking experience, improving efficiency when working with multiple models or conversations simultaneously.
 
 ## Advanced Chat Functionalities
 
 ### Markdown Rendering
 
--   DeepChat provides complete Markdown rendering for chat messages.
--   This includes support for headings, lists, bold/italic text, links, and code blocks.
--   Code blocks are rendered using CodeMirror for syntax highlighting and clarity.
+- DeepChat provides complete Markdown rendering for chat messages.
+- This includes support for headings, lists, bold/italic text, links, and code blocks.
+- Code blocks are rendered using CodeMirror for syntax highlighting and clarity.
 
 ### Multi-Modal Content
 
--   DeepChat supports displaying multi-modal content within chats.
--   This means you can view images generated by models (e.g., using GPT-4o, Gemini, Grok text-to-image capabilities).
--   Support for Mermaid diagrams allows for rendering complex diagrams directly in the chat.
+- DeepChat supports displaying multi-modal content within chats.
+- This means you can view images generated by models (e.g., using GPT-4o, Gemini, Grok text-to-image capabilities).
+- Support for Mermaid diagrams allows for rendering complex diagrams directly in the chat.
 
 ### Artifacts Rendering
 
--   DeepChat supports Artifacts rendering, which provides diverse ways to present results from LLMs, especially when using Tool Calling (MCP).
--   This can significantly save token consumption and present complex data more effectively than plain text.
+- DeepChat supports Artifacts rendering, which provides diverse ways to present results from LLMs, especially when using Tool Calling (MCP).
+- This can significantly save token consumption and present complex data more effectively than plain text.
 
 ## Using Search Enhancement
 
 DeepChat enhances LLM responses by integrating with search engines. This provides more accurate, timely, and verifiable information.
 
--   **Automatic Search (MCP Mode)**: When using MCP-enabled models, the LLM can intelligently decide when to perform a web search to answer your query. It can use built-in integrations with BoSearch or Brave Search.
--   **Simulated Web Browsing**: DeepChat can simulate user web browsing for mainstream search engines like Google, Bing, Baidu, and Sogou Official Accounts. This allows the LLM to "read" search engine results like a human.
--   **Custom Search Engines**: You can configure DeepChat to use virtually any search engine, including internal corporate networks or specialized vertical domain search engines, by setting up a search assistant model.
--   Search results and other external information sources are often highlighted within the LLM's response for clarity.
+- **Automatic Search (MCP Mode)**: When using MCP-enabled models, the LLM can intelligently decide when to perform a web search to answer your query. It can use built-in integrations with BoSearch or Brave Search.
+- **Simulated Web Browsing**: DeepChat can simulate user web browsing for mainstream search engines like Google, Bing, Baidu, and Sogou Official Accounts. This allows the LLM to "read" search engine results like a human.
+- **Custom Search Engines**: You can configure DeepChat to use virtually any search engine, including internal corporate networks or specialized vertical domain search engines, by setting up a search assistant model.
+- Search results and other external information sources are often highlighted within the LLM's response for clarity.
 
 ## Using Tool Calling (MCP)
 
 DeepChat features excellent Model Controller Platform (MCP) support, allowing LLMs to use tools and access external resources.
 
--   **Configuration**: MCP services can be configured through a user-friendly interface. DeepLink support allows for one-click installation of MCP services.
--   **Capabilities**: MCP enables:
-    *   **Code Execution**: Run code snippets in a built-in Node.js environment.
-    *   **Web Information Retrieval**: Fetch content from web pages.
-    *   **File Operations**: Interact with local files.
-    *   **Custom Tools**: Integrate other custom or third-party tools.
--   **Display and Debugging**:
-    *   Tool calls are displayed clearly and aesthetically within the chat.
-    *   A detailed tool call debugging window shows parameters and return data, with automatic formatting.
--   **Built-in Services**: Many common use cases are supported out-of-the-box with built-in utilities, requiring no secondary installation. Visual model capabilities can also be converted into universally usable functions via MCP.
+- **Configuration**: MCP services can be configured through a user-friendly interface. DeepLink support allows for one-click installation of MCP services.
+- **Capabilities**: MCP enables:
+  - **Code Execution**: Run code snippets in a built-in Node.js environment.
+  - **Web Information Retrieval**: Fetch content from web pages.
+  - **File Operations**: Interact with local files.
+  - **Custom Tools**: Integrate other custom or third-party tools.
+- **Display and Debugging**:
+  - Tool calls are displayed clearly and aesthetically within the chat.
+  - A detailed tool call debugging window shows parameters and return data, with automatic formatting.
+- **Built-in Services**: Many common use cases are supported out-of-the-box with built-in utilities, requiring no secondary installation. Visual model capabilities can also be converted into universally usable functions via MCP.
 
 ## Privacy and Security Features
 
@@ -157,22 +161,23 @@ DeepChat prioritizes user privacy and data security.
 
 ### Screen Projection Hiding
 
--   To prevent sensitive information from being accidentally displayed during screen sharing or projections, DeepChat offers a screen projection hiding feature. This typically obscures the chat content when active.
+- To prevent sensitive information from being accidentally displayed during screen sharing or projections, DeepChat offers a screen projection hiding feature. This typically obscures the chat content when active.
 
 ### Network Proxies
 
--   You can configure DeepChat to use network proxies, adding an extra layer of privacy and potentially bypassing network restrictions.
+- You can configure DeepChat to use network proxies, adding an extra layer of privacy and potentially bypassing network restrictions.
 
 ### Data Storage and Encryption
 
--   Chat data and configuration data have reserved encryption interfaces.
--   DeepChat focuses on local data storage where possible to reduce the risk of information leakage.
+- Chat data and configuration data have reserved encryption interfaces.
+- DeepChat focuses on local data storage where possible to reduce the risk of information leakage.
 
 ## DeepLink Support
 
 DeepChat utilizes rich DeepLink support, which allows:
--   **Initiating Conversations**: Start new chat sessions or interact with specific parts of the application via external links. This enables seamless integration with other applications or workflows.
--   **One-Click MCP Service Installation**: Simplify the setup of MCP services by installing them through a single click on a DeepLink.
+
+- **Initiating Conversations**: Start new chat sessions or interact with specific parts of the application via external links. This enables seamless integration with other applications or workflows.
+- **One-Click MCP Service Installation**: Simplify the setup of MCP services by installing them through a single click on a DeepLink.
 
 ---
 

@@ -21,7 +21,15 @@ import path from 'path'
 import fs from 'fs'
 import sharp from 'sharp'
 
-const OPENAI_REASONING_MODELS = ['o3-mini', 'o3-preview', 'o3', 'o1-mini', 'o1-pro', 'o1-preview', 'o1']
+const OPENAI_REASONING_MODELS = [
+  'o3-mini',
+  'o3-preview',
+  'o3',
+  'o1-mini',
+  'o1-pro',
+  'o1-preview',
+  'o1'
+]
 const OPENAI_IMAGE_GENERATION_MODELS = [
   'gpt-4o-all',
   'gpt-4o-image',
@@ -559,10 +567,10 @@ export class OpenAIResponsesProvider extends BaseLLMProvider {
     let toolUseDetected = false
     let usage:
       | {
-        prompt_tokens: number
-        completion_tokens: number
-        total_tokens: number
-      }
+          prompt_tokens: number
+          completion_tokens: number
+          total_tokens: number
+        }
       | undefined = undefined
 
     // --- Stream Processing Loop ---

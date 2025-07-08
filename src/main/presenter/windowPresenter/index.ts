@@ -1,6 +1,7 @@
 // src\main\presenter\windowPresenter\index.ts
 import { BrowserWindow, shell, app, nativeImage, ipcMain } from 'electron'
 import { join } from 'path'
+import { existsSync } from 'fs'
 import icon from '../../../../resources/icon.png?asset' // 应用图标 (macOS/Linux)
 import iconWin from '../../../../resources/icon.ico?asset' // 应用图标 (Windows)
 import { is } from '@electron-toolkit/utils' // Electron 工具库
@@ -712,6 +713,13 @@ export class WindowPresenter implements IWindowPresenter {
     })
 
     // --- 加载 Renderer HTML 文件 ---
+    console.log(
+      `DEBUG: is.dev = ${is.dev}, ELECTRON_RENDERER_URL = ${process.env['ELECTRON_RENDERER_URL']}`
+    )
+    console.log(`DEBUG: __dirname = ${__dirname}`)
+    console.log(`DEBUG: app.isPackaged = ${app.isPackaged}`)
+    console.log(`DEBUG: app.getAppPath() = ${app.getAppPath()}`)
+
     if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
       console.log(
         `Loading renderer URL in dev mode: ${process.env['ELECTRON_RENDERER_URL']}/shell/index.html`
@@ -719,10 +727,10 @@ export class WindowPresenter implements IWindowPresenter {
       shellWindow.loadURL(process.env['ELECTRON_RENDERER_URL'] + '/shell/index.html')
     } else {
       // 生产模式下加载打包后的 HTML 文件
-      console.log(
-        `Loading packaged renderer file: ${join(__dirname, '../renderer/shell/index.html')}`
-      )
-      shellWindow.loadFile(join(__dirname, '../renderer/shell/index.html'))
+      const shellPath = join(__dirname, '../renderer/shell/index.html')
+      console.log(`Loading packaged renderer file: ${shellPath}`)
+      console.log(`DEBUG: File exists check: ${existsSync(shellPath)}`)
+      shellWindow.loadFile(shellPath)
     }
 
     // --- 处理初始标签页创建或激活 ---

@@ -111,10 +111,25 @@ export class TabPresenter implements ITabPresenter {
     // 加载内容
     if (url.startsWith('local://')) {
       const viewType = url.replace('local://', '')
+      console.log(
+        `DEBUG TAB: is.dev = ${is.dev}, ELECTRON_RENDERER_URL = ${process.env['ELECTRON_RENDERER_URL']}`
+      )
+      console.log(`DEBUG TAB: __dirname = ${__dirname}`)
+      console.log(`DEBUG TAB: url = ${url}, viewType = ${viewType}`)
+      console.log(
+        `DEBUG TAB: process.env['ELECTRON_RENDERER_URL'] = ${process.env['ELECTRON_RENDERER_URL']}`
+      )
+      console.log(
+        `DEBUG TAB: process.env['ELECTRON_RENDERER_URL'] = ${process.env['ELECTRON_RENDERER_URL']}`
+      )
       if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-        view.webContents.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/${viewType}`)
+        const devUrl = `${process.env['ELECTRON_RENDERER_URL']}#/${viewType}`
+        console.log(`DEBUG TAB: Loading dev URL: ${devUrl}`)
+        view.webContents.loadURL(devUrl)
       } else {
-        view.webContents.loadFile(join(__dirname, '../renderer/index.html'), {
+        const tabPath = join(__dirname, '../renderer/index.html')
+        console.log(`DEBUG TAB: Loading packaged file: ${tabPath}`)
+        view.webContents.loadFile(tabPath, {
           hash: `/${viewType}`
         })
       }

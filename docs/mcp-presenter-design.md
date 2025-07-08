@@ -9,8 +9,8 @@
 - 依赖 `IConfigPresenter` 获取配置。
 - 初始化并管理 `ServerManager` 和 `ToolManager`。
 - **初始化流程**:
-    - 测试 npm registry 速度 (通过 `ServerManager`)。
-    - 根据配置启动默认的 MCP 服务器。
+  - 测试 npm registry 速度 (通过 `ServerManager`)。
+  - 根据配置启动默认的 MCP 服务器。
 - 提供管理服务器生命周期 (启动/停止)、配置和默认设置的接口。
 - 获取所有可用工具定义 (通过 `ToolManager`)，处理名称冲突。
 - 提供在 MCP 工具格式与不同 LLM 提供商 (OpenAI, Anthropic, Gemini) 格式之间相互转换的方法。
@@ -33,12 +33,12 @@
 `ServerManager` (`src/main/presenter/mcpPresenter/serverManager.ts`) 负责 MCP 服务器实例 (`McpClient`) 的生命周期和管理：
 
 - **NPM Registry 管理**:
-    - 自动测试多个 npm registry (`NPM_REGISTRY_LIST`) 并选择最快的。
-    - 将选择的 registry 传递给 `McpClient` 实例。
+  - 自动测试多个 npm registry (`NPM_REGISTRY_LIST`) 并选择最快的。
+  - 将选择的 registry 传递给 `McpClient` 实例。
 - **客户端管理**:
-    - 维护运行中的 `McpClient` 实例 (`clients` Map)。
-    - 提供启动 (`startServer`) 和停止 (`stopServer`) 服务器的方法。
-    - 获取默认或所有运行中的客户端实例。
+  - 维护运行中的 `McpClient` 实例 (`clients` Map)。
+  - 提供启动 (`startServer`) 和停止 (`stopServer`) 服务器的方法。
+  - 获取默认或所有运行中的客户端实例。
 - 处理服务器启动失败时的错误通知。
 - 触发 `MCP_EVENTS.CLIENT_LIST_UPDATED` 事件。
 
@@ -47,32 +47,32 @@
 `ToolManager` (`src/main/presenter/mcpPresenter/toolManager.ts`) 负责 MCP 工具的管理和调用：
 
 - **工具定义获取与缓存**:
-    - 从所有运行中的 `McpClient` 获取工具定义 (`listTools`)。
-    - **冲突处理**: 检测并自动重命名来自不同服务器的同名工具 (格式: `serverName_toolName`)。
-    - 缓存处理后的工具定义列表 (`cachedToolDefinitions`) 和工具名称到目标的映射 (`toolNameToTargetMap`)。
-    - 监听 `MCP_EVENTS.CLIENT_LIST_UPDATED` 事件以清除缓存。
+  - 从所有运行中的 `McpClient` 获取工具定义 (`listTools`)。
+  - **冲突处理**: 检测并自动重命名来自不同服务器的同名工具 (格式: `serverName_toolName`)。
+  - 缓存处理后的工具定义列表 (`cachedToolDefinitions`) 和工具名称到目标的映射 (`toolNameToTargetMap`)。
+  - 监听 `MCP_EVENTS.CLIENT_LIST_UPDATED` 事件以清除缓存。
 - **工具调用处理**:
-    - `callTool()`: 接收标准化的 `MCPToolCall` 请求。
-    - **查找目标**: 使用 `toolNameToTargetMap` 找到处理该工具的 `McpClient` 和原始工具名称。
-    - **权限控制**: 调用 `checkToolPermission()` 检查权限，基于服务器配置中的 `autoApprove` 列表 (支持 `all`, `read`, `write` 等)。
-    - **执行调用**: 使用 *原始* 工具名称调用目标 `McpClient` 的 `callTool` 方法。
-    - 格式化工具调用结果并触发 `MCP_EVENTS.TOOL_CALL_RESULT` 事件。
+  - `callTool()`: 接收标准化的 `MCPToolCall` 请求。
+  - **查找目标**: 使用 `toolNameToTargetMap` 找到处理该工具的 `McpClient` 和原始工具名称。
+  - **权限控制**: 调用 `checkToolPermission()` 检查权限，基于服务器配置中的 `autoApprove` 列表 (支持 `all`, `read`, `write` 等)。
+  - **执行调用**: 使用 _原始_ 工具名称调用目标 `McpClient` 的 `callTool` 方法。
+  - 格式化工具调用结果并触发 `MCP_EVENTS.TOOL_CALL_RESULT` 事件。
 
 ### 1.4 McpClient
 
 `McpClient` (`src/main/presenter/mcpPresenter/mcpClient.ts`) 是与单个 MCP 服务器通信的客户端实现：
 
 - **通信与传输**:
-    - 处理与 MCP 服务器的连接建立 (`connect`) 和断开 (`disconnect`)。
-    - 支持多种传输层 (`stdio`, `sse`, `http`, `inmemory`)。
-    - 执行工具调用 (`callTool`)、列出工具 (`listTools`)、读取资源 (`readResource`) 等。
+  - 处理与 MCP 服务器的连接建立 (`connect`) 和断开 (`disconnect`)。
+  - 支持多种传输层 (`stdio`, `sse`, `http`, `inmemory`)。
+  - 执行工具调用 (`callTool`)、列出工具 (`listTools`)、读取资源 (`readResource`) 等。
 - **环境与配置**:
-    - 处理 `stdio` 类型的环境变量，特别是 `PATH` 的合并（系统、默认、自定义、运行时）和代理设置 (`http_proxy`, `https_proxy`)。
-    - 使用 `ServerManager` 提供的 `npmRegistry`。
-    - 处理认证 (`AuthProvider` for Bearer Token) 和自定义头 (`customHeaders`)。
+  - 处理 `stdio` 类型的环境变量，特别是 `PATH` 的合并（系统、默认、自定义、运行时）和代理设置 (`http_proxy`, `https_proxy`)。
+  - 使用 `ServerManager` 提供的 `npmRegistry`。
+  - 处理认证 (`AuthProvider` for Bearer Token) 和自定义头 (`customHeaders`)。
 - **连接管理**:
-    - 5分钟连接超时。
-    - 触发 `MCP_EVENTS.SERVER_STATUS_CHANGED` 事件。
+  - 5分钟连接超时。
+  - 触发 `MCP_EVENTS.SERVER_STATUS_CHANGED` 事件。
 
 ## 2. 工具调用流程 (以 OpenAI Provider 为例)
 
@@ -126,7 +126,7 @@ sequenceDiagram
 3.  **转换调用**: LLM Provider 将此请求传递给 `McpPresenter`，后者将其转换为标准的 `MCPToolCall` 格式。
 4.  **执行调用**: LLM Provider 调用 `McpPresenter.callTool()` 并传入标准化的 `MCPToolCall`。
 5.  **查找与检查**: `McpPresenter` 委托给 `ToolManager`。`ToolManager` 使用内部映射找到负责该工具的 `McpClient` 实例和该工具在服务器上的原始名称，并检查调用权限。
-6.  **实际执行**: 如果权限允许，`ToolManager` 调用目标 `McpClient` 的 `callTool` 方法，并使用 *原始* 工具名称和参数。
+6.  **实际执行**: 如果权限允许，`ToolManager` 调用目标 `McpClient` 的 `callTool` 方法，并使用 _原始_ 工具名称和参数。
 7.  **结果返回**: `McpClient` 与 MCP 服务器通信，获取结果并返回给 `ToolManager`。
 8.  **格式化与响应**: `ToolManager` 格式化结果为 `MCPToolResponse`，触发事件，并将响应返回给 `McpPresenter`。`McpPresenter` 可能进一步包装响应，最终返回给 LLM Provider。
 9.  **后续处理**: LLM Provider 处理工具调用的结果，可能将其添加到对话历史中，并让 LLM 基于结果生成下一步的响应或进行下一轮工具调用。

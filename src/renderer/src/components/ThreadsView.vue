@@ -1,14 +1,12 @@
 <template>
-  <div
-    class="w-full h-full overflow-hidden flex-shrink-0 flex flex-col figma-sidebar"
-  >
+  <div class="w-full h-full overflow-hidden flex-shrink-0 flex flex-col figma-sidebar">
     <!-- 顶部区域：Logo + Search histories + New Chat -->
     <div class="flex-none space-y-6 mb-12">
       <!-- DeepChat Logo -->
       <div class="flex justify-center">
         <img src="@/assets/figma-icons/dper.png" alt="DeepChat" class="figma-logo" />
       </div>
-      
+
       <!-- Search histories 输入框 -->
       <div class="figma-search-histories">
         <Icon icon="lucide:search" class="search-icon" />
@@ -19,20 +17,12 @@
           class="search-input"
           @input="handleSearch"
         />
-        <Icon 
-          v-if="searchQuery"
-          icon="lucide:x" 
-          class="clear-icon" 
-          @click="clearSearch"
-        />
+        <Icon v-if="searchQuery" icon="lucide:x" class="clear-icon" @click="clearSearch" />
       </div>
 
       <!-- 新会话按钮 -->
       <div class="flex flex-row gap-3">
-        <Button
-          class="w-0 flex-1 justify-center figma-new-chat-btn"
-          @click="createNewThread"
-        >
+        <Button class="w-0 flex-1 justify-center figma-new-chat-btn" @click="createNewThread">
           <span>New Chat</span>
         </Button>
         <Button
@@ -53,7 +43,7 @@
       <div class="flex-none mb-4">
         <h3 class="figma-historical-title">Historical Chats</h3>
       </div>
-      
+
       <!-- 可滚动的会话列表 -->
       <ScrollArea ref="scrollAreaRef" class="flex-1" @scroll="handleScroll">
         <div v-for="thread in filteredThreads" :key="thread.dt" class="space-y-2.5 mb-3">
@@ -179,14 +169,14 @@ const filteredThreads = computed(() => {
   if (!searchQuery.value.trim()) {
     return chatStore.threads
   }
-  
+
   const query = searchQuery.value.toLowerCase().trim()
-  return chatStore.threads.map(thread => ({
-    ...thread,
-    dtThreads: thread.dtThreads.filter(dtThread => 
-      dtThread.title.toLowerCase().includes(query)
-    )
-  })).filter(thread => thread.dtThreads.length > 0)
+  return chatStore.threads
+    .map((thread) => ({
+      ...thread,
+      dtThreads: thread.dtThreads.filter((dtThread) => dtThread.title.toLowerCase().includes(query))
+    }))
+    .filter((thread) => thread.dtThreads.length > 0)
 })
 
 // 处理搜索
@@ -408,7 +398,7 @@ onBeforeUnmount(() => {
   margin: 0 26px;
   backdrop-filter: blur(20px);
   /* Figma精确阴影效果 */
-  box-shadow: 
+  box-shadow:
     -2px 4px 10px 0px rgba(145, 145, 145, 0.05),
     -7px 17px 18px 0px rgba(145, 145, 145, 0.04),
     -15px 37px 24px 0px rgba(145, 145, 145, 0.03),
@@ -482,13 +472,13 @@ onBeforeUnmount(() => {
 }
 
 .clear-icon:hover {
-  color: #495AF5;
+  color: #495af5;
 }
 
 /* New Chat button styling - 基于Figma设计 */
 .figma-new-chat-btn {
-  background: #495AF5;
-  color: #FFFFFF;
+  background: #495af5;
+  color: #ffffff;
   border: none;
   border-radius: 15px;
   font-family: 'Montserrat', sans-serif;
@@ -562,7 +552,7 @@ onBeforeUnmount(() => {
 }
 
 .dark .clear-icon:hover {
-  color: #495AF5;
+  color: #495af5;
 }
 
 .dark .figma-historical-title {
@@ -570,6 +560,6 @@ onBeforeUnmount(() => {
 }
 
 .dark .figma-thread-item li {
-  color: #FFFFFF;
+  color: #ffffff;
 }
 </style>

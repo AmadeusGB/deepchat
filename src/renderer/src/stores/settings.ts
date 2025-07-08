@@ -1250,7 +1250,6 @@ export const useSettingsStore = defineStore('settings', () => {
     await configP.setLoggingEnabled(enabled)
   }
 
-
   ///////////////////////////////////////////////////////////////////////////////////////
   const setCopyWithCotEnabled = async (enabled: boolean) => {
     copyWithCotEnabled.value = Boolean(enabled)

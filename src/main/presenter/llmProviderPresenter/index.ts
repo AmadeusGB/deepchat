@@ -651,28 +651,40 @@ export class LLMProviderPresenter implements ILlmProviderPresenter {
                   }
 
                   // Add tool role message with result
-                  let toolResponseContent = typeof toolResponse.content === 'string'
-                    ? toolResponse.content
-                    : JSON.stringify(toolResponse.content)
-                  
+                  let toolResponseContent =
+                    typeof toolResponse.content === 'string'
+                      ? toolResponse.content
+                      : JSON.stringify(toolResponse.content)
+
                   // 工具响应长度限制：防止过大内容导致rate limit
                   const MAX_TOOL_RESPONSE_LENGTH = 8000 // 约2k tokens
                   if (toolResponseContent.length > MAX_TOOL_RESPONSE_LENGTH) {
                     const truncated = toolResponseContent.substring(0, MAX_TOOL_RESPONSE_LENGTH)
-                    toolResponseContent = truncated + '\n\n[内容过长已截断，总长度：' + toolResponseContent.length + '字符]'
-                    console.log(`[MCP_MONITOR] Tool response truncated from ${toolResponseContent.length} to ${MAX_TOOL_RESPONSE_LENGTH} chars`)
+                    toolResponseContent =
+                      truncated +
+                      '\n\n[内容过长已截断，总长度：' +
+                      toolResponseContent.length +
+                      '字符]'
+                    console.log(
+                      `[MCP_MONITOR] Tool response truncated from ${toolResponseContent.length} to ${MAX_TOOL_RESPONSE_LENGTH} chars`
+                    )
                   }
-                  
+
                   // 监控日志：记录工具响应的大小和内容类型
                   console.log(`[MCP_MONITOR] Tool Response for ${toolCall.name}:`, {
                     tool_call_id: toolCall.id,
                     content_type: typeof toolResponse.content,
                     content_length: toolResponseContent.length,
-                    original_length: typeof toolResponse.content === 'string' ? toolResponse.content.length : JSON.stringify(toolResponse.content).length,
-                    content_preview: toolResponseContent.substring(0, 200) + (toolResponseContent.length > 200 ? '...' : ''),
+                    original_length:
+                      typeof toolResponse.content === 'string'
+                        ? toolResponse.content.length
+                        : JSON.stringify(toolResponse.content).length,
+                    content_preview:
+                      toolResponseContent.substring(0, 200) +
+                      (toolResponseContent.length > 200 ? '...' : ''),
                     raw_data: toolResponse.rawData
                   })
-                  
+
                   conversationMessages.push({
                     role: 'tool',
                     content: toolResponseContent,
@@ -689,14 +701,14 @@ export class LLMProviderPresenter implements ILlmProviderPresenter {
                     const toolCallInfo = `\n<function_call>
                     {
                       "function_call": ${JSON.stringify(
-                      {
-                        id: toolCall.id,
-                        name: toolCall.name,
-                        arguments: toolCall.arguments // Keep original args here
-                      },
-                      null,
-                      2
-                    )}
+                        {
+                          id: toolCall.id,
+                          name: toolCall.name,
+                          arguments: toolCall.arguments // Keep original args here
+                        },
+                        null,
+                        2
+                      )}
                     }
                     </function_call>\n`
 

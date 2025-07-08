@@ -4,7 +4,7 @@ import {
   NavigationMenuRoot,
   type NavigationMenuRootEmits,
   type NavigationMenuRootProps,
-  useForwardPropsEmits,
+  useForwardPropsEmits
 } from 'radix-vue'
 import { computed, type HTMLAttributes } from 'vue'
 import NavigationMenuViewport from './NavigationMenuViewport.vue'

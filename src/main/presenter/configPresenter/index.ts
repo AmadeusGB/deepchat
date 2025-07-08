@@ -308,7 +308,13 @@ export class ConfigPresenter implements IConfigPresenter {
     const statusKey = this.getModelStatusKey(providerId, modelId)
     this.setSetting(statusKey, enabled)
     // 触发模型状态变更事件（需要通知所有标签页）
-    eventBus.sendToRenderer(CONFIG_EVENTS.MODEL_STATUS_CHANGED, SendTarget.ALL_WINDOWS, providerId, modelId, enabled)
+    eventBus.sendToRenderer(
+      CONFIG_EVENTS.MODEL_STATUS_CHANGED,
+      SendTarget.ALL_WINDOWS,
+      providerId,
+      modelId,
+      enabled
+    )
   }
 
   // 启用模型

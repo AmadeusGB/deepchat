@@ -40,8 +40,10 @@ export function useTtsOptimizer() {
       metrics.smallChunksCount++
     }
 
-    console.log(`[TTS优化器] 记录性能: ${chunkSize}字符, ${playTime}ms, 平均延迟: ${metrics.averageLatencyPerChar.toFixed(2)}ms/字符`)
-    
+    console.log(
+      `[TTS优化器] 记录性能: ${chunkSize}字符, ${playTime}ms, 平均延迟: ${metrics.averageLatencyPerChar.toFixed(2)}ms/字符`
+    )
+
     // 触发性能分析
     analyzePerformance()
   }
@@ -107,21 +109,21 @@ export function useTtsOptimizer() {
   // 性能评分
   const performanceScore = computed(() => {
     let score = 100
-    
+
     // 延迟惩罚
     if (metrics.averageLatencyPerChar > 100) {
       score -= Math.min(50, (metrics.averageLatencyPerChar - 100) / 2)
     }
-    
+
     // 小块惩罚
     const smallChunkRatio = metrics.smallChunksCount / (metrics.totalChunks || 1)
     score -= smallChunkRatio * 30
-    
+
     // 队列长度惩罚
     if (metrics.queueLength > 8) {
       score -= Math.min(20, (metrics.queueLength - 8) * 2)
     }
-    
+
     return Math.max(0, Math.round(score))
   })
 
@@ -160,4 +162,4 @@ export function useTtsOptimizer() {
     resetMetrics,
     getPerformanceReport
   }
-} 
+}

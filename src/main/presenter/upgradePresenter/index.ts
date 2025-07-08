@@ -102,7 +102,9 @@ export class UpgradePresenter implements IUpgradePresenter {
       console.log('无可用更新')
       this._lock = false
       this._status = 'not-available'
-      eventBus.sendToRenderer(UPDATE_EVENTS.STATUS_CHANGED, SendTarget.ALL_WINDOWS, { status: this._status })
+      eventBus.sendToRenderer(UPDATE_EVENTS.STATUS_CHANGED, SendTarget.ALL_WINDOWS, {
+        status: this._status
+      })
     })
 
     // 有可用更新
@@ -262,7 +264,9 @@ export class UpgradePresenter implements IUpgradePresenter {
 
     try {
       this._status = 'checking'
-      eventBus.sendToRenderer(UPDATE_EVENTS.STATUS_CHANGED, SendTarget.ALL_WINDOWS, { status: this._status })
+      eventBus.sendToRenderer(UPDATE_EVENTS.STATUS_CHANGED, SendTarget.ALL_WINDOWS, {
+        status: this._status
+      })
 
       // 首先获取版本信息文件
       const platformString = getPlatformInfo()
@@ -325,7 +329,9 @@ export class UpgradePresenter implements IUpgradePresenter {
       } else {
         // 没有新版本
         this._status = 'not-available'
-        eventBus.sendToRenderer(UPDATE_EVENTS.STATUS_CHANGED, SendTarget.ALL_WINDOWS, { status: this._status })
+        eventBus.sendToRenderer(UPDATE_EVENTS.STATUS_CHANGED, SendTarget.ALL_WINDOWS, {
+          status: this._status
+        })
       }
     } catch (err) {
       this._status = 'error'
@@ -344,12 +350,12 @@ export class UpgradePresenter implements IUpgradePresenter {
       error: this._error,
       updateInfo: this._versionInfo
         ? {
-          version: this._versionInfo.version,
-          releaseDate: this._versionInfo.releaseDate,
-          releaseNotes: this._versionInfo.releaseNotes,
-          githubUrl: this._versionInfo.githubUrl,
-          downloadUrl: this._versionInfo.downloadUrl
-        }
+            version: this._versionInfo.version,
+            releaseDate: this._versionInfo.releaseDate,
+            releaseNotes: this._versionInfo.releaseNotes,
+            githubUrl: this._versionInfo.githubUrl,
+            downloadUrl: this._versionInfo.downloadUrl
+          }
         : null
     }
   }

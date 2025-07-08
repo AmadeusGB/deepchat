@@ -28,7 +28,7 @@ export class ParallelTtsService {
   private currentAudio: HTMLAudioElement | null = null
   private nextPosition = 0
   private activeRequests = 0
-  
+
   // Web Audio API 相关属性
   private audioContext: AudioContext | null = null
   private nextPlayTime = 0 // 下一个音频片段的开始时间
@@ -36,7 +36,7 @@ export class ParallelTtsService {
 
   // 添加文本去重机制
   private textHashCache: Set<string> = new Set()
-  
+
   // 🔧 失败率统计（用于动态调整）
   private processingStats = {
     totalAttempts: 0,
@@ -44,18 +44,18 @@ export class ParallelTtsService {
     recentAttempts: [] as boolean[], // true=成功, false=失败
     maxRecentSize: 20 // 保持最近20次的记录
   }
-  
+
   // 🎯 新增：服务实例管理
   private instanceId: string
-  
+
   // 🎯 新增：配置管理
   private configPresenter = usePresenter('configPresenter')
 
   private config: TtsConfig = {
-    maxConcurrent: 3,         // 🔧 降低并发从5→3，减少API压力和限流风险
-    chunkSize: { min: 15, max: 180 },  // 与新的分块器保持一致
-    maxRetries: 3,            // 🔧 增加重试次数从1→3，应对网络波动
-    timeoutMs: 15000,         // 🔧 增加超时时间从8s→15s，适应API响应时间
+    maxConcurrent: 3, // 🔧 降低并发从5→3，减少API压力和限流风险
+    chunkSize: { min: 15, max: 180 }, // 与新的分块器保持一致
+    maxRetries: 3, // 🔧 增加重试次数从1→3，应对网络波动
+    timeoutMs: 15000, // 🔧 增加超时时间从8s→15s，适应API响应时间
     enablePreloading: true
   }
 
@@ -63,20 +63,20 @@ export class ParallelTtsService {
     if (customConfig) {
       this.config = { ...this.config, ...customConfig }
     }
-    
+
     // 🎯 生成实例ID并注册到协调器
     this.instanceId = `parallel_tts_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    
+
     ttsCoordinator.registerService(
       this.instanceId,
       'ParallelTtsService (Streaming)',
       80, // 中等优先级
       () => this.stop()
     )
-    
+
     // 初始化Web Audio API
     this.initAudioContext()
-    
+
     console.log(`🎯 [并行TTS] 实例 ${this.instanceId} 初始化完成`)
   }
 
@@ -108,7 +108,9 @@ export class ParallelTtsService {
   // 初始化音频上下文
   private initAudioContext(): void {
     try {
-      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
       this.audioContext = new AudioContextClass()
     } catch {
       console.warn('[并行TTS] Web Audio API 不支持，回退到HTMLAudioElement')
@@ -121,7 +123,7 @@ export class ParallelTtsService {
     console.log(`\n🔄 [并行TTS-分块开始] 原始文本 (${text.length}字符):`)
     console.log(`📝 "${text}"`)
     console.log(`➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖`)
-    
+
     if (text.length <= this.config.chunkSize.min) {
       console.log(`✅ [并行TTS-分块] 文本过短，无需分块`)
       console.log(`📤 输出: 1块 - "${text}"`)
@@ -130,15 +132,15 @@ export class ParallelTtsService {
     }
 
     const chunks: string[] = []
-    
+
     // 修正：只有真正的句末标点才分割句子（移除分号；）
-    const sentences = text.split(/([。！？.!?])/g).filter(s => s.trim())
-    
+    const sentences = text.split(/([。！？.!?])/g).filter((s) => s.trim())
+
     console.log(`🔍 [并行TTS-分块] 句子分析:`)
     sentences.forEach((part, index) => {
       console.log(`   ${index}: "${part}"`)
     })
-    
+
     let currentChunk = ''
     let i = 0
 
@@ -146,9 +148,11 @@ export class ParallelTtsService {
       const sentence = sentences[i]
       const punctuation = sentences[i + 1] || ''
       const fullSentence = sentence + punctuation
-      
-      console.log(`\n🧩 [处理句子${Math.floor(i/2) + 1}] "${fullSentence}" (${fullSentence.length}字符)`)
-      
+
+      console.log(
+        `\n🧩 [处理句子${Math.floor(i / 2) + 1}] "${fullSentence}" (${fullSentence.length}字符)`
+      )
+
       // 如果当前块为空，直接添加句子
       if (!currentChunk) {
         currentChunk = fullSentence
@@ -159,14 +163,16 @@ export class ParallelTtsService {
 
       // 检查添加后的长度
       const potentialLength = currentChunk.length + fullSentence.length
-      console.log(`   📏 当前块: ${currentChunk.length}字符, 新句子: ${fullSentence.length}字符, 合并后: ${potentialLength}字符`)
+      console.log(
+        `   📏 当前块: ${currentChunk.length}字符, 新句子: ${fullSentence.length}字符, 合并后: ${potentialLength}字符`
+      )
       console.log(`   📊 限制: 最小${this.config.chunkSize.min}, 最大${this.config.chunkSize.max}`)
-      
+
       if (potentialLength <= this.config.chunkSize.max) {
         currentChunk += fullSentence
         console.log(`   ✅ 可以合并: "${currentChunk}"`)
         i += punctuation ? 2 : 1
-        
+
         // 修正：只有真正的句末标点才考虑分块（移除分号；）
         if (potentialLength >= this.config.chunkSize.min && /[。！？.!?]/.test(punctuation)) {
           chunks.push(currentChunk.trim())
@@ -232,7 +238,7 @@ export class ParallelTtsService {
     if (!isSuccess) {
       this.processingStats.totalFailures++
     }
-    
+
     // 更新最近记录
     this.processingStats.recentAttempts.push(isSuccess)
     if (this.processingStats.recentAttempts.length > this.processingStats.maxRecentSize) {
@@ -242,28 +248,34 @@ export class ParallelTtsService {
 
   // 🔧 计算当前失败率
   private calculateFailureRate(): { recent: number; overall: number } {
-    const recentFailures = this.processingStats.recentAttempts.filter(success => !success).length
+    const recentFailures = this.processingStats.recentAttempts.filter((success) => !success).length
     const recentTotal = this.processingStats.recentAttempts.length
     const recentRate = recentTotal > 0 ? recentFailures / recentTotal : 0
-    
-    const overallRate = this.processingStats.totalAttempts > 0 ? 
-      this.processingStats.totalFailures / this.processingStats.totalAttempts : 0
-    
+
+    const overallRate =
+      this.processingStats.totalAttempts > 0
+        ? this.processingStats.totalFailures / this.processingStats.totalAttempts
+        : 0
+
     return { recent: recentRate, overall: overallRate }
   }
 
   // 🔧 动态调整并发数
   private adjustConcurrencyBasedOnFailureRate(): void {
     const { recent } = this.calculateFailureRate()
-    
+
     if (recent > 0.3 && this.config.maxConcurrent > 1) {
       // 失败率超过30%，降低并发
       this.config.maxConcurrent = Math.max(1, this.config.maxConcurrent - 1)
-      console.warn(`[并行TTS] 🔻 高失败率检测 (${(recent * 100).toFixed(1)}%)，降低并发至 ${this.config.maxConcurrent}`)
+      console.warn(
+        `[并行TTS] 🔻 高失败率检测 (${(recent * 100).toFixed(1)}%)，降低并发至 ${this.config.maxConcurrent}`
+      )
     } else if (recent < 0.1 && this.config.maxConcurrent < 5) {
       // 失败率低于10%，可以尝试增加并发
       this.config.maxConcurrent = Math.min(5, this.config.maxConcurrent + 1)
-      console.log(`[并行TTS] 🔺 低失败率检测 (${(recent * 100).toFixed(1)}%)，提升并发至 ${this.config.maxConcurrent}`)
+      console.log(
+        `[并行TTS] 🔺 低失败率检测 (${(recent * 100).toFixed(1)}%)，提升并发至 ${this.config.maxConcurrent}`
+      )
     }
   }
 
@@ -274,17 +286,19 @@ export class ParallelTtsService {
       console.warn('[并行TTS] 被其他高优先级服务阻止')
       return
     }
-    
+
     if (!text || !text.trim()) {
       console.log('[并行TTS] 跳过空文本')
       return
     }
 
     const trimmedText = text.trim()
-    
+
     // 检查重复文本
     if (this.isTextDuplicate(trimmedText)) {
-      console.log(`[并行TTS] 跳过重复文本 (${trimmedText.length}字符): "${trimmedText.substring(0, 30)}..."`)
+      console.log(
+        `[并行TTS] 跳过重复文本 (${trimmedText.length}字符): "${trimmedText.substring(0, 30)}..."`
+      )
       return
     }
 
@@ -302,7 +316,7 @@ export class ParallelTtsService {
     }
 
     const textChunks = this.intelligentChunking(trimmedText)
-    
+
     for (const chunkText of textChunks) {
       const chunk: AudioChunk = {
         id: `chunk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -311,19 +325,19 @@ export class ParallelTtsService {
         status: 'pending',
         retryCount: 0
       }
-      
+
       this.chunks.set(chunk.id, chunk)
       this.playQueue.push(chunk)
-      
+
       // 添加文本哈希到缓存
       this.addTextHash(chunkText)
-      
+
       console.log(`[并行TTS] 添加块 ${chunk.position}: ${chunk.text.length}字符`)
     }
 
     // 开始并行处理
     this.startParallelProcessing()
-    
+
     // 开始播放队列
     if (!this.isPlaying) {
       this.startPlayback()
@@ -334,17 +348,17 @@ export class ParallelTtsService {
   private findTextOverlap(newText: string): { overlapLength: number } | null {
     for (const chunk of this.playQueue) {
       if (chunk.status === 'completed') continue
-      
+
       // 检查新文本是否以现有文本开头（表示重复）
       if (newText.startsWith(chunk.text)) {
         return { overlapLength: chunk.text.length }
       }
-      
+
       // 检查现有文本是否以新文本开头（表示新文本是已有文本的子集）
       if (chunk.text.startsWith(newText)) {
         return { overlapLength: newText.length }
       }
-      
+
       // 检查部分重叠（至少20字符重叠才认为是重复）
       const minOverlap = Math.min(20, Math.min(newText.length, chunk.text.length) * 0.3)
       for (let i = minOverlap; i <= Math.min(newText.length, chunk.text.length); i++) {
@@ -359,7 +373,7 @@ export class ParallelTtsService {
   // 并行处理TTS请求
   private async startParallelProcessing(): Promise<void> {
     const pendingChunks = Array.from(this.chunks.values())
-      .filter(chunk => chunk.status === 'pending')
+      .filter((chunk) => chunk.status === 'pending')
       .sort((a, b) => a.position - b.position) // 按位置排序，优先处理前面的块
 
     for (const chunk of pendingChunks) {
@@ -379,13 +393,15 @@ export class ParallelTtsService {
     chunk.status = 'processing'
     chunk.startTime = Date.now()
 
-    console.log(`[并行TTS] 开始处理块 ${chunk.position}: ${chunk.text.length}字符 (并发: ${this.activeRequests})`)
+    console.log(
+      `[并行TTS] 开始处理块 ${chunk.position}: ${chunk.text.length}字符 (并发: ${this.activeRequests})`
+    )
 
     try {
       // 使用Promise.race实现超时
       const audioBlob = await Promise.race([
         this.generateAudio(chunk.text),
-        new Promise<never>((_, reject) => 
+        new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('TTS timeout')), this.config.timeoutMs)
         )
       ])
@@ -398,40 +414,41 @@ export class ParallelTtsService {
       this.recordProcessingResult(true)
 
       console.log(`[并行TTS] 块 ${chunk.position} 处理完成: ${chunk.duration}ms`)
-
     } catch (error) {
       // 🔧 记录失败并增强错误日志
       this.recordProcessingResult(false)
       const failureRate = this.calculateFailureRate()
-      
-             console.error(`[并行TTS] 块 ${chunk.position} 处理失败 (第${chunk.retryCount + 1}次):`, {
-         error: error instanceof Error ? error.message : String(error),
-         textLength: chunk.text.length,
-         activeRequests: this.activeRequests,
-         recentFailureRate: `${(failureRate.recent * 100).toFixed(1)}%`,
-         overallFailureRate: `${(failureRate.overall * 100).toFixed(1)}%`
-       })
-      
+
+      console.error(`[并行TTS] 块 ${chunk.position} 处理失败 (第${chunk.retryCount + 1}次):`, {
+        error: error instanceof Error ? error.message : String(error),
+        textLength: chunk.text.length,
+        activeRequests: this.activeRequests,
+        recentFailureRate: `${(failureRate.recent * 100).toFixed(1)}%`,
+        overallFailureRate: `${(failureRate.overall * 100).toFixed(1)}%`
+      })
+
       chunk.retryCount++
       if (chunk.retryCount < this.config.maxRetries) {
-        console.log(`[并行TTS] 重试块 ${chunk.position} (${chunk.retryCount}/${this.config.maxRetries})`)
+        console.log(
+          `[并行TTS] 重试块 ${chunk.position} (${chunk.retryCount}/${this.config.maxRetries})`
+        )
         chunk.status = 'pending'
-        
+
         // 🔧 指数退避重试延迟：500ms, 1s, 2s, 4s
         const retryDelay = Math.min(500 * Math.pow(2, chunk.retryCount - 1), 4000)
         console.log(`[并行TTS] 重试延迟: ${retryDelay}ms`)
-        
+
         setTimeout(() => this.processChunk(chunk), retryDelay)
       } else {
         chunk.status = 'error'
         console.error(`[并行TTS] 块 ${chunk.position} 最终失败，跳过继续处理`)
-        
+
         // 🔧 根据失败率动态调整并发数
         this.adjustConcurrencyBasedOnFailureRate()
       }
     } finally {
       this.activeRequests--
-      
+
       // 继续处理下一个块
       this.startParallelProcessing()
     }
@@ -443,20 +460,23 @@ export class ParallelTtsService {
   private async selectOptimalVoice(): Promise<string> {
     try {
       // 🎯 首先检查是否启用了opposite gender voice response
-      const oppositeGenderEnabled = await this.configPresenter.getSetting('voice_opposite_gender_response') as boolean
-      
+      const oppositeGenderEnabled = (await this.configPresenter.getSetting(
+        'voice_opposite_gender_response'
+      )) as boolean
+
       if (oppositeGenderEnabled) {
         // 如果启用了相反性别语音响应，获取用户性别
-        const userGender = (await this.configPresenter.getSetting('voice_user_gender') as string) || 'auto'
-        
+        const userGender =
+          ((await this.configPresenter.getSetting('voice_user_gender')) as string) || 'auto'
+
         console.log(`[并行TTS] 🎭 相反性别模式: 用户性别=${userGender}`)
-        
+
         if (userGender === 'male') {
           // 男性用户 → 女声回应
           console.log(`[并行TTS] 🎭 男性用户，使用女声: alloy`)
           return 'alloy' // 默认女声
         } else if (userGender === 'female') {
-          // 女性用户 → 男声回应  
+          // 女性用户 → 男声回应
           console.log(`[并行TTS] 🎭 女性用户，使用男声: onyx`)
           return 'onyx' // 默认男声
         }
@@ -464,10 +484,10 @@ export class ParallelTtsService {
         console.log(`[并行TTS] 🎭 auto模式，使用默认女声: alloy`)
         return 'alloy'
       }
-      
+
       // 🎯 如果没有启用相反性别响应，使用固定语音确保一致性
       console.log(`[并行TTS] 🎭 固定语音模式，确保对话一致性`)
-      
+
       // 🎯 统一使用默认女声，确保整个对话过程中语音一致
       return 'alloy' // 默认平衡女声
     } catch (error) {
@@ -479,12 +499,12 @@ export class ParallelTtsService {
   /**
    * 🎯 检测语言并调整语速
    */
-  private detectLanguageAndSpeed(text: string): { language: string, speed: number } {
+  private detectLanguageAndSpeed(text: string): { language: string; speed: number } {
     // 简单的语言检测
     const chineseChars = (text.match(/[\u4e00-\u9fff]/g) || []).length
     const totalChars = text.length
     const chineseRatio = chineseChars / totalChars
-    
+
     if (chineseRatio > 0.3) {
       return { language: 'zh', speed: 1.0 } // 中文稍慢
     } else {
@@ -495,26 +515,26 @@ export class ParallelTtsService {
   private async generateAudio(text: string): Promise<Blob> {
     try {
       console.log(`[并行TTS] 🎵 直接生成音频: ${text.length}字符`)
-      
+
       // 获取OpenAI配置
       const openaiProvider = await this.configPresenter.getProviderById('openai')
-      
+
       if (!openaiProvider || !openaiProvider.apiKey) {
         throw new Error('OpenAI配置未找到或API密钥缺失')
       }
-      
+
       // 🎯 智能语音和语速选择
       const voice = await this.selectOptimalVoice()
       const { speed } = this.detectLanguageAndSpeed(text)
-      
+
       console.log(`[并行TTS] 🎭 智能参数: 语音=${voice}, 语速=${speed}`)
-      
+
       // 调用OpenAI TTS API
       const response = await fetch('https://api.openai.com/v1/audio/speech', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openaiProvider.apiKey}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${openaiProvider.apiKey}`,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           model: 'tts-1',
@@ -537,7 +557,7 @@ export class ParallelTtsService {
 
       const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' })
       console.log(`[并行TTS] 🎵 音频生成完成: ${audioBlob.size}字节`)
-      
+
       return audioBlob
     } catch (error) {
       console.error(`[并行TTS] 音频生成失败:`, error)
@@ -554,43 +574,43 @@ export class ParallelTtsService {
 
     while (this.playQueue.length > 0) {
       const chunk = this.playQueue[0]
-      
+
       // 等待块准备就绪
       await this.waitForChunkReady(chunk)
-      
+
       if (chunk.status === 'ready' && chunk.audioBlob) {
         try {
           await this.playChunk(chunk)
           chunk.status = 'completed'
-          
+
           // 清理已播放文本的哈希
           this.cleanupTextHash(chunk.text)
-          
+
           // 🔧 从chunks Map中移除已完成的块，防止数据累积
           this.chunks.delete(chunk.id)
-          
+
           this.playQueue.shift() // 移除已播放的块
         } catch (error) {
           console.error(`[并行TTS] 播放块 ${chunk.position} 失败:`, error)
           chunk.status = 'error'
-          
+
           // 即使播放失败也清理哈希，避免永久阻塞
           this.cleanupTextHash(chunk.text)
-          
+
           // 🔧 从chunks Map中移除失败的块，防止数据累积
           this.chunks.delete(chunk.id)
-          
+
           this.playQueue.shift() // 跳过错误的块
         }
       } else {
         console.warn(`[并行TTS] 跳过错误块 ${chunk.position}`)
-        
+
         // 清理错误块的哈希
         this.cleanupTextHash(chunk.text)
-        
+
         // 🔧 从chunks Map中移除跳过的错误块
         this.chunks.delete(chunk.id)
-        
+
         this.playQueue.shift()
       }
     }
@@ -603,22 +623,24 @@ export class ParallelTtsService {
   private async waitForChunkReady(chunk: AudioChunk, maxWait = 12000): Promise<void> {
     const startTime = Date.now()
     let logCount = 0
-    
+
     while (chunk.status === 'pending' || chunk.status === 'processing') {
       if (Date.now() - startTime > maxWait) {
         console.error(`[并行TTS] 等待块 ${chunk.position} 超时(${maxWait}ms)，跳过处理`)
         chunk.status = 'error'
         return
       }
-      
+
       // 减少日志频率，避免日志污染
       if (logCount % 4 === 0) {
-        console.log(`[并行TTS] 等待块 ${chunk.position} 准备就绪... (状态: ${chunk.status}, 已等待: ${Date.now() - startTime}ms)`)
+        console.log(
+          `[并行TTS] 等待块 ${chunk.position} 准备就绪... (状态: ${chunk.status}, 已等待: ${Date.now() - startTime}ms)`
+        )
       }
       logCount++
-      
+
       // 减少轮询间隔从500ms→200ms，提高响应性
-      await new Promise(resolve => setTimeout(resolve, 200))
+      await new Promise((resolve) => setTimeout(resolve, 200))
     }
   }
 
@@ -649,7 +671,7 @@ export class ParallelTtsService {
 
       // 将Blob转换为AudioBuffer
       const audioBuffer = await this.blobToAudioBuffer(chunk.audioBlob)
-      
+
       return new Promise((resolve, reject) => {
         if (!this.audioContext) {
           reject(new Error('AudioContext不存在'))
@@ -664,11 +686,13 @@ export class ParallelTtsService {
         // 计算播放时间
         const currentTime = this.audioContext.currentTime
         const startTime = Math.max(currentTime, this.nextPlayTime)
-        
+
         // 更新下次播放时间
         this.nextPlayTime = startTime + audioBuffer.duration
-        
-        console.log(`[并行TTS] 无缝播放块 ${chunk.position}: 开始时间=${startTime.toFixed(3)}s, 时长=${audioBuffer.duration.toFixed(3)}s`)
+
+        console.log(
+          `[并行TTS] 无缝播放块 ${chunk.position}: 开始时间=${startTime.toFixed(3)}s, 时长=${audioBuffer.duration.toFixed(3)}s`
+        )
 
         // 播放结束回调
         sourceNode.onended = () => {
@@ -682,11 +706,10 @@ export class ParallelTtsService {
 
         // 记录当前播放的节点
         this.currentSourceNodes.push(sourceNode)
-        
+
         // 开始播放
         sourceNode.start(startTime)
       })
-
     } catch (error) {
       console.error(`[并行TTS] Web Audio播放块 ${chunk.position} 失败:`, error)
       throw error
@@ -713,7 +736,7 @@ export class ParallelTtsService {
 
       const audioUrl = URL.createObjectURL(chunk.audioBlob)
       const audio = new Audio(audioUrl)
-      
+
       this.currentAudio = audio
 
       audio.onended = () => {
@@ -741,9 +764,9 @@ export class ParallelTtsService {
       this.currentAudio.pause()
       this.currentAudio = null
     }
-    
+
     // 停止所有Web Audio API源节点
-    this.currentSourceNodes.forEach(sourceNode => {
+    this.currentSourceNodes.forEach((sourceNode) => {
       try {
         sourceNode.stop()
         sourceNode.disconnect()
@@ -752,20 +775,20 @@ export class ParallelTtsService {
       }
     })
     this.currentSourceNodes.length = 0
-    
+
     // 重置播放时间
     this.nextPlayTime = 0
-    
+
     // 🔧 彻底清理所有状态
     this.isPlaying = false
     this.playQueue.length = 0
     this.chunks.clear()
     this.activeRequests = 0
     this.nextPosition = 0
-    
+
     // 清理文本哈希缓存
     this.textHashCache.clear()
-    
+
     // 🔧 重置处理统计（可选，保留历史统计用于分析）
     // this.processingStats = {
     //   totalAttempts: 0,
@@ -773,7 +796,7 @@ export class ParallelTtsService {
     //   recentAttempts: [],
     //   maxRecentSize: 20
     // }
-    
+
     console.log(`[并行TTS] 停止播放，已清理所有状态`)
   }
 
@@ -798,9 +821,11 @@ export class ParallelTtsService {
   // 获取状态
   getStatus() {
     const totalChunks = this.chunks.size
-    const readyChunks = Array.from(this.chunks.values()).filter(c => c.status === 'ready').length
-    const processingChunks = Array.from(this.chunks.values()).filter(c => c.status === 'processing').length
-    const errorChunks = Array.from(this.chunks.values()).filter(c => c.status === 'error').length
+    const readyChunks = Array.from(this.chunks.values()).filter((c) => c.status === 'ready').length
+    const processingChunks = Array.from(this.chunks.values()).filter(
+      (c) => c.status === 'processing'
+    ).length
+    const errorChunks = Array.from(this.chunks.values()).filter((c) => c.status === 'error').length
     const queueLength = this.playQueue.length
     const failureRate = this.calculateFailureRate()
 
@@ -838,23 +863,22 @@ if (typeof window !== 'undefined') {
   ;(window as typeof window & { getTTSStatus: () => object }).getTTSStatus = () => {
     const status = parallelTtsService.getStatus()
     console.log('🔍 [TTS状态监控] 当前状态:', status)
-    
+
     if (status.failureRate.recent > 20) {
       console.warn(`⚠️ [TTS警告] 最近失败率较高: ${status.failureRate.recent}%`)
     }
     if (status.errorChunks > 0) {
       console.warn(`⚠️ [TTS警告] 发现 ${status.errorChunks} 个错误块`)
     }
-    
+
     return status
   }
-  
+
   // 🔧 暴露数据清理方法
   ;(window as typeof window & { resetTTSStats: () => void }).resetTTSStats = () => {
     parallelTtsService.resetStats()
     console.log('🧹 [TTS清理] 统计数据已重置')
   }
-
   ;(window as typeof window & { forceCleanupTTS: () => void }).forceCleanupTTS = () => {
     parallelTtsService.forceCleanup()
     console.log('🧹 [TTS清理] 强制清理完成')

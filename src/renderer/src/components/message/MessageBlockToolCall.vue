@@ -5,7 +5,12 @@
       <div class="figma-tool-call-content">
         <div class="figma-tool-call-left">
           <!-- 特殊处理：如果是 playwright 相关工具，显示工具图标 -->
-          <template v-if="block.tool_call?.server_name?.toLowerCase().includes('playwright') || block.tool_call?.name?.toLowerCase().includes('playwright')">
+          <template
+            v-if="
+              block.tool_call?.server_name?.toLowerCase().includes('playwright') ||
+              block.tool_call?.name?.toLowerCase().includes('playwright')
+            "
+          >
             <img src="@/assets/figma-icons/tool.png" alt="Tool" class="figma-tool-icon" />
           </template>
           <!-- 默认逻辑：显示服务器图标或默认图标 -->

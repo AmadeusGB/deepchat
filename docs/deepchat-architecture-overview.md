@@ -211,21 +211,25 @@ sequenceDiagram
 ## 🏛️ 架构设计原则
 
 ### 1. 分层架构
+
 - **主进程层**: 负责系统级操作、窗口管理、核心业务逻辑
 - **渲染进程层**: 负责用户界面、用户交互、前端状态管理
 - **Preload层**: 提供安全的IPC通信桥梁
 
 ### 2. Presenter 模式
+
 - 每个功能域都有对应的Presenter类
 - Presenter负责业务逻辑和状态管理
 - 通过EventBus实现松耦合的组件通信
 
 ### 3. 多窗口多标签架构
+
 - **窗口外壳(Shell)**: 轻量级标签栏UI管理
 - **标签内容(Content)**: 完整的应用功能实现
 - **独立的Vue实例**: 分离关注点，提高性能
 
 ### 4. 事件驱动架构
+
 - 统一的事件命名规范
 - 清晰的事件责任分离
 - 避免循环依赖和事件冲突
@@ -233,21 +237,25 @@ sequenceDiagram
 ## 🔧 核心组件说明
 
 ### WindowPresenter & TabPresenter
+
 - **WindowPresenter**: 管理BrowserWindow实例的生命周期
 - **TabPresenter**: 管理WebContentsView的创建、销毁、移动
 - 支持跨窗口标签页拖拽
 
 ### McpPresenter
+
 - **ServerManager**: MCP服务器连接和生命周期管理
 - **ToolManager**: 工具定义缓存和调用权限管理
 - **格式转换**: 在MCP工具格式与各LLM提供商格式间转换
 
 ### ThreadPresenter
+
 - 管理对话会话的创建、切换、历史记录
 - 协调LLM调用和消息流处理
 - 处理流式响应和错误恢复
 
 ### ConfigPresenter
+
 - 统一的配置管理，包括用户设置、模型配置、MCP设置
 - 配置变更事件发布
 - 数据持久化和迁移
@@ -255,6 +263,7 @@ sequenceDiagram
 ## 🚀 开发入门指南
 
 ### 1. 环境准备
+
 ```bash
 # 安装依赖
 npm install
@@ -264,24 +273,28 @@ npm run dev
 ```
 
 ### 2. 主要开发目录
+
 - `src/main/presenter/` - 核心业务逻辑
 - `src/renderer/src/` - 前端Vue组件
 - `src/renderer/shell/` - 标签栏UI
 - `src/shared/` - 类型定义和共享代码
 
 ### 3. 常见开发任务
+
 - **添加新功能**: 创建对应的Presenter和Vue组件
 - **扩展MCP工具**: 在McpPresenter中添加新的工具支持
 - **UI组件开发**: 在renderer层使用Vue3 + Tailwind CSS
 - **数据持久化**: 通过SqlitePresenter或ConfigPresenter
 
 ### 4. 调试技巧
+
 - 主进程调试: VSCode断点 + Electron DevTools
 - 渲染进程调试: Chrome DevTools
 - MCP工具调试: 内置的MCP调试窗口
 - 事件流调试: EventBus日志
 
 ## 📚 相关文档
+
 - [多窗口架构设计](./multi-window-architecture.md)
 - [MCP架构文档](./mcp-presenter-architecture.md)
 - [事件系统设计](./event-system-design.md)

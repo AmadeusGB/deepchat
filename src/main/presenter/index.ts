@@ -19,10 +19,7 @@ import { NotificationPresenter } from './notifactionPresenter'
 import { TabPresenter } from './tabPresenter'
 import { TrayPresenter } from './trayPresenter'
 import { OAuthPresenter } from './oauthPresenter'
-import {
-  CONFIG_EVENTS,
-  WINDOW_EVENTS
-} from '@/events'
+import { CONFIG_EVENTS, WINDOW_EVENTS } from '@/events'
 
 // 注意: 现在大部分事件已在各自的 presenter 中直接发送到渲染进程
 // 剩余的自动转发事件已在 EventBus 的 DEFAULT_RENDERER_EVENTS 中定义
@@ -98,7 +95,6 @@ export class Presenter implements IPresenter {
       const providers = this.configPresenter.getProviders()
       this.llmproviderPresenter.setProviders(providers)
     })
-
   }
   setupTray() {
     console.info('setupTray', !!this.trayPresenter)
@@ -180,8 +176,8 @@ ipcMain.handle(
         return { error: `Method "${method}" not found or not a function on "${name}"` }
       }
     } catch (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    e: any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      e: any
     ) {
       console.error('error on presenter handle', e) // 保留错误日志
       return { error: e.message || String(e) }

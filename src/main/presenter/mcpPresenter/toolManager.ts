@@ -266,7 +266,7 @@ export class ToolManager {
 
       // Parse arguments
       let args: Record<string, unknown> | null = null
-      
+
       // Handle empty or whitespace-only arguments
       if (!argsString || argsString.trim() === '') {
         console.info('[MCP] Tool call has empty arguments, using empty object')

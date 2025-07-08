@@ -55,7 +55,8 @@ const handleCapture = async () => {
 import { usePageCapture, createCapturePresets } from '@/composables/usePageCapture'
 
 const { captureAndCopy } = usePageCapture()
-const { captureFullConversation, captureMessageRange, captureCustomElement } = createCapturePresets()
+const { captureFullConversation, captureMessageRange, captureCustomElement } =
+  createCapturePresets()
 
 // 截取整个会话
 const captureConversation = async () => {
@@ -131,9 +132,9 @@ const advancedCapture = async () => {
       }
     },
     scrollBehavior: 'smooth', // 平滑滚动
-    captureDelay: 500,        // 增加延迟时间
-    maxIterations: 50,        // 增加最大迭代次数
-    scrollbarOffset: 15,      // 自定义滚动条偏移
+    captureDelay: 500, // 增加延迟时间
+    maxIterations: 50, // 增加最大迭代次数
+    scrollbarOffset: 15, // 自定义滚动条偏移
     containerHeaderOffset: 60 // 自定义容器头部偏移
   })
 
@@ -187,16 +188,16 @@ const handleCapture = async () => {
 
 ## 配置参数说明
 
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `container` | `string \| HTMLElement` | - | 滚动容器，CSS选择器或DOM元素 |
-| `getTargetRect` | `() => CaptureRect \| null` | - | 获取目标截图区域的函数 |
-| `watermark` | `WatermarkConfig` | `undefined` | 水印配置 |
-| `scrollBehavior` | `'auto' \| 'smooth'` | `'auto'` | 滚动行为 |
-| `captureDelay` | `number` | `350` | 每次截图后的延迟时间（毫秒） |
-| `maxIterations` | `number` | `30` | 最大迭代次数 |
-| `scrollbarOffset` | `number` | `20` | 滚动条偏移量 |
-| `containerHeaderOffset` | `number` | `44` | 容器顶部预留空间 |
+| 参数                    | 类型                        | 默认值      | 说明                         |
+| ----------------------- | --------------------------- | ----------- | ---------------------------- |
+| `container`             | `string \| HTMLElement`     | -           | 滚动容器，CSS选择器或DOM元素 |
+| `getTargetRect`         | `() => CaptureRect \| null` | -           | 获取目标截图区域的函数       |
+| `watermark`             | `WatermarkConfig`           | `undefined` | 水印配置                     |
+| `scrollBehavior`        | `'auto' \| 'smooth'`        | `'auto'`    | 滚动行为                     |
+| `captureDelay`          | `number`                    | `350`       | 每次截图后的延迟时间（毫秒） |
+| `maxIterations`         | `number`                    | `30`        | 最大迭代次数                 |
+| `scrollbarOffset`       | `number`                    | `20`        | 滚动条偏移量                 |
+| `containerHeaderOffset` | `number`                    | `44`        | 容器顶部预留空间             |
 
 ## 返回值说明
 
@@ -204,9 +205,9 @@ const handleCapture = async () => {
 
 ```typescript
 interface CaptureResult {
-  success: boolean    // 是否成功
-  imageData?: string  // base64格式的图片数据
-  error?: string      // 错误信息
+  success: boolean // 是否成功
+  imageData?: string // base64格式的图片数据
+  error?: string // 错误信息
 }
 ```
 

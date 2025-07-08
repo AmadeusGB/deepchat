@@ -255,13 +255,12 @@ export class McpConfHelper {
       } else if (updatedServers[serverName] && serverConfig.type === 'stdio') {
         // 检查现有的stdio服务器配置是否正确，如果不正确则修复
         const existingConfig = updatedServers[serverName]
-        const needsUpdate = 
-          existingConfig.type === 'stdio' && (
-            !existingConfig.descriptions || 
+        const needsUpdate =
+          existingConfig.type === 'stdio' &&
+          (!existingConfig.descriptions ||
             existingConfig.descriptions === '' ||
-            JSON.stringify(existingConfig.args) !== JSON.stringify(serverConfig.args) // 检查 args 是否匹配
-          )
-          
+            JSON.stringify(existingConfig.args) !== JSON.stringify(serverConfig.args)) // 检查 args 是否匹配
+
         if (needsUpdate) {
           console.log(`修复stdio服务配置: ${serverName}`)
           updatedServers[serverName] = {
@@ -296,11 +295,11 @@ export class McpConfHelper {
   getMcpDefaultServers(): Promise<string[]> {
     const storedDefaultServers = this.mcpStore.get('defaultServers') || []
     const expectedDefaultServers = DEFAULT_MCP_SERVERS.defaultServers
-    
+
     // 检查是否需要补充缺失的默认服务器
     let needsUpdate = false
     const updatedDefaultServers = [...storedDefaultServers]
-    
+
     // 遍历期望的默认服务器，检查是否都存在
     for (const serverName of expectedDefaultServers) {
       if (!updatedDefaultServers.includes(serverName)) {
@@ -309,7 +308,7 @@ export class McpConfHelper {
         needsUpdate = true
       }
     }
-    
+
     // 如果有更新，保存到存储
     if (needsUpdate) {
       this.mcpStore.set('defaultServers', updatedDefaultServers)
@@ -320,7 +319,7 @@ export class McpConfHelper {
         mcpEnabled: this.mcpStore.get('mcpEnabled')
       })
     }
-    
+
     return Promise.resolve(updatedDefaultServers)
   }
 

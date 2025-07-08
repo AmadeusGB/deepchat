@@ -99,8 +99,8 @@ export class TTSCoordinator {
   /**
    * 获取所有服务状态
    */
-  getServicesStatus(): Array<{id: string, name: string, priority: number, isActive: boolean}> {
-    return Array.from(this.services.values()).map(service => ({
+  getServicesStatus(): Array<{ id: string; name: string; priority: number; isActive: boolean }> {
+    return Array.from(this.services.values()).map((service) => ({
       id: service.id,
       name: service.name,
       priority: service.priority,
@@ -132,7 +132,7 @@ export class TTSCoordinator {
    */
   emergencyStopAll(): void {
     console.log('🚨 [TTS协调器] 紧急停止所有TTS服务')
-    this.services.forEach(service => {
+    this.services.forEach((service) => {
       if (service.isActive) {
         service.stop()
         service.isActive = false
@@ -143,4 +143,4 @@ export class TTSCoordinator {
 }
 
 // 导出单例实例
-export const ttsCoordinator = TTSCoordinator.getInstance() 
+export const ttsCoordinator = TTSCoordinator.getInstance()

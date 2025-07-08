@@ -133,7 +133,7 @@ module.exports = {
         pulse: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
       },
       spacing: {
-        '7.5': '30px', // 对应Figma设计中的30px间距
+        7.5: '30px' // 对应Figma设计中的30px间距
       }
     }
   },

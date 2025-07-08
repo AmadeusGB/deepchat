@@ -21,15 +21,17 @@
 
 ```typescript
 enum SendTarget {
-  ALL_WINDOWS = 'all_windows',    // 广播到所有窗口（默认推荐）
-  DEFAULT_TAB = 'default_tab'     // 发送到默认标签页（特殊场景）
+  ALL_WINDOWS = 'all_windows', // 广播到所有窗口（默认推荐）
+  DEFAULT_TAB = 'default_tab' // 发送到默认标签页（特殊场景）
 }
 ```
 
 ## 📊 事件通信模式
 
 ### 主进程内部通信
+
 适用于窗口管理、系统级操作等场景：
+
 ```typescript
 // 窗口生命周期管理
 eventBus.sendToMain('window:created', windowId)
@@ -43,7 +45,9 @@ eventBus.sendToMain('shortcut:close-current-tab', windowId)
 ```
 
 ### 渲染进程通信
+
 适用于 UI 更新、用户界面响应等场景：
+
 ```typescript
 // 配置变更通知
 eventBus.sendToRenderer('config:language-changed', SendTarget.ALL_WINDOWS, language)
@@ -57,7 +61,9 @@ eventBus.sendToRenderer('deeplink:mcp-install', SendTarget.DEFAULT_TAB, installD
 ```
 
 ### 双向通信（推荐）
+
 适用于需要主进程和渲染进程同时响应的场景：
+
 ```typescript
 // 配置系统事件
 eventBus.send('config:provider-changed', SendTarget.ALL_WINDOWS, providerConfig)
@@ -73,7 +79,9 @@ eventBus.send('shortcut:zoom-out', SendTarget.ALL_WINDOWS)
 ```
 
 ### 流事件和业务事件处理
+
 需要明确指定每个事件的发送目标：
+
 ```typescript
 // 流事件处理
 class StreamEventHandler {
@@ -115,6 +123,7 @@ class MCPHandler {
 ## 🔧 架构优势
 
 ### 简化的初始化
+
 ```typescript
 // 构造函数无需复杂参数
 export const eventBus = new EventBus()
@@ -124,18 +133,21 @@ eventBus.setWindowPresenter(windowPresenter)
 ```
 
 ### 显式通信保障
+
 - 所有跨进程通信都需要明确调用相应方法
 - 避免意外的事件泄漏或遗漏
 - 代码逻辑更加清晰和可预测
 - 便于调试和维护
 
 ### 类型安全保障
+
 - 完全移除 `any` 类型使用
 - 参数类型明确定义：`...args: unknown[]`
 - 枚举类型提供编译时检查
 - TypeScript 智能提示支持
 
 ### 错误处理机制
+
 ```typescript
 // 内置的错误检查和警告
 sendToRenderer(eventName: string, target: SendTarget = SendTarget.ALL_WINDOWS, ...args: unknown[]) {
@@ -150,6 +162,7 @@ sendToRenderer(eventName: string, target: SendTarget = SendTarget.ALL_WINDOWS, .
 ## 🎨 实际应用场景
 
 ### 配置管理系统
+
 ```typescript
 class ConfigManager {
   updateLanguage(language: string) {
@@ -167,6 +180,7 @@ class ConfigManager {
 ```
 
 ### 窗口管理系统
+
 ```typescript
 class WindowManager {
   createWindow() {
@@ -189,6 +203,7 @@ class WindowManager {
 ```
 
 ### 通知系统
+
 ```typescript
 class NotificationManager {
   showError(message: string) {
@@ -204,6 +219,7 @@ class NotificationManager {
 ```
 
 ### 快捷键处理系统
+
 ```typescript
 class ShortcutManager {
   handleGoSettings() {
@@ -228,18 +244,21 @@ class ShortcutManager {
 ## 🎯 性能优化
 
 ### 精确的目标控制
+
 - 支持发送到特定窗口而非广播
 - 可选择发送到默认标签页
 - 避免无效的事件传播
 - 减少不必要的进程间通信
 
 ### 显式控制的优势
+
 - 开发者必须明确指定事件的发送目标
 - 避免意外的性能开销
 - 更好的代码可读性和维护性
 - 便于性能分析和优化
 
 ### 错误预防机制
+
 - WindowPresenter 状态检查
 - 控制台警告提示
 - 优雅的错误降级处理
@@ -247,20 +266,22 @@ class ShortcutManager {
 ## 🔄 兼容性和迁移
 
 ### 向后兼容
+
 - 完全保持 EventEmitter 的所有原生功能
 - 主进程内部的事件监听不受影响
 - 现有的事件监听器无需修改
 
 ### 迁移指导
+
 原有依赖自动转发的代码需要调整：
 
 ```typescript
 // ❌ 之前的自动转发方式
-eventBus.emit('stream:error', error)  // 自动转发到渲染进程
+eventBus.emit('stream:error', error) // 自动转发到渲染进程
 
 // ✅ 现在需要明确指定
-eventBus.sendToMain('stream:error-logged', error)  // 主进程记录
-eventBus.sendToRenderer('stream:error-display', SendTarget.ALL_WINDOWS, error)  // 渲染进程显示
+eventBus.sendToMain('stream:error-logged', error) // 主进程记录
+eventBus.sendToRenderer('stream:error-display', SendTarget.ALL_WINDOWS, error) // 渲染进程显示
 
 // 或者使用双向发送
 eventBus.send('stream:error', SendTarget.ALL_WINDOWS, error)
@@ -277,6 +298,7 @@ eventBus.send('stream:error', SendTarget.ALL_WINDOWS, error)
 5. **兼容性保障**：保持 EventEmitter 基础功能不变
 
 特别重要的改进：
+
 - **显式通信**：所有跨进程通信都需要明确指定，避免隐藏的依赖
 - **精确控制**：可以选择发送到所有窗口、特定窗口或默认标签页
 - **简洁架构**：移除了复杂的事件定义和自动转发逻辑

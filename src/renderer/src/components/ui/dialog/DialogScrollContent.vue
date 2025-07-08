@@ -8,7 +8,7 @@ import {
   type DialogContentProps,
   DialogOverlay,
   DialogPortal,
-  useForwardPropsEmits,
+  useForwardPropsEmits
 } from 'radix-vue'
 import { computed, type HTMLAttributes } from 'vue'
 
@@ -30,12 +30,14 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     />
     <DialogContent
       v-bind="forwarded"
-      :class="cn(
-        'fixed right-0 top-0 z-50 h-full w-1/2 border-l bg-background shadow-lg duration-200',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right',
-        props.class
-      )"
+      :class="
+        cn(
+          'fixed right-0 top-0 z-50 h-full w-1/2 border-l bg-background shadow-lg duration-200',
+          'data-[state=open]:animate-in data-[state=closed]:animate-out',
+          'data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right',
+          props.class
+        )
+      "
     >
       <slot />
       <DialogClose

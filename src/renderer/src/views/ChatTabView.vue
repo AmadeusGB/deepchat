@@ -1,7 +1,5 @@
 <template>
   <div class="w-full h-full flex-row flex">
-
-    
     <div
       :class="[
         'flex-1 w-0 h-full transition-all duration-200 max-lg:!mr-0',
@@ -19,7 +17,7 @@
           <div
             v-show="chatStore.isSidebarOpen"
             class="w-60 max-w-60 fixed left-0 z-20 lg:relative"
-            style="height: calc(100vh - 40px); top: 20px;"
+            style="height: calc(100vh - 40px); top: 20px"
           >
             <ThreadsView class="transform h-full" />
           </div>
@@ -28,9 +26,9 @@
         <!-- 主聊天区域 -->
         <div class="flex-1 flex flex-col w-0">
           <!-- 新会话 - 🎯 强化语音模式渲染条件 -->
-          <NewThread 
-            v-if="!chatStore.getActiveThreadId() || isVoiceModeActive || (newThreadRef?.isVoiceMode)" 
-            ref="newThreadRef" 
+          <NewThread
+            v-if="!chatStore.getActiveThreadId() || isVoiceModeActive || newThreadRef?.isVoiceMode"
+            ref="newThreadRef"
             @exit-voice-mode="handleExitVoiceMode"
           />
           <template v-else>
@@ -76,7 +74,7 @@ const handleExitVoiceMode = () => {
 // 🎯 新增：处理进入语音模式事件
 const handleEnterVoiceMode = async () => {
   const activeThreadId = chatStore.getActiveThreadId()
-  
+
   // 🔧 关键修复1：如果有正在生成的线程，先停止生成
   if (activeThreadId && chatStore.generatingThreadIds.has(activeThreadId)) {
     try {
@@ -85,19 +83,19 @@ const handleEnterVoiceMode = async () => {
       // 静默处理错误
     }
   }
-  
+
   // 🔧 关键修复2：立即设置语音模式状态（锁定状态）
   isVoiceModeActive.value = true
-  
+
   // 🔧 强化：在下一个事件循环中再次确认状态
   await nextTick()
   if (!isVoiceModeActive.value) {
     isVoiceModeActive.value = true
   }
-  
+
   // 等待NewThread组件渲染
   await nextTick()
-  
+
   // 🔧 关键修复3：调用NewThread的enterVoiceMode，传递现有线程信息
   if (newThreadRef.value) {
     try {
@@ -140,14 +138,20 @@ watch(
 )
 
 // 状态变化监听器（已移除调试日志）
-watch(isVoiceModeActive, (newValue, oldValue) => {
-  // 静默监听状态变化
-}, { immediate: true })
+watch(
+  isVoiceModeActive,
+  (newValue, oldValue) => {
+    // 静默监听状态变化
+  },
+  { immediate: true }
+)
 
-watch(() => chatStore.getActiveThreadId(), (newThreadId, oldThreadId) => {
-  // 静默监听线程ID变化
-})
-
+watch(
+  () => chatStore.getActiveThreadId(),
+  (newThreadId, oldThreadId) => {
+    // 静默监听线程ID变化
+  }
+)
 </script>
 
 <style>

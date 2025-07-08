@@ -1,4 +1,3 @@
-
 # DeepChat Tool Use 技术文档
 
 ## 背景与目标
@@ -6,6 +5,7 @@
 随着 LLM (大模型) 支持 Function Calling 能力的增强，DeepChat 通过**提示词工程（prompt engineering）**，即使在不依赖原生 function calling 的情况下，也能**模拟 Tool Use 行为**。
 
 设计目标：
+
 - 通过标准化 prompt 包装，引导模型以规范格式调用 Tool
 - 适配各类 LLM，包括不支持原生 Function Calling 的模型
 - 支持扩展到多 Tool 使用和复杂调度场景
@@ -35,14 +35,18 @@
 ### 1. getFunctionCallWrapPrompt(prompt, functions)
 
 **功能**：
+
 > 将原始用户 prompt 和可用 Tools 打包，引导 LLM 按指定 JSON 格式返回 Tool Call。
 
 **主要逻辑**：
+
 - 列出全部函数（包括名称和参数格式）
 - 定义规范格式，比如：
+
 ```json
 { "tool_name": "xxx", "parameters": { "key": "value" } }
 ```
+
 - 插入原始用户输入，保持连贯自然
 
 **核心思想**：
@@ -53,9 +57,11 @@
 ### 2. coreStream(config)
 
 **功能**：
+
 > 负责流式向 LLM 发送请求，同时流式接收 delta 数据并实时处理。
 
 **处理细节**：
+
 - 每次接收 delta：
   - 检测是否包含 `content`
   - 将每个字符段重新组合，保证符合 JSON 格式
@@ -90,9 +96,11 @@ stateDiagram-v2
 ### 3. parseFunctionCalls(text)
 
 **功能**：
+
 > 从自然语言输出中，提取符合格式的 Tool Call JSON，并解析成标准 JS Object。
 
 **主要逻辑**：
+
 - 正则匹配 `{...}` 结构
 - 支持多 Tool Call 同时存在
 - 对异常 JSON（超出字符、缺引号等）进行容错修正
@@ -118,6 +126,7 @@ flowchart TD
     K --> G
     L --> G
 ```
+
 ---
 
 ## 时序图 (Mermaid)

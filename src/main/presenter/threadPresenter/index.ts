@@ -638,7 +638,10 @@ export class ThreadPresenter implements IThreadPresenter {
     const conversation = await this.getConversation(conversationId)
     if (conversation) {
       this.activeConversationIds.set(tabId, conversationId)
-      eventBus.sendToRenderer(CONVERSATION_EVENTS.ACTIVATED, SendTarget.ALL_WINDOWS, { conversationId, tabId })
+      eventBus.sendToRenderer(CONVERSATION_EVENTS.ACTIVATED, SendTarget.ALL_WINDOWS, {
+        conversationId,
+        tabId
+      })
     } else {
       throw new Error(`Conversation ${conversationId} not found`)
     }
@@ -679,7 +682,7 @@ export class ThreadPresenter implements IThreadPresenter {
         const newMsg = { ...msg }
         const msgContent = newMsg.content as UserMessageContent
         if (msgContent.content) {
-          ; (newMsg.content as UserMessageContent).text = this.formatUserMessageContent(
+          ;(newMsg.content as UserMessageContent).text = this.formatUserMessageContent(
             msgContent.content
           )
         }
@@ -1455,8 +1458,8 @@ export class ThreadPresenter implements IThreadPresenter {
     // 任何情况都使用最新配置
     const webSearchEnabled = this.configPresenter.getSetting('input_webSearch') as boolean
     const thinkEnabled = this.configPresenter.getSetting('input_deepThinking') as boolean
-      ; (userMessage.content as UserMessageContent).search = webSearchEnabled
-      ; (userMessage.content as UserMessageContent).think = thinkEnabled
+    ;(userMessage.content as UserMessageContent).search = webSearchEnabled
+    ;(userMessage.content as UserMessageContent).think = thinkEnabled
     return { conversation, userMessage, contextMessages }
   }
 
@@ -1468,9 +1471,10 @@ export class ThreadPresenter implements IThreadPresenter {
   }> {
     // 处理文本内容
     const userContent = `
-      ${userMessage.content.content
-        ? this.formatUserMessageContent(userMessage.content.content)
-        : userMessage.content.text
+      ${
+        userMessage.content.content
+          ? this.formatUserMessageContent(userMessage.content.content)
+          : userMessage.content.text
       }
       ${getFileContext(userMessage.content.files)}
     `
@@ -1590,7 +1594,7 @@ export class ThreadPresenter implements IThreadPresenter {
       const msgContent = msg.role === 'user' ? (msg.content as UserMessageContent) : null
       const msgText = msgContent
         ? msgContent.text ||
-        (msgContent.content ? this.formatUserMessageContent(msgContent.content) : '')
+          (msgContent.content ? this.formatUserMessageContent(msgContent.content) : '')
         : ''
 
       const msgTokens = approximateTokenSize(

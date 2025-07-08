@@ -19,6 +19,7 @@ node generate-version-files.mjs  --version=0.0.6 --notes="版本更新说明"  -
 ```
 
 参数说明：
+
 - `--version`: 新版本号（必填，格式为 X.Y.Z）
 - `--notes`: 版本更新说明（可选）
 - `--date`: 发布日期（可选，默认为当前日期）

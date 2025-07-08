@@ -30,9 +30,9 @@ deepchat://start?msg={query}&system={systemPrompt}&model={modelId|modelName}
 2. 如果指定了模型，会尝试匹配并选择相应模型（先精确匹配，再模糊匹配）
 3. 如果提供了初始消息，将自动填充到输入框中
 
-1. If not currently on the chat page, it will automatically navigate to the chat page
-2. If a model is specified, it will attempt to match and select the corresponding model (exact match first, then fuzzy match)
-3. If an initial message is provided, it will be automatically filled in the input box
+4. If not currently on the chat page, it will automatically navigate to the chat page
+5. If a model is specified, it will attempt to match and select the corresponding model (exact match first, then fuzzy match)
+6. If an initial message is provided, it will be automatically filled in the input box
 
 ### 示例 / Examples
 
@@ -81,9 +81,9 @@ deepchat://mcp/install?code={base64Encode(JSON.stringify(jsonConfig))}
 2. 自动导航到设置页面的MCP配置部分
 3. 打开添加服务器对话框，并自动填充配置数据
 
-1. If the MCP feature is not enabled, it will be automatically enabled
-2. Automatically navigate to the MCP configuration section of the settings page
-3. Open the add server dialog and automatically fill in the configuration data
+4. If the MCP feature is not enabled, it will be automatically enabled
+5. Automatically navigate to the MCP configuration section of the settings page
+6. Open the add server dialog and automatically fill in the configuration data
 
 ### 配置JSON格式 / Configuration JSON Format
 
@@ -94,21 +94,21 @@ The MCP configuration JSON should contain the following structure:
 最小化的JSON格式样例:
 
 ### 包含 command 不包含 url，识别为 stdio
+
 ```json
 {
   "mcpServers": {
     "filesystem": {
       "command": "mcp-filesystem-server",
-      "args": [
-        "/Users/username/Desktop",
-      ]
+      "args": ["/Users/username/Desktop"]
     }
   }
 }
 ```
-### 包含 url 不包含 command ，默认识别为 sse
-```json
 
+### 包含 url 不包含 command ，默认识别为 sse
+
+```json
 {
   "mcpServers": {
     "browser-use-mcp-server": {
@@ -125,26 +125,25 @@ The MCP configuration JSON should contain the following structure:
   "mcpServers": {
     "filesystem": {
       "command": "mcp-filesystem-server",
-      "args": [
-        "/Users/username/Desktop",
-      ],
+      "args": ["/Users/username/Desktop"],
       "env": {},
       "descriptions": "filesystem mcp server",
       "icons": "📁",
-      "type" :"stdio",
+      "type": "stdio",
       "autoApprove": ["all"]
     }
   }
 }
 ```
+
 ```json
 {
   "mcpServers": {
     "browser-use-mcp-server": {
       "url": "http://localhost:8000/sse",
-      "type":"sse",
+      "type": "sse",
       "icons": "🏠",
-      "autoApprove": ["all"],
+      "autoApprove": ["all"]
     }
   }
 }
@@ -153,20 +152,20 @@ The MCP configuration JSON should contain the following structure:
 ## 如何生成安装 code 参数(How to Generate MCPConfig code params)
 
 ```javascript
-import { encode } from 'js-base64';
+import { encode } from 'js-base64'
 
 const config = {
-  "mcpServers": {
-    "browser-use-mcp-server": {
-      "url": "http://localhost:8000/sse"
+  mcpServers: {
+    'browser-use-mcp-server': {
+      url: 'http://localhost:8000/sse'
     }
   }
 }
-const code =encode(JSON.stringify(config))
-
+const code = encode(JSON.stringify(config))
 ```
 
 ## 聊天唤起样例 (Chat Example)
+
 ```
 deepchat://start?msg=%E5%A4%A9%E6%B0%94%E4%B8%8D%E9%94%99&system=%E4%BD%A0%E6%98%AF%E4%B8%80%E4%B8%AA%E9%A2%84%E6%8A%A5%E5%91%98%2C%E8%AF%B7%E4%BD%A0%E7%A4%BC%E8%B2%8C%E8%80%8C%E4%B8%93%E4%B8%9A%E5%9B%9E%E7%AD%94%E7%94%A8%E6%88%B7%E9%97%AE%E9%A2%98&model=deepseek-chat
 ```

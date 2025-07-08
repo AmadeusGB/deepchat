@@ -43,19 +43,15 @@
 
     /* Figma-inspired gradient background - 基于 node-id=110-2 */
     --container: var(--white);
-    --container-gradient: 
-      linear-gradient(
-        90deg,
-        rgba(73, 90, 245, 0.7) 0%,
-        rgba(73, 90, 245, 0) 36.5%
-      ), 
+    --container-gradient:
+      linear-gradient(90deg, rgba(73, 90, 245, 0.7) 0%, rgba(73, 90, 245, 0) 36.5%),
       radial-gradient(
         ellipse at center top,
         rgba(255, 255, 255, 1) 0%,
         rgba(255, 255, 255, 0) 100%
-      ), 
+      ),
       #ffffff;
-    
+
     --background: var(--white);
     --foreground: var(--base-800);
     --card: 0 0% 100%;
@@ -93,26 +89,18 @@
     --display-weight: 700;
     --text-weight: 400;
 
-    --usage-low: 142 71% 45%;   /* 亮绿 */
-    --usage-mid: 48 96% 53%;    /* 亮黄 */
-    --usage-high: 0 72% 51%;    /* 亮红 */
+    --usage-low: 142 71% 45%; /* 亮绿 */
+    --usage-mid: 48 96% 53%; /* 亮黄 */
+    --usage-high: 0 72% 51%; /* 亮红 */
   }
 
   .dark {
     --container: var(--black);
-    --container-gradient: 
-      linear-gradient(
-        90deg,
-        rgba(73, 90, 245, 0.3) 0%,
-        rgba(73, 90, 245, 0) 36.5%
-      ), 
-      radial-gradient(
-        ellipse at center top,
-        rgba(34, 34, 34, 1) 0%,
-        rgba(34, 34, 34, 0) 100%
-      ), 
+    --container-gradient:
+      linear-gradient(90deg, rgba(73, 90, 245, 0.3) 0%, rgba(73, 90, 245, 0) 36.5%),
+      radial-gradient(ellipse at center top, rgba(34, 34, 34, 1) 0%, rgba(34, 34, 34, 0) 100%),
       #000000;
-    
+
     --background: var(--base-950);
     --foreground: var(--base-200);
     --card: var(--base-900);
@@ -146,9 +134,9 @@
     --sidebar-border: var(--base-800);
     --sidebar-ring: var(--primary-600);
 
-    --usage-low: 142 40% 60%;   /* 暗绿 */
-    --usage-mid: 48 80% 60%;    /* 暗黄 */
-    --usage-high: 0 70% 65%;    /* 暗红 */
+    --usage-low: 142 40% 60%; /* 暗绿 */
+    --usage-mid: 48 80% 60%; /* 暗黄 */
+    --usage-high: 0 70% 65%; /* 暗红 */
   }
 }
 @layer base {
@@ -167,7 +155,7 @@
       'Segoe UI Emoji',
       'Segoe UI Symbol',
       'Noto Color Emoji' !important;
-    
+
     /* Figma背景板 - 适用于所有页面 */
     background-image: url('@/assets/figma-icons/background.png');
     background-size: cover;
@@ -187,7 +175,7 @@
       'Segoe UI Emoji',
       'Segoe UI Symbol',
       'Noto Color Emoji' !important;
-    
+
     /* 确保html元素也有背景覆盖 */
     background-image: url('@/assets/figma-icons/background.png');
     background-size: cover;
@@ -196,12 +184,12 @@
     background-attachment: fixed;
     min-height: 100vh;
   }
-  
+
   /* 深色模式下的背景调整 */
   .dark body,
   .dark html {
     /* 在深色模式下，可以添加一个半透明的深色覆盖层来调整背景亮度 */
-    background-image: 
+    background-image:
       linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)),
       url('@/assets/figma-icons/background.png');
     background-size: cover;
@@ -225,14 +213,14 @@
   .bg-gradient-container {
     background: var(--container-gradient);
   }
-  
+
   /* 对话历史区域玻璃形态效果 */
   .figma-chat-history {
     background: rgba(255, 255, 255, 0.3);
     backdrop-filter: blur(20px);
     border: 1px solid transparent;
     border-radius: 25px;
-    box-shadow: 
+    box-shadow:
       -2px 4px 10px 0px rgba(145, 145, 145, 0.05),
       -7px 17px 18px 0px rgba(145, 145, 145, 0.04),
       -15px 37px 24px 0px rgba(145, 145, 145, 0.03),
@@ -241,7 +229,7 @@
       inset 0px 4px 4px 0px rgba(255, 255, 255, 0.25),
       inset 0px -5px 4px 0px rgba(255, 255, 255, 0.25);
   }
-  
+
   .figma-chat-history::before {
     content: '';
     position: absolute;
@@ -260,33 +248,37 @@
       rgba(156, 156, 156, 0.5) 360deg
     );
     border-radius: inherit;
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
     mask-composite: xor;
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     pointer-events: none;
   }
-  
+
   /* 输入框区域深色玻璃形态效果 */
   .figma-input-area {
-    background: #1A1A1A;
+    background: #1a1a1a;
     backdrop-filter: blur(12px);
     border-radius: 25px;
-    box-shadow: 
+    box-shadow:
       inset 0px 0px 22px 0px rgba(242, 242, 242, 0.5),
       inset 0px 0px 0px 1px rgba(153, 153, 153, 1),
       inset -1px -1px 1px -2px rgba(179, 179, 179, 1),
       inset 1px 1px 1px -2px rgba(179, 179, 179, 1),
       inset 1px 1px 0.5px -3.5px rgba(255, 255, 255, 0.5);
   }
-  
+
   /* 对话页面输入框 - 类似对话历史框的玻璃形态效果 */
   .figma-chat-input-area {
     background: rgba(255, 255, 255, 0.3);
     backdrop-filter: blur(20px);
     border: 1px solid transparent;
     border-radius: 25px;
-    box-shadow: 
+    box-shadow:
       -2px 4px 10px 0px rgba(145, 145, 145, 0.05),
       -7px 17px 18px 0px rgba(145, 145, 145, 0.04),
       -15px 37px 24px 0px rgba(145, 145, 145, 0.03),
@@ -295,7 +287,7 @@
       inset 0px 4px 4px 0px rgba(255, 255, 255, 0.25),
       inset 0px -5px 4px 0px rgba(255, 255, 255, 0.25);
   }
-  
+
   .figma-chat-input-area::before {
     content: '';
     position: absolute;
@@ -314,65 +306,69 @@
       rgba(156, 156, 156, 0.5) 360deg
     );
     border-radius: inherit;
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
     mask-composite: xor;
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     pointer-events: none;
   }
-  
+
   /* 深色模式下的调整 */
   .dark .figma-chat-history {
     background: rgba(255, 255, 255, 0.1);
   }
-  
+
   .dark .figma-input-area {
     background: rgba(26, 26, 26, 0.9);
   }
-  
+
   .dark .figma-chat-input-area {
     background: rgba(255, 255, 255, 0.1);
   }
-  
+
   /* 对话页面输入框内的样式 */
   .figma-chat-input-area {
     color: hsl(var(--foreground));
   }
-  
+
   .figma-chat-input-area .btn-input {
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
     color: hsl(var(--foreground));
     transition: all 0.2s ease;
   }
-  
+
   .figma-chat-input-area .btn-input:hover {
     background: rgba(255, 255, 255, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.4);
     color: hsl(var(--foreground));
   }
-  
+
   .figma-chat-input-area .btn-primary {
-    background: #495AF5;
-    border: 1px solid #495AF5;
+    background: #495af5;
+    border: 1px solid #495af5;
     color: white;
   }
-  
+
   .figma-chat-input-area .btn-primary:hover {
     background: #3d4de3;
     border: 1px solid #3d4de3;
   }
-  
+
   /* 对话页面输入框内的编辑器样式 */
   .figma-chat-input-area .ProseMirror {
     color: hsl(var(--foreground)) !important;
     background: transparent !important;
   }
-  
+
   .figma-chat-input-area .ProseMirror p.is-editor-empty:first-child::before {
     color: hsl(var(--muted-foreground)) !important;
   }
-  
+
   /* 输入框区域内的按钮样式（深色主题） */
   .figma-input-area .btn-input {
     background: rgba(255, 255, 255, 0.1);
@@ -380,58 +376,58 @@
     color: rgba(255, 255, 255, 0.8);
     transition: all 0.2s ease;
   }
-  
+
   .figma-input-area .btn-input:hover {
     background: rgba(255, 255, 255, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.3);
     color: rgba(255, 255, 255, 0.9);
   }
-  
+
   .figma-input-area .btn-input:active {
     background: rgba(255, 255, 255, 0.2);
   }
-  
+
   .figma-input-area .btn-primary {
-    background: #495AF5;
-    border: 1px solid #495AF5;
+    background: #495af5;
+    border: 1px solid #495af5;
     color: white;
   }
-  
+
   .figma-input-area .btn-primary:hover {
     background: #3d4de3;
     border: 1px solid #3d4de3;
   }
-  
+
   /* 输入框区域内的文本和其他UI元素样式 */
   .figma-input-area {
     color: rgba(255, 255, 255, 0.9);
   }
-  
+
   .figma-input-area .text-muted-foreground {
     color: rgba(255, 255, 255, 0.6) !important;
   }
-  
-  .figma-input-area input, 
+
+  .figma-input-area input,
   .figma-input-area textarea {
     color: rgba(255, 255, 255, 0.9);
     background: transparent;
   }
-  
+
   .figma-input-area input::placeholder,
   .figma-input-area textarea::placeholder {
     color: rgba(255, 255, 255, 0.4);
   }
-  
+
   /* 编辑器样式 */
   .figma-input-area .ProseMirror {
     color: rgba(255, 255, 255, 0.9) !important;
     background: transparent !important;
   }
-  
+
   .figma-input-area .ProseMirror p.is-editor-empty:first-child::before {
     color: rgba(255, 255, 255, 0.4) !important;
   }
-  
+
   /* 对话页面ChatInput内部按钮样式 */
   .figma-chat-input button {
     background: rgba(255, 255, 255, 0.2) !important;
@@ -439,34 +435,34 @@
     color: hsl(var(--foreground)) !important;
     transition: all 0.2s ease;
   }
-  
+
   .figma-chat-input button:hover {
     background: rgba(255, 255, 255, 0.3) !important;
     border: 1px solid rgba(255, 255, 255, 0.4) !important;
     color: hsl(var(--foreground)) !important;
   }
-  
+
   /* 发送按钮特殊样式 */
   .figma-chat-input button:last-child {
-    background: #495AF5 !important;
-    border: 1px solid #495AF5 !important;
+    background: #495af5 !important;
+    border: 1px solid #495af5 !important;
     color: white !important;
   }
-  
+
   .figma-chat-input button:last-child:hover {
     background: #3d4de3 !important;
     border: 1px solid #3d4de3 !important;
   }
-  
+
   /* 对话页面输入框内部容器样式覆盖 */
   .figma-chat-input .figma-chat-input-inner {
     border: none !important;
     box-shadow: none !important;
   }
-  
+
   /* AI消息头部样式 - 基于Figma设计 94-346 */
   .figma-ai-message-header {
-    background: #FFFFFF;
+    background: #ffffff;
     border-radius: 20px;
     padding: 8px 20px 8px 6px;
     height: 40px;
@@ -478,7 +474,7 @@
 
   /* AI Thinking状态样式 - 基于Figma设计 86-277 */
   .figma-ai-thinking-header {
-    background: #F1F3F5;
+    background: #f1f3f5;
     border-radius: 20px;
     padding: 8px 20px 8px 6px;
     height: 40px;
@@ -490,7 +486,14 @@
 
   /* Thinking状态文字动效 */
   .figma-ai-thinking-header .figma-ai-text {
-    background: linear-gradient(90deg, #495AF5 0%, #7C3AED 25%, #495AF5 50%, #7C3AED 75%, #495AF5 100%);
+    background: linear-gradient(
+      90deg,
+      #495af5 0%,
+      #7c3aed 25%,
+      #495af5 50%,
+      #7c3aed 75%,
+      #495af5 100%
+    );
     background-size: 200% 100%;
     background-clip: text;
     -webkit-background-clip: text;
@@ -509,27 +512,27 @@
       background-position: 0% 50%;
     }
   }
-  
+
   .figma-ai-header-content {
     display: flex;
     align-items: center;
     gap: 2px;
   }
-  
+
   .figma-ai-icon {
     width: 46px;
     height: 46px;
   }
-  
+
   .figma-ai-text {
     font-family: 'Montserrat', sans-serif;
     font-weight: 600;
     font-size: 12px;
     line-height: 1.219;
-    color: #495AF5;
+    color: #495af5;
     white-space: nowrap;
   }
-  
+
   .figma-ai-timestamp {
     font-family: 'Montserrat', sans-serif;
     font-weight: 400;
@@ -538,10 +541,10 @@
     color: #646466;
     margin-left: 18px;
   }
-  
+
   /* 工具调用样式 - 基于Figma设计 94-353 */
   .figma-tool-call-block {
-    background: #22C55E;
+    background: #22c55e;
     border: none;
     border-radius: 25px;
     padding: 8px 16px;
@@ -554,12 +557,12 @@
     max-width: 380px;
     box-shadow: 0 2px 8px rgba(34, 197, 94, 0.15);
   }
-  
+
   .figma-tool-call-block:hover {
-    background: #16A34A;
+    background: #16a34a;
     box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
   }
-  
+
   .figma-tool-call-content {
     display: flex;
     justify-content: space-between;
@@ -567,7 +570,7 @@
     width: 100%;
     gap: 12px;
   }
-  
+
   .figma-tool-call-left {
     display: flex;
     align-items: center;
@@ -575,7 +578,7 @@
     flex: 1;
     min-width: 0;
   }
-  
+
   .figma-tool-call-right {
     display: flex;
     align-items: center;
@@ -584,7 +587,7 @@
   }
 
   .figma-status-capsule {
-    background: #FFFFFF;
+    background: #ffffff;
     border-radius: 20px;
     padding: 4px 12px;
     display: flex;
@@ -592,55 +595,55 @@
     gap: 6px;
     height: 32px;
   }
-  
+
   .figma-tool-icon {
     width: 24px;
     height: 24px;
-    color: #FFFFFF;
+    color: #ffffff;
     flex-shrink: 0;
   }
-  
+
   .figma-tool-emoji {
     font-size: 20px;
     line-height: 1;
     flex-shrink: 0;
   }
-  
+
   .figma-tool-name {
     font-family: 'Montserrat', sans-serif;
     font-weight: 600;
     font-size: 13px;
     line-height: 1.2;
-    color: #FFFFFF;
+    color: #ffffff;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  
+
   .figma-status-text {
     font-family: 'Montserrat', sans-serif;
     font-weight: 500;
     font-size: 11px;
     line-height: 1.2;
-    color: #22C55E;
+    color: #22c55e;
     white-space: nowrap;
   }
-  
+
   .figma-status-icon {
     width: 16px;
     height: 16px;
-    color: #22C55E;
+    color: #22c55e;
   }
-  
+
   .figma-status-icon-success {
     width: 16px;
     height: 16px;
-    color: #22C55E;
+    color: #22c55e;
     background: transparent;
     border-radius: 50%;
     padding: 0;
   }
-  
+
   .figma-status-icon-error {
     width: 16px;
     height: 16px;
@@ -649,7 +652,7 @@
     border-radius: 50%;
     padding: 2px;
   }
-  
+
   .figma-status-icon-warning {
     width: 16px;
     height: 16px;
@@ -658,13 +661,13 @@
     border-radius: 50%;
     padding: 2px;
   }
-  
+
   /* 用户消息气泡样式 - 基于Figma设计 83-216 */
   .figma-user-message-bubble {
-    background: #4F46E5;
+    background: #4f46e5;
     border-radius: 20px;
     padding: 12px 16px;
-    color: #FFFFFF;
+    color: #ffffff;
     font-size: 14px;
     line-height: 1.5;
     display: flex;
@@ -676,15 +679,15 @@
 
   /* 确保用户消息气泡内的所有文本都是白色 */
   .figma-user-message-bubble * {
-    color: #FFFFFF !important;
+    color: #ffffff !important;
   }
 
   /* 用户消息编辑模式textarea样式 */
   .figma-user-message-textarea {
-    background: #4F46E5;
+    background: #4f46e5;
     border-radius: 20px;
     padding: 12px 16px;
-    color: #FFFFFF;
+    color: #ffffff;
     font-size: 14px;
     line-height: 1.5;
     border: none;
@@ -695,19 +698,19 @@
   .figma-user-message-textarea::placeholder {
     color: rgba(255, 255, 255, 0.7);
   }
-  
+
   /* 深色模式适配 */
   .dark .figma-ai-message-header {
     background: rgba(255, 255, 255, 0.95);
   }
-  
+
   .dark .figma-tool-call-block {
-    background: #22C55E;
+    background: #22c55e;
     box-shadow: 0 2px 8px rgba(34, 197, 94, 0.2);
   }
-  
+
   .dark .figma-tool-call-block:hover {
-    background: #16A34A;
+    background: #16a34a;
     box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
   }
 }

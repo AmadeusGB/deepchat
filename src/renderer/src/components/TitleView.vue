@@ -93,8 +93,6 @@ const updateArtifacts = (value: 0 | 1) => {
   artifacts.value = value
 }
 
-
-
 // Watch for changes and update store
 watch(
   [temperature, contextLength, maxTokens, systemPrompt, artifacts],

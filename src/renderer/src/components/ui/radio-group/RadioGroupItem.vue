@@ -3,12 +3,7 @@ import type { RadioGroupItemProps } from 'radix-vue'
 import type { HTMLAttributes } from 'vue'
 import { cn } from '@/lib/utils'
 import { CheckIcon } from '@radix-icons/vue'
-import {
-  RadioGroupIndicator,
-  RadioGroupItem,
-
-  useForwardProps,
-} from 'radix-vue'
+import { RadioGroupIndicator, RadioGroupItem, useForwardProps } from 'radix-vue'
 import { computed } from 'vue'
 
 const props = defineProps<RadioGroupItemProps & { class?: HTMLAttributes['class'] }>()
@@ -28,7 +23,7 @@ const forwardedProps = useForwardProps(delegatedProps)
     :class="
       cn(
         'aspect-square h-4 w-4 rounded-full border border-primary text-primary shadow focus:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
-        props.class,
+        props.class
       )
     "
   >

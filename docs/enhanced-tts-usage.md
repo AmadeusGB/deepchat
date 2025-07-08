@@ -7,6 +7,7 @@
 ## 🚀 **核心特性**
 
 ### **1. 统一TTS服务**
+
 - ✅ 单一服务架构，避免双重系统复杂性
 - ✅ 智能文本分块，支持三种策略
 - ✅ 自适应延迟控制
@@ -15,21 +16,25 @@
 ### **2. 三种播放策略**
 
 #### **实时模式 (Realtime)**
+
 - **延迟**: 8-25字符触发，超低延迟
 - **适用**: 语音对话模式，要求最快响应
 - **特点**: 遇到任何标点立即处理
 
 #### **平衡模式 (Balanced)** 🌟 **推荐**
+
 - **延迟**: 15-50字符，句子边界优先
 - **适用**: 大多数聊天场景
 - **特点**: 平衡延迟与语义完整性
 
 #### **精确模式 (Precise)**
+
 - **延迟**: 30-100字符，完整段落
 - **适用**: 长文本阅读，网络较慢环境
 - **特点**: 等待完整语义单元
 
 ### **3. 智能特性**
+
 - 🧠 **自适应控制**: 根据网络状况和用户行为动态调整
 - 🔄 **错误恢复**: 自动重试、优雅降级
 - 📊 **性能监控**: 实时监控TTS性能，优化策略
@@ -65,14 +70,10 @@ tts.finishTextInput()
   <div>
     <!-- TTS控制组件 -->
     <TtsControl />
-    
+
     <!-- 手动控制 -->
-    <button @click="tts.pause()" :disabled="!tts.canControl.value">
-      暂停
-    </button>
-    <button @click="tts.resume()" :disabled="!tts.canControl.value">
-      恢复
-    </button>
+    <button @click="tts.pause()" :disabled="!tts.canControl.value">暂停</button>
+    <button @click="tts.resume()" :disabled="!tts.canControl.value">恢复</button>
   </div>
 </template>
 
@@ -100,17 +101,19 @@ tts.finishTextInput()
 ## ⚙️ **配置选项**
 
 ### **TTS选项**
+
 ```typescript
 const options = {
   apiKey: 'your-api-key',
   voice: 'alloy', // 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer'
-  speed: 1.1,     // 0.25-4.0
-  volume: 1.0,    // 0.0-1.0
-  model: 'tts-1'  // 'tts-1' 或 'tts-1-hd'
+  speed: 1.1, // 0.25-4.0
+  volume: 1.0, // 0.0-1.0
+  model: 'tts-1' // 'tts-1' 或 'tts-1-hd'
 }
 ```
 
 ### **策略配置**
+
 ```typescript
 // 切换策略
 tts.setStrategy('balanced')
@@ -127,17 +130,20 @@ tts.updateConfig({
 ## 🎛️ **用户控制**
 
 ### **基本控制**
+
 - `tts.pause()` - 暂停播放
 - `tts.resume()` - 恢复播放
 - `tts.stop()` - 停止播放
 - `tts.skip()` - 跳过当前音频块
 
 ### **音量控制**
+
 ```typescript
 tts.setVolume(0.8) // 设置音量为80%
 ```
 
 ### **状态监控**
+
 ```typescript
 // 响应式状态
 const state = tts.state.value
@@ -161,32 +167,29 @@ const detailedStatus = tts.getDetailedStatus()
 <template>
   <div class="tts-settings">
     <h3>语音合成设置</h3>
-    
+
     <!-- 启用/禁用 -->
     <div class="setting-item">
       <label>
-        <input 
-          type="checkbox" 
+        <input
+          type="checkbox"
           :checked="tts.state.value.isEnabled"
           @change="tts.setEnabled($event.target.checked)"
         />
         启用TTS
       </label>
     </div>
-    
+
     <!-- 策略选择 -->
     <div class="setting-item">
       <label>播放策略:</label>
-      <select 
-        :value="tts.state.value.strategy"
-        @change="tts.setStrategy($event.target.value)"
-      >
+      <select :value="tts.state.value.strategy" @change="tts.setStrategy($event.target.value)">
         <option value="realtime">实时模式</option>
         <option value="balanced">平衡模式</option>
         <option value="precise">精确模式</option>
       </select>
     </div>
-    
+
     <!-- TTS控制面板 -->
     <TtsControl />
   </div>
@@ -198,6 +201,7 @@ const detailedStatus = tts.getDetailedStatus()
 ### **常见错误及解决方案**
 
 1. **API Key错误**
+
    ```typescript
    try {
      await tts.initialize('invalid-key')
@@ -208,6 +212,7 @@ const detailedStatus = tts.getDetailedStatus()
    ```
 
 2. **网络错误**
+
    - 系统会自动重试3次
    - 重试失败后会跳过当前文本块
    - 用户可以手动重新启动
@@ -220,12 +225,14 @@ const detailedStatus = tts.getDetailedStatus()
 ## 📊 **性能优化**
 
 ### **自动优化**
+
 - 🔄 网络状况自适应
 - 📈 性能历史记录
 - 🎯 用户行为学习
 - ⚡ 智能预加载
 
 ### **手动优化**
+
 ```typescript
 // 降低延迟（牺牲语义完整性）
 tts.setStrategy('realtime')
@@ -242,6 +249,7 @@ tts.updateConfig({ maxConcurrent: 2 })
 ### **从旧TTS系统迁移**
 
 1. **移除旧的TTS调用**
+
    ```typescript
    // 移除这些
    // streamingTtsService.addText()
@@ -249,6 +257,7 @@ tts.updateConfig({ maxConcurrent: 2 })
    ```
 
 2. **使用新的统一接口**
+
    ```typescript
    // 替换为
    tts.processStreamText(text)
@@ -281,4 +290,4 @@ tts.updateConfig({ maxConcurrent: 2 })
 - ✅ **性能优化**: 实时监控和调整
 - ✅ **向后兼容**: 平滑迁移路径
 
-这个增强TTS系统为DeepChat提供了专业级的语音合成体验，既保证了实时性，又确保了稳定性和用户体验。 
+这个增强TTS系统为DeepChat提供了专业级的语音合成体验，既保证了实时性，又确保了稳定性和用户体验。

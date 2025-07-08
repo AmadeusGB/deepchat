@@ -7,23 +7,27 @@
 ## Features
 
 ### 1. Conversation Search (`search_conversations`)
+
 - Search conversation titles and message contents
 - Support pagination queries
 - Return matched conversation lists with search snippets
 - Automatic merging and deduplication of results
 
 ### 2. Message Search (`search_messages`)
+
 - Search keywords in message contents
 - Support filtering by conversation ID
 - Support filtering by message role (user/assistant/system/function)
 - Return matched messages with their context information
 
 ### 3. Conversation History Retrieval (`get_conversation_history`)
+
 - Get complete history of a specific conversation
 - Optional inclusion of system messages
 - Return conversation information and all message lists
 
 ### 4. Statistics Information (`get_conversation_stats`)
+
 - Get conversation statistics for a specified time period
 - Count total conversations and messages
 - Statistics by message role distribution
@@ -32,14 +36,17 @@
 ## Tool Details
 
 ### search_conversations
+
 Search historical conversation records, supports title and content search
 
 **Parameters:**
+
 - `query` (string): Search keyword to search in conversation titles and message contents
 - `limit` (number, optional): Result limit (1-50, default 10)
 - `offset` (number, optional): Pagination offset (default 0)
 
 **Return Example:**
+
 ```json
 {
   "conversations": [
@@ -57,9 +64,11 @@ Search historical conversation records, supports title and content search
 ```
 
 ### search_messages
+
 Search historical message records, supports filtering by conversation ID, role and other conditions
 
 **Parameters:**
+
 - `query` (string): Search keyword to search in message contents
 - `conversationId` (string, optional): Optional conversation ID to limit search within specific conversation
 - `role` (string, optional): Optional message role filter (user/assistant/system/function)
@@ -67,6 +76,7 @@ Search historical message records, supports filtering by conversation ID, role a
 - `offset` (number, optional): Pagination offset (default 0)
 
 **Return Example:**
+
 ```json
 {
   "messages": [
@@ -85,13 +95,16 @@ Search historical message records, supports filtering by conversation ID, role a
 ```
 
 ### get_conversation_history
+
 Get complete history of a specific conversation
 
 **Parameters:**
+
 - `conversationId` (string): Conversation ID
 - `includeSystem` (boolean, optional): Whether to include system messages (default false)
 
 **Return Example:**
+
 ```json
 {
   "conversation": {
@@ -115,12 +128,15 @@ Get complete history of a specific conversation
 ```
 
 ### get_conversation_stats
+
 Get conversation statistics including totals, recent activity and more
 
 **Parameters:**
+
 - `days` (number, optional): Statistics period in days (default 30 days)
 
 **Return Example:**
+
 ```json
 {
   "period": "30 days",
@@ -172,4 +188,4 @@ This server is configured to auto-approve all tool calls (`autoApprove: ['all']`
 - Uses SQLite database for efficient full-text search
 - Fuzzy matching based on LIKE operators
 - Supports JOIN queries to associate conversation and message tables
-- Automatic handling of database connections and error recovery 
+- Automatic handling of database connections and error recovery

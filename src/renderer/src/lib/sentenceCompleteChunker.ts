@@ -1,7 +1,7 @@
 /**
  * 句子完整性保护分块器 - 技术文档优化版
  * 专门解决AI流式输出中句子被拆开的问题
- * 
+ *
  * 核心原则：
  * 1. 句子完整性 > 延迟优化
  * 2. 技术文档语义完整性保护
@@ -38,7 +38,7 @@ export class SentenceCompleteChunker {
     this.callbacks = callbacks
     this.buffer = ''
     this.forceFlushTimeoutMs = 1500 // 减少超时时间，提高响应性
-    
+
     console.log(`🔧 [技术文档分块器] 初始化完成`)
     console.log(`   📏 最小块大小: ${this.minSize}字符`)
     console.log(`   📏 最大块大小: ${this.maxSize}字符`)
@@ -52,9 +52,9 @@ export class SentenceCompleteChunker {
     try {
       // 增强输入验证
       if (!fragment || typeof fragment !== 'string') return []
-      
+
       if (fragment.length === 0) return []
-      
+
       // 优化空白处理 - 更宽松的条件
       const trimmedFragment = fragment.trim()
       if (!trimmedFragment && fragment.length < 5 && this.buffer.length === 0) {
@@ -64,16 +64,17 @@ export class SentenceCompleteChunker {
 
       console.log(`\n🔄 [技术文档分块-新片段] 输入 (${fragment.length}字符):`)
       console.log(`📝 新片段: "${fragment}"`)
-      
+
       const oldBuffer = this.buffer
-      
+
       // 原子操作：缓冲区更新
       const newBuffer = oldBuffer + fragment
-      
+
       // 防止缓冲区过度膨胀 - 改进策略
-      if (newBuffer.length > this.maxSize * 4) { // 提高阈值
+      if (newBuffer.length > this.maxSize * 4) {
+        // 提高阈值
         console.log(`⚠️ [缓冲区过大] ${newBuffer.length} > ${this.maxSize * 4}，智能分割处理`)
-        
+
         // 智能分割：寻找最佳分割点
         const splitPoint = this.findOptimalSplitPoint(newBuffer)
         if (splitPoint > 0) {
@@ -88,7 +89,7 @@ export class SentenceCompleteChunker {
           return result
         }
       }
-      
+
       // 缓冲区溢出保护 - 立即处理过大的缓冲区
       if (newBuffer.length > this.maxSize * 2.5) {
         console.log(`⚠️  [缓冲区保护] 缓冲区过大(${newBuffer.length}字符)，强制处理`)
@@ -101,7 +102,7 @@ export class SentenceCompleteChunker {
 
       // 安全更新缓冲区
       this.buffer = newBuffer
-      
+
       console.log(`🗂️  缓冲区更新:`)
       console.log(`   📂 旧缓冲: "${oldBuffer}" (${oldBuffer.length}字符)`)
       console.log(`   ➕ 新片段: "${fragment}" (${fragment.length}字符)`)
@@ -112,7 +113,6 @@ export class SentenceCompleteChunker {
       this.resetForceFlushTimeout()
 
       return this.extractReadyChunks()
-      
     } catch (error) {
       console.error(`❌ [技术文档分块] 处理片段时发生错误:`, error)
       if (this.callbacks.onError) {
@@ -128,16 +128,16 @@ export class SentenceCompleteChunker {
   private findOptimalSplitPoint(text: string): number {
     const maxSearchLength = this.maxSize * 2
     const searchText = text.substring(0, Math.min(text.length, maxSearchLength))
-    
+
     // 优先级分割点
     const splitPatterns = [
-      /[。！？.!?]\s*/g,    // 句末标点
-      /[，；,;]\s*/g,       // 分句标点
-      /\n\n/g,              // 段落分隔
-      /\n/g,                // 行分隔
-      /\s+/g                // 空白字符
+      /[。！？.!?]\s*/g, // 句末标点
+      /[，；,;]\s*/g, // 分句标点
+      /\n\n/g, // 段落分隔
+      /\n/g, // 行分隔
+      /\s+/g // 空白字符
     ]
-    
+
     for (const pattern of splitPatterns) {
       const matches = Array.from(searchText.matchAll(pattern))
       if (matches.length > 0) {
@@ -149,7 +149,7 @@ export class SentenceCompleteChunker {
         }
       }
     }
-    
+
     return 0
   }
 
@@ -160,15 +160,15 @@ export class SentenceCompleteChunker {
     if (this.forceFlushTimeout) {
       clearTimeout(this.forceFlushTimeout)
     }
-    
+
     this.forceFlushTimeout = setTimeout(() => {
       console.log(`⏰ [强制刷新] ${this.forceFlushTimeoutMs}ms超时，强制输出缓冲内容`)
-      
+
       try {
         const chunks = this.finalize()
         if (chunks.length > 0) {
           console.log(`🔥 [强制刷新] 输出${chunks.length}个超时块`)
-          
+
           // 通过回调机制处理强制刷新的块
           if (this.callbacks.onForceFlush) {
             this.callbacks.onForceFlush(chunks)
@@ -189,15 +189,15 @@ export class SentenceCompleteChunker {
   finalize(): ChunkResult[] {
     console.log(`\n🔥 [技术文档分块-强制完成] 处理剩余缓冲区`)
     console.log(`📋 剩余缓冲: "${this.buffer}" (${this.buffer.length}字符)`)
-    
+
     // 清除计时器
     if (this.forceFlushTimeout) {
       clearTimeout(this.forceFlushTimeout)
       this.forceFlushTimeout = null
     }
-    
+
     const chunks: ChunkResult[] = []
-    
+
     if (this.buffer.trim()) {
       const category = this.identifyContentCategory(this.buffer)
       const finalChunk = {
@@ -208,9 +208,11 @@ export class SentenceCompleteChunker {
         category
       }
       chunks.push(finalChunk)
-      
-      console.log(`🏁 强制输出最后块: "${finalChunk.text}" (${finalChunk.text.length}字符, 类型:${finalChunk.category}, 信心度:${finalChunk.confidence})`)
-      
+
+      console.log(
+        `🏁 强制输出最后块: "${finalChunk.text}" (${finalChunk.text.length}字符, 类型:${finalChunk.category}, 信心度:${finalChunk.confidence})`
+      )
+
       this.buffer = ''
     }
 
@@ -223,7 +225,7 @@ export class SentenceCompleteChunker {
    */
   private extractReadyChunks(): ChunkResult[] {
     console.log(`🔍 [技术文档分块-提取] 开始智能分析缓冲区`)
-    
+
     const chunks: ChunkResult[] = []
 
     // 智能识别结构化内容
@@ -236,18 +238,18 @@ export class SentenceCompleteChunker {
 
     // 提取完整句子 - 技术文档增强版
     const sentences = this.extractCompleteSentencesEnhanced()
-    
+
     console.log(`📊 [技术文档分块-提取] 提取到 ${sentences.length} 个语义单元`)
     sentences.forEach((sentence, idx) => {
       console.log(`   ✅ 语义单元${idx + 1}: "${sentence}" (${sentence.length}字符)`)
     })
-    
+
     // 智能合并 - 考虑语义完整性
     let currentChunk = ''
     let chunkIndex = 0
-    
+
     console.log(`🧩 [技术文档分块-合并] 开始语义智能合并处理`)
-    
+
     for (let i = 0; i < sentences.length; i++) {
       const sentence = sentences[i]
       const potentialLength = currentChunk.length + sentence.length
@@ -266,7 +268,7 @@ export class SentenceCompleteChunker {
       } else if (potentialLength <= this.maxSize && semanticRelation !== 'independent') {
         currentChunk += sentence
         console.log(`   ✅ 语义合并: "${currentChunk}" (${currentChunk.length}字符)`)
-        
+
         // 达到最小长度且语义完整就可以输出
         if (potentialLength >= this.minSize && semanticRelation === 'complete') {
           chunkIndex++
@@ -279,7 +281,9 @@ export class SentenceCompleteChunker {
             category
           }
           chunks.push(newChunk)
-          console.log(`   🎯 语义完整，输出块${chunkIndex}: "${newChunk.text}" (${newChunk.text.length}字符, 类型:${newChunk.category}, 信心度:${newChunk.confidence})`)
+          console.log(
+            `   🎯 语义完整，输出块${chunkIndex}: "${newChunk.text}" (${newChunk.text.length}字符, 类型:${newChunk.category}, 信心度:${newChunk.confidence})`
+          )
           currentChunk = ''
         }
       } else {
@@ -295,7 +299,9 @@ export class SentenceCompleteChunker {
             category
           }
           chunks.push(currentChunkObj)
-          console.log(`   🚫 无法合并，输出当前块${chunkIndex}: "${currentChunkObj.text}" (${currentChunkObj.text.length}字符, 类型:${currentChunkObj.category})`)
+          console.log(
+            `   🚫 无法合并，输出当前块${chunkIndex}: "${currentChunkObj.text}" (${currentChunkObj.text.length}字符, 类型:${currentChunkObj.category})`
+          )
         }
 
         // 处理当前句子
@@ -310,18 +316,22 @@ export class SentenceCompleteChunker {
             category
           }
           chunks.push(sentenceChunk)
-          console.log(`   📦 独立输出语义块${chunkIndex}: "${sentenceChunk.text}" (${sentenceChunk.text.length}字符, 类型:${sentenceChunk.category})`)
+          console.log(
+            `   📦 独立输出语义块${chunkIndex}: "${sentenceChunk.text}" (${sentenceChunk.text.length}字符, 类型:${sentenceChunk.category})`
+          )
         } else {
           // 超长句子按语义分割
           console.log(`   ⚠️  超长语义单元需要分割: ${sentence.length}字符 > ${this.maxSize}字符`)
           const subChunks = this.splitLongSentenceEnhanced(sentence)
-          subChunks.forEach(subChunk => {
+          subChunks.forEach((subChunk) => {
             chunkIndex++
-            console.log(`   🔪 语义子分割块${chunkIndex}: "${subChunk.text}" (${subChunk.text.length}字符, 类型:${subChunk.category})`)
+            console.log(
+              `   🔪 语义子分割块${chunkIndex}: "${subChunk.text}" (${subChunk.text.length}字符, 类型:${subChunk.category})`
+            )
           })
           chunks.push(...subChunks)
         }
-        
+
         currentChunk = ''
       }
     }
@@ -340,18 +350,24 @@ export class SentenceCompleteChunker {
           category
         }
         chunks.push(lastChunk)
-        console.log(`   ✅ 智能决策输出最后块${chunkIndex}: "${lastChunk.text}" (${lastChunk.text.length}字符, 类型:${lastChunk.category}, 信心度:${lastChunk.confidence})`)
-        
+        console.log(
+          `   ✅ 智能决策输出最后块${chunkIndex}: "${lastChunk.text}" (${lastChunk.text.length}字符, 类型:${lastChunk.category}, 信心度:${lastChunk.confidence})`
+        )
+
         // 从缓冲区中移除已输出的内容
         this.buffer = this.buffer.substring(currentChunk.length)
       } else {
-        console.log(`   ⏳ 最后块暂不输出，等待更多内容: "${currentChunk}" (${currentChunk.length}字符)`)
+        console.log(
+          `   ⏳ 最后块暂不输出，等待更多内容: "${currentChunk}" (${currentChunk.length}字符)`
+        )
       }
     }
 
     console.log(`\n📊 [技术文档分块-提取结果] 本次输出${chunks.length}块`)
     chunks.forEach((chunk, idx) => {
-      console.log(`📦 块${idx + 1} [${chunk.category}] (${chunk.text.length}字符, 信心度:${chunk.confidence}): "${chunk.text.substring(0, 50)}${chunk.text.length > 50 ? '...' : ''}"`)
+      console.log(
+        `📦 块${idx + 1} [${chunk.category}] (${chunk.text.length}字符, 信心度:${chunk.confidence}): "${chunk.text.substring(0, 50)}${chunk.text.length > 50 ? '...' : ''}"`
+      )
     })
     console.log(`🔚 [技术文档分块-提取结束]\n`)
 
@@ -363,39 +379,41 @@ export class SentenceCompleteChunker {
    */
   private extractCompleteSentencesEnhanced(): string[] {
     console.log(`🧠 [增强句子提取] 开始处理缓冲区 (${this.buffer.length}字符)`)
-    console.log(`📄 缓冲区内容预览: "${this.buffer.substring(0, 100)}${this.buffer.length > 100 ? '...' : ''}"`)
-    
+    console.log(
+      `📄 缓冲区内容预览: "${this.buffer.substring(0, 100)}${this.buffer.length > 100 ? '...' : ''}"`
+    )
+
     const sentences: string[] = []
-    
+
     // 预处理：智能清理Markdown但保持语义完整性
     let cleanBuffer = this.buffer
-    
+
     // 1. 处理标题：将 ### 标题 转换为 标题。
     cleanBuffer = cleanBuffer.replace(/#{1,6}\s+([^#\n]+)/g, '$1。')
-    
+
     // 2. 处理列表项：将 - 项目 转换为 项目。
     cleanBuffer = cleanBuffer.replace(/^\s*[-*+]\s+([^\n]+)/gm, '$1。')
-    
+
     // 3. 处理加粗：移除 **文本** 的星号但保留文本
     cleanBuffer = cleanBuffer.replace(/\*\*([^*]+)\*\*/g, '$1')
-    
+
     // 4. 处理链接：移除 [文本](链接) 的格式但保留文本
     cleanBuffer = cleanBuffer.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    
+
     // 5. 处理代码：移除 `代码` 的反引号
     cleanBuffer = cleanBuffer.replace(/`([^`]+)`/g, '$1')
-    
+
     // 6. 清理多余的空白和换行
     cleanBuffer = cleanBuffer.replace(/\s+/g, ' ').trim()
-    
+
     console.log(`🧹 [清理后] 缓冲区内容: "${cleanBuffer}"`)
-    
+
     // 增强的句子识别模式：支持中英文混合、技术术语、括号等
     const enhancedSentencePattern = /([^。！？.!?]*[。！？.!?]+(?:\s*["""])?(?:\s*\))?)/g
-    
+
     let match
     let lastIndex = 0
-    
+
     while ((match = enhancedSentencePattern.exec(cleanBuffer)) !== null) {
       const sentence = match[1].trim()
       if (sentence && sentence.length > 1) {
@@ -404,7 +422,7 @@ export class SentenceCompleteChunker {
         lastIndex = match.index + match[0].length
       }
     }
-    
+
     // 更新缓冲区：移除已提取的句子
     if (lastIndex > 0) {
       // 找到原始缓冲区中对应的位置
@@ -412,7 +430,7 @@ export class SentenceCompleteChunker {
       this.buffer = this.buffer.substring(originalPosition)
       console.log(`🔄 [缓冲区更新] 移除${originalPosition}字符，剩余${this.buffer.length}字符`)
     }
-    
+
     console.log(`✅ [增强句子提取] 完成，提取${sentences.length}个语义单元`)
     return sentences
   }
@@ -431,17 +449,17 @@ export class SentenceCompleteChunker {
    */
   private forceProcessBuffer(buffer: string = this.buffer): ChunkResult[] {
     console.log(`🚨 [强制处理] 开始处理过大缓冲区 (${buffer.length}字符)`)
-    
+
     const chunks: ChunkResult[] = []
-    
+
     // 按最大块大小强制分割
     let remainingText = buffer
     let chunkCount = 0
-    
+
     while (remainingText.length > this.maxSize) {
       // 寻找合适的分割点
       const splitPoint = this.findOptimalSplitPoint(remainingText)
-      
+
       if (splitPoint > this.minSize) {
         const chunkText = remainingText.substring(0, splitPoint).trim()
         if (chunkText.length > 0) {
@@ -454,7 +472,9 @@ export class SentenceCompleteChunker {
             confidence: 0.7,
             category
           })
-          console.log(`   🔪 强制分割块${chunkCount}: "${chunkText.substring(0, 50)}..." (${chunkText.length}字符)`)
+          console.log(
+            `   🔪 强制分割块${chunkCount}: "${chunkText.substring(0, 50)}..." (${chunkText.length}字符)`
+          )
         }
         remainingText = remainingText.substring(splitPoint)
       } else {
@@ -470,12 +490,14 @@ export class SentenceCompleteChunker {
             confidence: 0.5,
             category
           })
-          console.log(`   ⚡ 硬分割块${chunkCount}: "${chunkText.substring(0, 50)}..." (${chunkText.length}字符)`)
+          console.log(
+            `   ⚡ 硬分割块${chunkCount}: "${chunkText.substring(0, 50)}..." (${chunkText.length}字符)`
+          )
         }
         remainingText = remainingText.substring(this.maxSize)
       }
     }
-    
+
     // 处理剩余部分
     if (remainingText.trim().length > 0) {
       chunkCount++
@@ -487,9 +509,11 @@ export class SentenceCompleteChunker {
         confidence: 0.8,
         category
       })
-      console.log(`   🏁 剩余块${chunkCount}: "${remainingText.trim().substring(0, 50)}..." (${remainingText.trim().length}字符)`)
+      console.log(
+        `   🏁 剩余块${chunkCount}: "${remainingText.trim().substring(0, 50)}..." (${remainingText.trim().length}字符)`
+      )
     }
-    
+
     console.log(`✅ [强制处理] 完成，输出${chunks.length}个块`)
     return chunks
   }
@@ -499,11 +523,11 @@ export class SentenceCompleteChunker {
    */
   private identifyStructuredContent(): ChunkResult[] {
     const chunks: ChunkResult[] = []
-    
+
     // 检测列表项
     const listItemPattern = /^(\s*[0-9]+\.\s+[^。！？.!?]*[。！？.!?]*)/gm
     let match
-    
+
     while ((match = listItemPattern.exec(this.buffer)) !== null) {
       const listItem = match[1].trim()
       if (listItem.length >= 10) {
@@ -514,36 +538,39 @@ export class SentenceCompleteChunker {
           confidence: 1.0,
           category: 'list'
         })
-        
+
         // 从缓冲区移除已处理的内容
         this.buffer = this.buffer.replace(match[0], '')
       }
     }
-    
+
     return chunks
   }
 
   /**
    * 检查语义关联性
    */
-  private checkSemanticRelation(current: string, next: string): 'independent' | 'related' | 'complete' {
+  private checkSemanticRelation(
+    current: string,
+    next: string
+  ): 'independent' | 'related' | 'complete' {
     if (!current) return 'independent'
-    
+
     // 检查是否是定义和解释的关系
     if (current.includes('：') && !next.includes('：')) {
       return 'related'
     }
-    
+
     // 检查是否是列表项
     if (/^\s*[0-9]+\.\s+/.test(next)) {
       return 'independent'
     }
-    
+
     // 检查是否是完整的概念描述
     if (current.includes('是') && next.includes('包括')) {
       return 'related'
     }
-    
+
     // 默认认为相关
     return 'complete'
   }
@@ -551,7 +578,9 @@ export class SentenceCompleteChunker {
   /**
    * 识别内容类别
    */
-  private identifyContentCategory(text: string): 'sentence' | 'list' | 'title' | 'definition' | 'mixed' {
+  private identifyContentCategory(
+    text: string
+  ): 'sentence' | 'list' | 'title' | 'definition' | 'mixed' {
     if (/^\s*[0-9]+\.\s+/.test(text)) return 'list'
     if (/^[#]+\s+/.test(text)) return 'title'
     if (text.includes('：') || text.includes('是')) return 'definition'
@@ -559,25 +588,23 @@ export class SentenceCompleteChunker {
     return 'sentence'
   }
 
-
-
   /**
    * 增强版长句分割
    */
   private splitLongSentenceEnhanced(sentence: string): ChunkResult[] {
     const chunks: ChunkResult[] = []
-    
+
     // 在语义分割点分割：逗号、分号、冒号、括号
     const semanticSplitPattern = /([^，；：,;:()（）]*[，；：,;:()（）]\s*)/g
-    
+
     let currentChunk = ''
     let lastIndex = 0
     let match
-    
+
     while ((match = semanticSplitPattern.exec(sentence)) !== null) {
       const segment = match[1]
       const potentialLength = currentChunk.length + segment.length
-      
+
       if (potentialLength <= this.maxSize) {
         currentChunk += segment
       } else {
@@ -595,7 +622,7 @@ export class SentenceCompleteChunker {
       }
       lastIndex = match.index + match[1].length
     }
-    
+
     // 处理剩余部分
     const remaining = sentence.substring(lastIndex)
     if (remaining.trim()) {
@@ -648,8 +675,8 @@ export class SentenceCompleteChunker {
         category
       })
     }
-    
-    return chunks.filter(chunk => chunk.text.length > 0)
+
+    return chunks.filter((chunk) => chunk.text.length > 0)
   }
 
   private generateId(): string {
@@ -677,32 +704,32 @@ export class SentenceCompleteChunker {
    */
   private shouldOutputImmediately(currentChunk: string, sentences: string[]): boolean {
     const chunkLength = currentChunk.length
-    
+
     // 1. 达到最小阈值立即输出
     if (chunkLength >= this.minSize) {
       console.log(`✅ [输出决策] 达到最小阈值(${this.minSize})，立即输出`)
       return true
     }
-    
+
     // 2. 包含完整句子且长度合理
     if (sentences.length > 0 && chunkLength >= 8) {
       console.log(`✅ [输出决策] 包含完整句子且长度合理(${chunkLength}>=8)，立即输出`)
       return true
     }
-    
+
     // 3. 以句号结尾的短句
     if (/[。！？.!?]$/.test(currentChunk) && chunkLength >= 5) {
       console.log(`✅ [输出决策] 句号结尾的短句(${chunkLength}>=5)，立即输出`)
       return true
     }
-    
+
     // 4. 缓冲区过大时强制输出
     if (this.buffer.length > this.maxSize * 1.5) {
       console.log(`⚠️ [输出决策] 缓冲区过大(${this.buffer.length}>${this.maxSize * 1.5})，强制输出`)
       return true
     }
-    
+
     console.log(`⏳ [输出决策] 等待更多内容 (当前${chunkLength}字符)`)
     return false
   }
-} 
+}

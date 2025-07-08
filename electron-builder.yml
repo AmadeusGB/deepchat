@@ -55,7 +55,7 @@ nsis:
   createDesktopShortcut: always
   allowToChangeInstallationDirectory: true
   oneClick: false
-afterSign: scripts/notarize.js  # 启用代码签名和公证
+afterSign: scripts/notarize.js # 启用代码签名和公证
 afterPack: scripts/afterPack.js
 mac:
   entitlementsInherit: build/entitlements.mac.plist

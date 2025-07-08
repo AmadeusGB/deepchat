@@ -698,10 +698,10 @@ ${context}
         total_messages: formattedMessagesObject.messages.length,
         system_length: formattedMessagesObject.system?.length || 0,
         messages_details: formattedMessagesObject.messages.map((msg, index) => {
-          const contentStr = Array.isArray(msg.content) 
+          const contentStr = Array.isArray(msg.content)
             ? JSON.stringify(msg.content)
-            : typeof msg.content === 'string' 
-              ? msg.content 
+            : typeof msg.content === 'string'
+              ? msg.content
               : JSON.stringify(msg.content)
           return {
             index,
@@ -713,10 +713,12 @@ ${context}
           }
         })
       }
-      
-      const totalTokensEstimate = 
-        messagesSizeInfo.messages_details.reduce((sum, msg) => sum + msg.content_length, 0)
-      
+
+      const totalTokensEstimate = messagesSizeInfo.messages_details.reduce(
+        (sum, msg) => sum + msg.content_length,
+        0
+      )
+
       console.log(`[ANTHROPIC_MONITOR] Sending to API - Model: ${modelId}`, {
         ...messagesSizeInfo,
         estimated_total_chars: totalTokensEstimate,
@@ -726,16 +728,18 @@ ${context}
       // 对话历史长度控制：防止累积过大导致rate limit
       const MAX_CONVERSATION_LENGTH = 120000 // 约30k tokens
       if (totalTokensEstimate > MAX_CONVERSATION_LENGTH) {
-        console.log(`[ANTHROPIC_MONITOR] Conversation too long (${totalTokensEstimate} chars), applying truncation strategy`)
-        
+        console.log(
+          `[ANTHROPIC_MONITOR] Conversation too long (${totalTokensEstimate} chars), applying truncation strategy`
+        )
+
         // 保留最近的消息
         const allMessages = formattedMessagesObject.messages
         const maxRecentMessages = 6 // 保留最近6条消息
-        
+
         if (allMessages.length > maxRecentMessages) {
           const truncatedMessages = allMessages.slice(-maxRecentMessages)
           formattedMessagesObject.messages = truncatedMessages
-          
+
           // 在第一条消息前添加上下文说明
           if (truncatedMessages.length > 0 && truncatedMessages[0].role === 'user') {
             const contextNote = '[之前的对话内容因长度限制已省略，以下是最近的对话内容]'
@@ -745,8 +749,10 @@ ${context}
               truncatedMessages[0].content = contextNote + '\n\n' + truncatedMessages[0].content
             }
           }
-          
-          console.log(`[ANTHROPIC_MONITOR] Truncated conversation from ${allMessages.length} to ${truncatedMessages.length} messages`)
+
+          console.log(
+            `[ANTHROPIC_MONITOR] Truncated conversation from ${allMessages.length} to ${truncatedMessages.length} messages`
+          )
         }
       }
 

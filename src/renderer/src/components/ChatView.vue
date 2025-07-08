@@ -1,7 +1,10 @@
 <template>
-  <div class="flex flex-col h-0 flex-1 gap-2.5" style="padding: 20px 30px 20px 60px;">
+  <div class="flex flex-col h-0 flex-1 gap-2.5" style="padding: 20px 30px 20px 60px">
     <!-- 消息列表区域 - 对话历史玻璃形态 -->
-    <div class="figma-chat-history relative flex-1 overflow-hidden" style="margin-top: 0px; padding: 32px 48px 32px 48px;">
+    <div
+      class="figma-chat-history relative flex-1 overflow-hidden"
+      style="margin-top: 0px; padding: 32px 48px 32px 48px"
+    >
       <MessageList
         :key="chatStore.getActiveThreadId() ?? 'default'"
         ref="messageList"
@@ -36,7 +39,9 @@
                 :model-id="chatStore.chatConfig.providerId"
                 :is-dark="themeStore.isDark"
               ></ModelIcon>
-              <h2 class="text-xs font-medium max-w-[120px] truncate text-muted-foreground">{{ modelName }}</h2>
+              <h2 class="text-xs font-medium max-w-[120px] truncate text-muted-foreground">
+                {{ modelName }}
+              </h2>
             </div>
           </div>
         </template>
@@ -121,7 +126,7 @@ const modelName = computed(() => {
 onMounted(async () => {
   // 初始化工具栏状态
   await initToolbar()
-  
+
   window.electron.ipcRenderer.on(STREAM_EVENTS.RESPONSE, (_, msg) => {
     // console.log('stream-response', msg)
     chatStore.handleStreamResponse(msg)
@@ -175,13 +180,13 @@ onUnmounted(async () => {
   backdrop-filter: blur(20px);
   border: 1px solid rgba(156, 156, 156, 0.4) !important;
   border-radius: 20px !important;
-  box-shadow: 
-    -2px 4px 10px 0px rgba(145, 145, 145, 0.05), 
-    -7px 17px 18px 0px rgba(145, 145, 145, 0.04), 
-    -15px 37px 24px 0px rgba(145, 145, 145, 0.03), 
-    -27px 66px 29px 0px rgba(145, 145, 145, 0.01), 
+  box-shadow:
+    -2px 4px 10px 0px rgba(145, 145, 145, 0.05),
+    -7px 17px 18px 0px rgba(145, 145, 145, 0.04),
+    -15px 37px 24px 0px rgba(145, 145, 145, 0.03),
+    -27px 66px 29px 0px rgba(145, 145, 145, 0.01),
     -42px 103px 31px 0px rgba(145, 145, 145, 0),
-    inset 0px 4px 4px 0px rgba(255, 255, 255, 0.25), 
+    inset 0px 4px 4px 0px rgba(255, 255, 255, 0.25),
     inset 0px -5px 4px 0px rgba(255, 255, 255, 0.25) !important;
 }
 

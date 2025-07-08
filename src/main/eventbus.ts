@@ -32,7 +32,11 @@ export class EventBus extends EventEmitter {
    * @param target 发送目标：所有窗口或默认标签页
    * @param args 事件参数
    */
-  sendToRenderer(eventName: string, target: SendTarget = SendTarget.ALL_WINDOWS, ...args: unknown[]) {
+  sendToRenderer(
+    eventName: string,
+    target: SendTarget = SendTarget.ALL_WINDOWS,
+    ...args: unknown[]
+  ) {
     if (!this.windowPresenter) {
       console.warn('WindowPresenter not available, cannot send to renderer')
       return
@@ -74,4 +78,3 @@ export class EventBus extends EventEmitter {
 
 // 创建全局事件总线实例
 export const eventBus = new EventBus()
-

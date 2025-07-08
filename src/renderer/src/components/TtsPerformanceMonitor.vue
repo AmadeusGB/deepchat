@@ -7,29 +7,29 @@
         <Icon icon="lucide:x" class="w-3 h-3" />
       </button>
     </div>
-    
+
     <div class="metrics-grid">
       <div class="metric-item">
         <span class="metric-label">平均延迟</span>
         <span class="metric-value">{{ averageLatency }}ms</span>
       </div>
-      
+
       <div class="metric-item">
         <span class="metric-label">字符效率</span>
         <span class="metric-value">{{ characterEfficiency }}ms/字符</span>
       </div>
-      
+
       <div class="metric-item">
         <span class="metric-label">队列长度</span>
         <span class="metric-value">{{ queueLength }}</span>
       </div>
-      
+
       <div class="metric-item">
         <span class="metric-label">处理策略</span>
         <span class="metric-value">{{ currentStrategy }}</span>
       </div>
     </div>
-    
+
     <div v-if="recommendations.length > 0" class="recommendations">
       <div class="recommendations-header">
         <Icon icon="lucide:lightbulb" class="w-4 h-4" />
@@ -86,28 +86,29 @@ const currentStrategy = computed(() => props.strategy ?? 'balanced')
 
 const recommendations = computed(() => {
   const recs: string[] = []
-  
+
   if (characterEfficiency.value > 200) {
     recs.push('建议增加文本块大小以减少API开销')
   }
-  
+
   if (queueLength.value > 5) {
     recs.push('队列过长，建议优化分块策略')
   }
-  
+
   if (averageLatency.value > 10000) {
     recs.push('延迟过高，建议检查网络连接或切换到更快的策略')
   }
-  
+
   if (performanceHistory.value.length > 0) {
     const recentMetrics = performanceHistory.value.slice(-5)
-    const avgRecentLatency = recentMetrics.reduce((sum, m) => sum + m.latency, 0) / recentMetrics.length
-    
+    const avgRecentLatency =
+      recentMetrics.reduce((sum, m) => sum + m.latency, 0) / recentMetrics.length
+
     if (avgRecentLatency > averageLatency.value * 1.5) {
       recs.push('最近性能下降，建议重启TTS服务')
     }
   }
-  
+
   return recs
 })
 
@@ -119,16 +120,23 @@ const toggleMonitor = () => {
 }
 
 // 监听外部传入的metrics变化
-watch(() => props.metrics, (newMetrics) => {
-  if (newMetrics) {
-    performanceHistory.value = newMetrics
-  }
-}, { deep: true })
+watch(
+  () => props.metrics,
+  (newMetrics) => {
+    if (newMetrics) {
+      performanceHistory.value = newMetrics
+    }
+  },
+  { deep: true }
+)
 
 // 监听visible属性变化
-watch(() => props.visible, (newVisible) => {
-  showMonitor.value = newVisible ?? false
-})
+watch(
+  () => props.visible,
+  (newVisible) => {
+    showMonitor.value = newVisible ?? false
+  }
+)
 </script>
 
 <style scoped>
@@ -171,4 +179,4 @@ watch(() => props.visible, (newVisible) => {
 .recommendation-item {
   @apply text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded px-2 py-1;
 }
-</style> 
+</style>

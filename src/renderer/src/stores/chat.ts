@@ -193,10 +193,10 @@ export const useChatStore = defineStore('chat', () => {
 
   const setActiveThread = async (threadId: string) => {
     const tabId = getTabId()
-    
+
     // 🔧 修复：切换线程时停止TTS播放
     parallelTtsService.stop()
-    
+
     const threadsWorkingStatus = getThreadsWorkingStatus()
     if (
       threadsWorkingStatus.get(threadId) === 'completed' ||
@@ -227,10 +227,10 @@ export const useChatStore = defineStore('chat', () => {
 
   const clearActiveThread = async () => {
     const tabId = getTabId()
-    
+
     // 🔧 修复：停止所有TTS播放
     parallelTtsService.stop()
-    
+
     if (!getActiveThreadId()) {
       return
     }
@@ -659,10 +659,10 @@ export const useChatStore = defineStore('chat', () => {
 
       getGeneratingMessagesCache().delete(msg.eventId)
       generatingThreadIds.value.delete(cached.threadId)
-      
+
       // 增强TTS：完成文本输入
       tts.finishTextInput()
-      
+
       // 设置会话的workingStatus为completed
       // 如果是当前活跃的会话，则直接从Map中移除
       if (getActiveThreadId() === cached.threadId) {

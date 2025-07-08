@@ -4,8 +4,18 @@
  */
 
 import { ref, computed } from 'vue'
-import { SentenceCompleteChunker, type ChunkResult, type ChunkerCallbacks } from './sentenceCompleteChunker'
-import { createEnhancedTTS, type TTSOptions, type TTSCallbacks, type TTSStatus, type EnhancedTTSService } from './enhancedTtsService'
+import {
+  SentenceCompleteChunker,
+  type ChunkResult,
+  type ChunkerCallbacks
+} from './sentenceCompleteChunker'
+import {
+  createEnhancedTTS,
+  type TTSOptions,
+  type TTSCallbacks,
+  type TTSStatus,
+  type EnhancedTTSService
+} from './enhancedTtsService'
 
 // 全局TTS状态管理
 export interface TTSState {
@@ -36,10 +46,10 @@ class EnhancedTTSIntegration {
   private pendingTimeout: NodeJS.Timeout | null = null
   private lastInputTime: number = 0 // 新增：记录最后输入时间
   private forceFlushInProgress: boolean = false // 新增：防止重复强制刷新
-  
+
   // 🎯 新增：全局禁用开关
   private isGloballyDisabled = false
-  
+
   // 响应式状态
   public state = ref<TTSState>({
     isEnabled: false,
@@ -54,7 +64,9 @@ class EnhancedTTSIntegration {
 
   // 计算属性
   public readonly isActive = computed(() => this.isInitialized && this.state.value.isEnabled)
-  public readonly canControl = computed(() => this.isActive.value && this.state.value.queueLength > 0)
+  public readonly canControl = computed(
+    () => this.isActive.value && this.state.value.queueLength > 0
+  )
 
   constructor(config: Partial<TtsIntegrationConfig> = {}) {
     this.config = {
@@ -71,8 +83,8 @@ class EnhancedTTSIntegration {
       onForceFlush: (chunks: ChunkResult[]) => {
         console.log(`🔥 [TTS集成] 接收到强制刷新的${chunks.length}个块`)
         // 异步处理强制刷新的块
-        chunks.forEach(chunk => {
-          this.handleChunk(chunk).catch(error => {
+        chunks.forEach((chunk) => {
+          this.handleChunk(chunk).catch((error) => {
             console.error(`❌ [TTS集成] 强制刷新块处理失败:`, error)
           })
         })
@@ -90,7 +102,9 @@ class EnhancedTTSIntegration {
 
     console.log(`🚀 [增强TTS集成] 初始化完成`)
     console.log(`   ⚙️  配置参数:`)
-    console.log(`      📏 长度范围: ${this.config.minChunkLength}-${this.config.maxChunkLength}字符`)
+    console.log(
+      `      📏 长度范围: ${this.config.minChunkLength}-${this.config.maxChunkLength}字符`
+    )
     console.log(`      📊 信心度阈值: ${this.config.confidenceThreshold}`)
     console.log(`      ⏱️  最大延迟: ${this.config.maxDelayMs}ms`)
     console.log(`      🔥 强制刷新: ${this.config.forceFlushTimeoutMs}ms`)
@@ -132,15 +146,15 @@ class EnhancedTTSIntegration {
 
       // 初始化技术文档专业分块器 - 优化配置
       const chunkerConfig = {
-        minSize: 50,      // 提高最小块大小，适应技术文档
-        maxSize: 300      // 增加最大块大小，保持语义完整性
+        minSize: 50, // 提高最小块大小，适应技术文档
+        maxSize: 300 // 增加最大块大小，保持语义完整性
       }
 
       this.chunker = new SentenceCompleteChunker(chunkerConfig.minSize, chunkerConfig.maxSize)
       this.ttsService = createEnhancedTTS(ttsOptions, callbacks)
       this.isInitialized = true
       this.state.value.isEnabled = true
-      
+
       console.log('[TTS集成] 初始化完成 - 使用技术文档专业分块器')
       console.log(`   📏 分块配置: ${chunkerConfig.minSize}-${chunkerConfig.maxSize}字符`)
       console.log(`   🎯 优化特性: 语义完整性、结构化内容保护、中英文混合支持`)
@@ -156,7 +170,7 @@ class EnhancedTTSIntegration {
   setGloballyDisabled(disabled: boolean): void {
     this.isGloballyDisabled = disabled
     console.log(`🎛️ [TTS集成] 全局${disabled ? '禁用' : '启用'}TTS服务`)
-    
+
     if (disabled && this.isActive.value) {
       this.stop()
     }
@@ -178,7 +192,7 @@ class EnhancedTTSIntegration {
       console.debug(`🚫 [TTS集成] 全局禁用状态，跳过文本处理`)
       return
     }
-    
+
     if (!this.isActive.value) {
       console.debug(`🔇 [TTS集成] 服务未激活，跳过文本处理 (这是正常的，用户可在设置中启用TTS)`)
       return
@@ -196,7 +210,7 @@ class EnhancedTTSIntegration {
     try {
       // 使用技术文档优化分块器处理
       const chunks = this.chunker.addFragment(text)
-      
+
       console.log(`📊 [TTS集成-技术文档流式处理] 分块器返回${chunks.length}个块`)
 
       // 处理每个准备好的块
@@ -206,7 +220,6 @@ class EnhancedTTSIntegration {
 
       // 检查缓冲区状态并智能设置强制刷新超时
       this.smartForceFlushTimeout()
-
     } catch (error) {
       console.error(`❌ [TTS集成-技术文档流式处理] 处理错误:`, error)
     }
@@ -237,14 +250,16 @@ class EnhancedTTSIntegration {
     console.log(`   📏 阈值: ${this.config.confidenceThreshold}`)
 
     // 基于内容类别和信心度决定处理策略
-    const shouldProcessImmediately = 
+    const shouldProcessImmediately =
       chunk.confidence >= this.config.confidenceThreshold ||
-      chunk.category === 'definition' ||  // 定义类内容立即处理
-      chunk.category === 'list' ||        // 列表项立即处理
-      chunk.type === 'structured';        // 结构化内容立即处理
+      chunk.category === 'definition' || // 定义类内容立即处理
+      chunk.category === 'list' || // 列表项立即处理
+      chunk.type === 'structured' // 结构化内容立即处理
 
     if (shouldProcessImmediately) {
-      console.log(`   ✅ 符合处理条件，立即处理 (类别:${chunk.category}, 信心度:${chunk.confidence})`)
+      console.log(
+        `   ✅ 符合处理条件，立即处理 (类别:${chunk.category}, 信心度:${chunk.confidence})`
+      )
       await this.processTts(chunk.text)
     } else {
       console.log(`   ⚠️  信心度不足或内容类型需延迟处理`)
@@ -256,16 +271,13 @@ class EnhancedTTSIntegration {
    * 延迟处理低信心度块
    */
   private async delayedProcess(chunk: ChunkResult): Promise<void> {
-    const delay = Math.min(
-      (1 - chunk.confidence) * this.config.maxDelayMs,
-      this.config.maxDelayMs
-    )
+    const delay = Math.min((1 - chunk.confidence) * this.config.maxDelayMs, this.config.maxDelayMs)
 
     console.log(`⏳ [TTS集成-延迟处理] 等待${delay}ms后处理`)
     console.log(`   📊 计算: (1-${chunk.confidence}) × ${this.config.maxDelayMs} = ${delay}ms`)
 
-    await new Promise(resolve => setTimeout(resolve, delay))
-    
+    await new Promise((resolve) => setTimeout(resolve, delay))
+
     console.log(`⏰ [TTS集成-延迟处理] 延迟结束，开始处理`)
     await this.processTts(chunk.text)
   }
@@ -276,7 +288,7 @@ class EnhancedTTSIntegration {
   private async processTts(text: string): Promise<void> {
     console.log(`\n🔊 [TTS集成-语音处理] 开始TTS`)
     console.log(`📝 处理文本: "${text}" (${text.length}字符)`)
-    
+
     this.isProcessing = true
 
     try {
@@ -285,7 +297,6 @@ class EnhancedTTSIntegration {
         this.ttsService.addText(text)
         console.log(`✅ [TTS集成-语音处理] TTS文本已添加`)
       }
-      
     } catch (error) {
       console.error(`❌ [TTS集成-语音处理] TTS处理错误:`, error)
     } finally {
@@ -299,7 +310,7 @@ class EnhancedTTSIntegration {
   private smartForceFlushTimeout(): void {
     const bufferStatus = this.chunker.getStatus()
     const currentTime = Date.now()
-    
+
     console.log(`🧠 [TTS集成-智能超时] 分析缓冲区状态`)
     console.log(`   📋 缓冲区长度: ${bufferStatus.bufferLength}字符`)
     console.log(`   📄 缓冲区内容: "${bufferStatus.bufferPreview}"`)
@@ -309,7 +320,9 @@ class EnhancedTTSIntegration {
 
     // 缓冲区溢出保护：如果缓冲区过大，立即处理
     if (bufferStatus.bufferLength > this.config.maxChunkLength * 2) {
-      console.log(`🚨 [TTS集成-缓冲区溢出] 缓冲区过大(${bufferStatus.bufferLength}字符)，立即强制刷新`)
+      console.log(
+        `🚨 [TTS集成-缓冲区溢出] 缓冲区过大(${bufferStatus.bufferLength}字符)，立即强制刷新`
+      )
       this.triggerForceFlush()
       return
     }
@@ -334,16 +347,20 @@ class EnhancedTTSIntegration {
     if (!this.pendingTimeout) {
       this.pendingTimeout = setTimeout(async () => {
         console.log(`⏰ [TTS集成-强制刷新] 超时触发！开始强制处理`)
-        console.log(`   📊 触发时缓冲区: "${this.chunker.getStatus().bufferPreview}" (${this.chunker.getStatus().bufferLength}字符)`)
+        console.log(
+          `   📊 触发时缓冲区: "${this.chunker.getStatus().bufferPreview}" (${this.chunker.getStatus().bufferLength}字符)`
+        )
         console.log(`   ⏱️  超时时间: ${this.config.forceFlushTimeoutMs}ms`)
         console.log(`   🕐 触发时间: ${new Date().toLocaleTimeString()}`)
-        
+
         await this.triggerForceFlush()
       }, this.config.forceFlushTimeoutMs)
 
       console.log(`⏱️  [TTS集成-智能超时] 设置${this.config.forceFlushTimeoutMs}ms超时`)
       console.log(`   🎯 目标: 处理${bufferStatus.bufferLength}字符缓冲区`)
-      console.log(`   📅 预计触发时间: ${new Date(currentTime + this.config.forceFlushTimeoutMs).toLocaleTimeString()}`)
+      console.log(
+        `   📅 预计触发时间: ${new Date(currentTime + this.config.forceFlushTimeoutMs).toLocaleTimeString()}`
+      )
     } else {
       console.log(`⏳ [TTS集成-智能超时] 超时已存在，保持当前超时`)
     }
@@ -370,8 +387,10 @@ class EnhancedTTSIntegration {
       }
 
       const bufferStatus = this.chunker.getStatus()
-      console.log(`📋 [TTS集成-强制刷新] 当前缓冲区: "${bufferStatus.bufferPreview}" (${bufferStatus.bufferLength}字符)`)
-      
+      console.log(
+        `📋 [TTS集成-强制刷新] 当前缓冲区: "${bufferStatus.bufferPreview}" (${bufferStatus.bufferLength}字符)`
+      )
+
       if (bufferStatus.bufferLength > 0) {
         console.log(`🚀 [TTS集成-强制刷新] 执行最终处理`)
         await this.finalizeText()
@@ -402,7 +421,9 @@ class EnhancedTTSIntegration {
 
     console.log(`📊 [TTS集成-状态查询] 当前状态:`)
     console.log(`   🔄 处理中: ${status.isProcessing}`)
-    console.log(`   📋 缓冲区: "${status.bufferStatus.bufferPreview}" (${status.bufferStatus.bufferLength}字符)`)
+    console.log(
+      `   📋 缓冲区: "${status.bufferStatus.bufferPreview}" (${status.bufferStatus.bufferLength}字符)`
+    )
     console.log(`   📈 缓冲区空: ${status.bufferStatus.bufferLength === 0}`)
 
     return status
@@ -413,7 +434,7 @@ class EnhancedTTSIntegration {
    */
   reset(): void {
     console.log(`🔄 [TTS集成-重置] 重置所有状态`)
-    
+
     if (this.pendingTimeout) {
       clearTimeout(this.pendingTimeout)
       this.pendingTimeout = null
@@ -424,7 +445,7 @@ class EnhancedTTSIntegration {
     this.isProcessing = false
     this.forceFlushInProgress = false // 重置强制刷新状态
     this.lastInputTime = 0 // 重置最后输入时间
-    
+
     console.log(`✅ [TTS集成-重置] 重置完成`)
   }
 
@@ -466,9 +487,9 @@ class EnhancedTTSIntegration {
 
     try {
       this.ttsService!.stop()
-      this.updateState({ 
-        isPlaying: false, 
-        isPaused: false, 
+      this.updateState({
+        isPlaying: false,
+        isPaused: false,
         currentText: '',
         queueLength: 0,
         status: 'idle'
@@ -498,7 +519,7 @@ class EnhancedTTSIntegration {
    */
   setVolume(volume: number): void {
     const clampedVolume = Math.max(0, Math.min(1, volume))
-    
+
     if (this.isActive.value) {
       try {
         this.ttsService!.setVolume(clampedVolume)
@@ -506,7 +527,7 @@ class EnhancedTTSIntegration {
         console.error('[TTS集成] 设置音量失败:', error)
       }
     }
-    
+
     this.updateState({ volume: clampedVolume })
     console.log(`[TTS集成] 音量设置为: ${(clampedVolume * 100).toFixed(0)}%`)
   }
@@ -607,7 +628,7 @@ class EnhancedTTSIntegration {
    */
   async finalizeText(): Promise<void> {
     console.log(`\n🔚 [TTS集成-完成处理] 开始最终处理`)
-    
+
     try {
       // 清除超时
       if (this.pendingTimeout) {
@@ -626,7 +647,6 @@ class EnhancedTTSIntegration {
       }
 
       console.log(`✅ [TTS集成-完成处理] 所有文本处理完成`)
-
     } catch (error) {
       console.error(`❌ [TTS集成-完成处理] 最终处理错误:`, error)
     } finally {
@@ -642,7 +662,7 @@ class EnhancedTTSIntegration {
    */
   finishTextInput(): void {
     console.log(`🔚 [TTS集成-兼容性] finishTextInput 被调用`)
-    this.finalizeText().catch(error => {
+    this.finalizeText().catch((error) => {
       console.error(`❌ [TTS集成-兼容性] finishTextInput 异步错误:`, error)
     })
   }
@@ -658,7 +678,7 @@ export const useTTS = () => {
     state: enhancedTTSIntegration.state,
     isActive: enhancedTTSIntegration.isActive,
     canControl: enhancedTTSIntegration.canControl,
-    
+
     // 方法
     initialize: enhancedTTSIntegration.initialize.bind(enhancedTTSIntegration),
     processStreamText: enhancedTTSIntegration.processStreamText.bind(enhancedTTSIntegration),
@@ -680,5 +700,5 @@ export const useTTS = () => {
   }
 }
 
-// TTSState 类型已在上面定义并导出 
-// TTSState 类型已在上面定义并导出 
+// TTSState 类型已在上面定义并导出
+// TTSState 类型已在上面定义并导出

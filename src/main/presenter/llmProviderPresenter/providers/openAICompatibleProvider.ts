@@ -29,7 +29,15 @@ import path from 'path'
 import fs from 'fs'
 import sharp from 'sharp'
 
-const OPENAI_REASONING_MODELS = ['o3-mini', 'o3-preview', 'o3', 'o1-mini', 'o1-pro', 'o1-preview', 'o1']
+const OPENAI_REASONING_MODELS = [
+  'o3-mini',
+  'o3-preview',
+  'o3',
+  'o1-mini',
+  'o1-pro',
+  'o1-preview',
+  'o1'
+]
 const OPENAI_IMAGE_GENERATION_MODELS = [
   'gpt-4o-all',
   'gpt-4o-image',
@@ -160,10 +168,10 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       }
 
       if (msg.role === 'assistant' && msg.tool_calls) {
-        ; (baseMessage as ChatCompletionAssistantMessageParam).tool_calls = msg.tool_calls
+        ;(baseMessage as ChatCompletionAssistantMessageParam).tool_calls = msg.tool_calls
       }
       if (msg.role === 'tool') {
-        ; (baseMessage as ChatCompletionToolMessageParam).tool_call_id = msg.tool_call_id || ''
+        ;(baseMessage as ChatCompletionToolMessageParam).tool_call_id = msg.tool_call_id || ''
       }
 
       return baseMessage as ChatCompletionMessageParam
@@ -524,7 +532,7 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
     ) {
       // 限定服务供应商为chutes，sorry for hack...
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ; (requestParams as any).provider = {
+      ;(requestParams as any).provider = {
         only: ['chutes']
       }
     }
@@ -573,10 +581,10 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
     let toolUseDetected = false // 标记是否检测到工具使用（原生或非原生）
     let usage:
       | {
-        prompt_tokens: number
-        completion_tokens: number
-        total_tokens: number
-      }
+          prompt_tokens: number
+          completion_tokens: number
+          total_tokens: number
+        }
       | undefined = undefined
 
     //-----------------------------------------------------------------------------------------------------
@@ -876,7 +884,7 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
             )
             finalArguments = '{}'
           }
-          
+
           try {
             JSON.parse(finalArguments) // 检查参数是否是有效的 JSON
             yield {

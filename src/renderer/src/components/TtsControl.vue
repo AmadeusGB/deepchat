@@ -11,7 +11,7 @@
     <!-- TTS控制按钮 -->
     <div class="tts-controls" v-if="tts.isActive">
       <!-- 播放/暂停按钮 -->
-      <button 
+      <button
         @click="togglePlayback"
         :disabled="!tts.canControl"
         class="control-btn primary"
@@ -22,29 +22,19 @@
       </button>
 
       <!-- 停止按钮 -->
-      <button 
-        @click="tts.stop"
-        :disabled="!tts.canControl"
-        class="control-btn"
-        title="停止"
-      >
+      <button @click="tts.stop" :disabled="!tts.canControl" class="control-btn" title="停止">
         <StopIcon />
       </button>
 
       <!-- 跳过按钮 -->
-      <button 
-        @click="tts.skip"
-        :disabled="!tts.canControl"
-        class="control-btn"
-        title="跳过当前"
-      >
+      <button @click="tts.skip" :disabled="!tts.canControl" class="control-btn" title="跳过当前">
         <SkipIcon />
       </button>
 
       <!-- 音量控制 -->
       <div class="volume-control">
         <VolumeIcon />
-        <input 
+        <input
           type="range"
           min="0"
           max="100"
@@ -59,11 +49,7 @@
     <!-- 策略选择 -->
     <div class="strategy-control" v-if="tts.isActive && showAdvanced">
       <label>播放策略：</label>
-      <select 
-        :value="tts.state.strategy"
-        @change="updateStrategy"
-        class="strategy-select"
-      >
+      <select :value="tts.state.strategy" @change="updateStrategy" class="strategy-select">
         <option value="realtime">实时模式（最低延迟）</option>
         <option value="balanced">平衡模式（推荐）</option>
         <option value="precise">精确模式（完整句子）</option>
@@ -85,11 +71,7 @@
     </div>
 
     <!-- 高级选项切换 -->
-    <button 
-      @click="showAdvanced = !showAdvanced"
-      class="advanced-toggle"
-      v-if="tts.isActive"
-    >
+    <button @click="showAdvanced = !showAdvanced" class="advanced-toggle" v-if="tts.isActive">
       {{ showAdvanced ? '隐藏高级选项' : '显示高级选项' }}
     </button>
   </div>
@@ -388,4 +370,4 @@ const updateStrategy = (event: Event) => {
   background: var(--color-background-soft);
   color: var(--color-text);
 }
-</style> 
+</style>

@@ -4,7 +4,7 @@
       <h3>🎵 并行TTS监控</h3>
       <button @click="toggleMonitor" class="close-btn">×</button>
     </div>
-    
+
     <div class="monitor-content">
       <!-- 状态概览 -->
       <div class="status-overview">
@@ -33,22 +33,24 @@
           <span :class="['value', failureRateClass]">{{ status.failureRate.recent }}%</span>
         </div>
       </div>
-      
+
       <!-- 并发状态 -->
       <div class="concurrency-status">
         <div class="progress-bar">
           <div class="progress-fill" :style="{ width: concurrencyPercentage + '%' }"></div>
-          <span class="progress-text">并发: {{ status.activeRequests }}/{{ status.config?.maxConcurrent || 8 }}</span>
+          <span class="progress-text"
+            >并发: {{ status.activeRequests }}/{{ status.config?.maxConcurrent || 8 }}</span
+          >
         </div>
       </div>
-      
+
       <!-- 播放状态 -->
       <div class="playback-status">
         <div :class="['status-indicator', { active: status.isPlaying }]">
           {{ status.isPlaying ? '🔊 播放中' : '⏸️ 暂停' }}
         </div>
       </div>
-      
+
       <!-- 性能指标 -->
       <div class="performance-metrics">
         <div class="metric">
@@ -66,11 +68,9 @@
       </div>
     </div>
   </div>
-  
+
   <!-- 浮动按钮 -->
-  <button v-if="!showMonitor" @click="toggleMonitor" class="monitor-toggle-btn">
-    📊 TTS监控
-  </button>
+  <button v-if="!showMonitor" @click="toggleMonitor" class="monitor-toggle-btn">📊 TTS监控</button>
 </template>
 
 <script setup lang="ts">
@@ -123,7 +123,7 @@ const totalProcessingTime = computed(() => {
 const efficiencyScore = computed(() => {
   const latency = averageLatency.value
   if (latency === 0) return 100
-  
+
   // 根据延迟计算效率分数
   // 50ms/字符 = 100分，200ms/字符 = 0分
   const score = Math.max(0, Math.min(100, 100 - ((latency - 50) / 150) * 100))
@@ -370,4 +370,4 @@ onUnmounted(() => {
   background: rgba(0, 0, 0, 0.9);
   border-color: #555;
 }
-</style> 
+</style>

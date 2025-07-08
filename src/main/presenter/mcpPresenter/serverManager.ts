@@ -7,7 +7,6 @@ import { NOTIFICATION_EVENTS } from '@/events'
 import { MCP_EVENTS } from '@/events'
 import { getErrorMessageLabels } from '@shared/i18n'
 
-
 const NPM_REGISTRY_LIST = [
   'https://registry.npmjs.org/',
   'https://r.cnpmjs.org/',
@@ -18,7 +17,7 @@ export class ServerManager {
   private clients: Map<string, McpClient> = new Map()
   private configPresenter: IConfigPresenter
   private npmRegistry: string | null = null
-  
+
   // 添加防抖机制
   private updateDebounceTimer: NodeJS.Timeout | null = null
   private readonly DEBOUNCE_DELAY = 100 // 100ms防抖延迟
@@ -32,7 +31,7 @@ export class ServerManager {
     if (this.updateDebounceTimer) {
       clearTimeout(this.updateDebounceTimer)
     }
-    
+
     this.updateDebounceTimer = setTimeout(() => {
       eventBus.send(MCP_EVENTS.CLIENT_LIST_UPDATED, SendTarget.ALL_WINDOWS)
       this.updateDebounceTimer = null

@@ -1,6 +1,5 @@
 <template>
   <div class="h-full w-full flex flex-col items-center justify-start">
-    
     <!-- Main content with fixed bottom positioning -->
     <div class="h-0 w-full flex-grow flex flex-col items-center justify-center relative">
       <!-- Figma design inspired logo and greeting -->
@@ -9,25 +8,35 @@
         <div class="figma-device-container relative">
           <!-- Light beams above device -->
           <div class="figma-light-beams figma-light-beams-top">
-            <div class="figma-light-beam" v-for="i in 6" :key="`top-${i}`" :style="{ left: `${15 + (i-1) * 14}%` }"></div>
+            <div
+              class="figma-light-beam"
+              v-for="i in 6"
+              :key="`top-${i}`"
+              :style="{ left: `${15 + (i - 1) * 14}%` }"
+            ></div>
           </div>
-          
+
           <!-- Device image -->
           <img src="@/assets/figma-icons/mini.png" class="figma-mini-device" />
-          
+
           <!-- Light beams below device -->
           <div class="figma-light-beams figma-light-beams-bottom">
-            <div class="figma-light-beam" v-for="i in 6" :key="`bottom-${i}`" :style="{ left: `${15 + (i-1) * 14}%` }"></div>
+            <div
+              class="figma-light-beam"
+              v-for="i in 6"
+              :key="`bottom-${i}`"
+              :style="{ left: `${15 + (i - 1) * 14}%` }"
+            ></div>
           </div>
         </div>
-        
+
         <!-- Hello icon and greeting text -->
         <div class="figma-greeting-section flex flex-col items-center gap-4">
           <!-- Hello icon with gradient stroke -->
           <div class="figma-hello-container">
             <img src="@/assets/figma-icons/hello.png" class="figma-hello-icon" />
           </div>
-          
+
           <!-- Greeting text -->
           <div class="figma-greeting-text text-center">
             <h1 class="figma-greeting-title">
@@ -36,40 +45,47 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Voice waveform (shown when in voice mode) -->
-      <div v-if="isVoiceMode" class="figma-voice-waveform-container flex items-center justify-center gap-1 mb-8">
+      <div
+        v-if="isVoiceMode"
+        class="figma-voice-waveform-container flex items-center justify-center gap-1 mb-8"
+      >
         <!-- AI Response Subtitle (字幕) -->
         <div v-if="voiceResponseText" class="figma-voice-subtitle mb-6 text-center">
-          <div class="text-lg font-medium text-foreground bg-background/80 rounded-xl px-6 py-3 backdrop-blur-md shadow-lg border border-border/50">
+          <div
+            class="text-lg font-medium text-foreground bg-background/80 rounded-xl px-6 py-3 backdrop-blur-md shadow-lg border border-border/50"
+          >
             {{ voiceResponseText }}
           </div>
         </div>
-        
+
         <!-- 🎯 性能监控显示 -->
         <div v-if="animationPerformance.isPerformanceIssue" class="figma-performance-warning">
-          ⚠️ 性能警告: FPS {{ animationPerformance.currentFps.toFixed(1) }} | 帧时间 {{ animationPerformance.averageFrameTime.toFixed(1) }}ms | 质量: {{ animationPerformance.qualityLevel }}
+          ⚠️ 性能警告: FPS {{ animationPerformance.currentFps.toFixed(1) }} | 帧时间
+          {{ animationPerformance.averageFrameTime.toFixed(1) }}ms | 质量:
+          {{ animationPerformance.qualityLevel }}
         </div>
 
-        
         <!-- Recording status indicator -->
         <div class="figma-voice-status-container mb-4">
           <div class="flex items-center gap-2 text-sm text-muted-foreground">
-            <div 
+            <div
               class="w-3 h-3 rounded-full transition-colors"
               :class="{
                 'bg-red-500 animate-pulse': isRecording,
                 'bg-blue-500 animate-pulse': isTranscribing,
                 'bg-yellow-500 animate-pulse': isWaitingResponse,
                 'bg-green-500 animate-pulse': isTTSPlaying,
-                'bg-gray-400': !isRecording && !isTranscribing && !isWaitingResponse && !isTTSPlaying
+                'bg-gray-400':
+                  !isRecording && !isTranscribing && !isWaitingResponse && !isTTSPlaying
               }"
             ></div>
             <span>
-              {{ 
-                isRecording 
-                  ? t('chat.input.voiceRecording') 
-                  : isTranscribing 
+              {{
+                isRecording
+                  ? t('chat.input.voiceRecording')
+                  : isTranscribing
                     ? t('chat.input.voiceTranscribing')
                     : isWaitingResponse
                       ? t('chat.input.voiceWaitingResponse')
@@ -80,126 +96,140 @@
             </span>
           </div>
         </div>
-        
+
         <!-- Clickable waveform -->
-        <div 
+        <div
           class="figma-voice-waveform-bars cursor-pointer"
-          :class="{ 'recording': isRecording, 'transcribing': isTranscribing }"
+          :class="{ recording: isRecording, transcribing: isTranscribing }"
           @click="toggleVoiceRecording"
         >
           <!-- 多个正弦线条组成的语音波浪 -->
-          <svg 
-            class="voice-sine-waves" 
-            viewBox="0 0 838 144" 
-            xmlns="http://www.w3.org/2000/svg"
-          >
+          <svg class="voice-sine-waves" viewBox="0 0 838 144" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <!-- 渐变定义 -->
               <linearGradient id="waveGradient1" x1="0%" y1="100%" x2="0%" y2="0%">
-                <stop offset="0%" style="stop-color:#495EDB;stop-opacity:0.3" />
-                <stop offset="100%" style="stop-color:#00A3FF;stop-opacity:0.8" />
+                <stop offset="0%" style="stop-color: #495edb; stop-opacity: 0.3" />
+                <stop offset="100%" style="stop-color: #00a3ff; stop-opacity: 0.8" />
               </linearGradient>
               <linearGradient id="waveGradient2" x1="0%" y1="100%" x2="0%" y2="0%">
-                <stop offset="0%" style="stop-color:#5D8BFA;stop-opacity:0.2" />
-                <stop offset="100%" style="stop-color:#00A3FF;stop-opacity:0.6" />
+                <stop offset="0%" style="stop-color: #5d8bfa; stop-opacity: 0.2" />
+                <stop offset="100%" style="stop-color: #00a3ff; stop-opacity: 0.6" />
               </linearGradient>
               <linearGradient id="waveGradient3" x1="0%" y1="100%" x2="0%" y2="0%">
-                <stop offset="0%" style="stop-color:#00A3FF;stop-opacity:0.4" />
-                <stop offset="100%" style="stop-color:#495EDB;stop-opacity:0.2" />
+                <stop offset="0%" style="stop-color: #00a3ff; stop-opacity: 0.4" />
+                <stop offset="100%" style="stop-color: #495edb; stop-opacity: 0.2" />
               </linearGradient>
             </defs>
-            
+
             <!-- 主正弦波 -->
-            <path 
-              :d="generateSineWave(1, 20, 0.015, 0)" 
-              stroke="url(#waveGradient1)" 
+            <path
+              :d="generateSineWave(1, 20, 0.015, 0)"
+              stroke="url(#waveGradient1)"
               stroke-width="3"
               fill="none"
               class="sine-wave primary"
-              :class="{ 'animate': isRecording }"
+              :class="{ animate: isRecording }"
             />
-            
+
             <!-- 辅助正弦波 -->
-            <path 
+            <path
               v-if="animationConfig.qualitySettings[animationPerformance.qualityLevel].layers >= 2"
-              :d="generateSineWave(2, 15, 0.018, Math.PI / 4)" 
-              stroke="url(#waveGradient2)" 
+              :d="generateSineWave(2, 15, 0.018, Math.PI / 4)"
+              stroke="url(#waveGradient2)"
               stroke-width="2.5"
               fill="none"
               class="sine-wave secondary"
-              :class="{ 'animate': isRecording }"
+              :class="{ animate: isRecording }"
               opacity="0.8"
             />
-            
+
             <!-- 第三层正弦波 -->
-            <path 
+            <path
               v-if="animationConfig.qualitySettings[animationPerformance.qualityLevel].layers >= 3"
-              :d="generateSineWave(3, 12, 0.012, Math.PI / 2)" 
-              stroke="url(#waveGradient3)" 
+              :d="generateSineWave(3, 12, 0.012, Math.PI / 2)"
+              stroke="url(#waveGradient3)"
               stroke-width="2"
               fill="none"
               class="sine-wave tertiary"
-              :class="{ 'animate': isRecording }"
+              :class="{ animate: isRecording }"
               opacity="0.6"
             />
-            
+
             <!-- 第四层正弦波 -->
-            <path 
+            <path
               v-if="animationConfig.qualitySettings[animationPerformance.qualityLevel].layers >= 4"
-              :d="generateSineWave(4, 8, 0.022, Math.PI / 3)" 
-              stroke="url(#waveGradient1)" 
+              :d="generateSineWave(4, 8, 0.022, Math.PI / 3)"
+              stroke="url(#waveGradient1)"
               stroke-width="1.5"
               fill="none"
               class="sine-wave quaternary"
-              :class="{ 'animate': isRecording }"
+              :class="{ animate: isRecording }"
               opacity="0.4"
             />
           </svg>
         </div>
       </div>
-      
+
       <!-- Fixed bottom section aligned with sidebar -->
-      <div class="absolute bottom-0 left-0 right-0 flex flex-col items-center" style="padding-bottom: 20px; padding-left: 60px; padding-right: 30px;">
+      <div
+        class="absolute bottom-0 left-0 right-0 flex flex-col items-center"
+        style="padding-bottom: 20px; padding-left: 60px; padding-right: 30px"
+      >
         <!-- Example cards container aligned with input (hidden in voice mode) -->
         <div v-if="!isVoiceMode" class="figma-example-cards-container w-full mb-6">
           <div class="figma-example-cards-grid">
-            <div class="figma-example-card" @click="insertExample('Help me adjust the node to the fastest node in the United States.')">
+            <div
+              class="figma-example-card"
+              @click="
+                insertExample('Help me adjust the node to the fastest node in the United States.')
+              "
+            >
               Help me adjust the node to the fastest node in the United States.
             </div>
-            <div class="figma-example-card" @click="insertExample('I want to watch recent NBA games on YouTube, help me search.')">
+            <div
+              class="figma-example-card"
+              @click="insertExample('I want to watch recent NBA games on YouTube, help me search.')"
+            >
               I want to watch recent NBA games on YouTube, help me search.
             </div>
-            <div class="figma-example-card" @click="insertExample('I want to watch Mr. Beast\'s channel, help me search it.')">
+            <div
+              class="figma-example-card"
+              @click="insertExample('I want to watch Mr. Beast\'s channel, help me search it.')"
+            >
               I want to watch Mr. Beast's channel, help me search it.
             </div>
-            <div class="figma-example-card" @click="insertExample('I want to watch &quot;The Legend of Zhen Huan&quot;, please help me adjust it.')">
+            <div
+              class="figma-example-card"
+              @click="
+                insertExample(
+                  'I want to watch &quot;The Legend of Zhen Huan&quot;, please help me adjust it.'
+                )
+              "
+            >
               I want to watch "The Legend of Zhen Huan", please help me adjust it.
             </div>
           </div>
         </div>
-        
+
         <!-- Input area aligned with sidebar bottom -->
         <div class="figma-input-container w-full">
           <!-- Voice mode input (hidden in auto mode) -->
           <div v-if="isVoiceMode" class="figma-voice-input-container flex items-center gap-4">
             <div class="figma-voice-input-box opacity-50">
-              <input 
+              <input
                 :value="latestUserVoiceInput || t('chat.input.voiceAutoMode')"
-                type="text" 
+                type="text"
                 class="figma-voice-input"
                 :placeholder="t('chat.input.voiceAutoMode')"
                 readonly
                 disabled
               />
             </div>
-            <Button
-              class="figma-text-chat-button"
-              @click="switchToTextChat"
-            >
+            <Button class="figma-text-chat-button" @click="switchToTextChat">
               {{ t('chat.input.textChat') }}
             </Button>
           </div>
-          
+
           <!-- Normal input -->
           <ChatInput
             v-else
@@ -248,7 +278,10 @@
                     <ModelSelect @update:model="handleModelUpdate" />
                   </PopoverContent>
                 </Popover>
-                <Popover v-model:open="settingsPopoverOpen" @update:open="handleSettingsPopoverUpdate">
+                <Popover
+                  v-model:open="settingsPopoverOpen"
+                  @update:open="handleSettingsPopoverUpdate"
+                >
                   <PopoverTrigger as-child>
                     <Button
                       class="w-7 h-full rounded-none border-none shadow-none transition-all duration-300"
@@ -280,7 +313,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- 并行TTS监控组件 -->
     <ParallelTtsMonitor />
   </div>
@@ -342,13 +375,15 @@ const isTTSPlaying = ref(false)
 const isWaitingResponse = ref(false)
 const lastVoiceResponse = ref('')
 const voiceResponseText = ref('') // 当前显示的AI回复文本（字幕）
-const voiceConversationHistory = ref<Array<{
-  type: 'user' | 'assistant'
-  text: string
-  timestamp: number
-  summary?: string
-  detectedLanguage?: string
-}>>([])
+const voiceConversationHistory = ref<
+  Array<{
+    type: 'user' | 'assistant'
+    text: string
+    timestamp: number
+    summary?: string
+    detectedLanguage?: string
+  }>
+>([])
 
 // 🔧 新增：记录上次语音提交时间，用于超时检测
 const lastVoiceSubmitTime = ref<number>(0)
@@ -363,8 +398,8 @@ const emotionalMemory = ref<{
   }
   emotionalContext: {
     currentMood: 'positive' | 'neutral' | 'negative' | 'excited' | 'confused' | 'frustrated'
-    recentTopics: Array<{topic: string, sentiment: string, timestamp: number}>
-    importantEvents: Array<{event: string, importance: number, timestamp: number}>
+    recentTopics: Array<{ topic: string; sentiment: string; timestamp: number }>
+    importantEvents: Array<{ event: string; importance: number; timestamp: number }>
   }
   interactionHistory: {
     totalInteractions: number
@@ -408,25 +443,40 @@ const emotionalMemory = ref<{
 const analyzeUserEmotion = (text: string): string => {
   const positiveKeywords = ['开心', '高兴', '棒', '太好了', '喜欢', '满意', '完美', '厉害', '优秀']
   const negativeKeywords = ['烦恼', '困扰', '难过', '失望', '糟糕', '问题', '错误', '不行', '不好']
-  const excitedKeywords = ['哇', '太棒了', '惊喜', '激动', '兴奋', 'amazing', 'awesome', 'fantastic']
+  const excitedKeywords = [
+    '哇',
+    '太棒了',
+    '惊喜',
+    '激动',
+    '兴奋',
+    'amazing',
+    'awesome',
+    'fantastic'
+  ]
   const confusedKeywords = ['不懂', '不明白', '搞不清', '混乱', '困惑', '复杂', '难理解']
   const frustratedKeywords = ['烦', '郁闷', '无语', '崩溃', '头疼', '麻烦', '讨厌']
 
   const lowerText = text.toLowerCase()
-  
-  if (excitedKeywords.some(keyword => lowerText.includes(keyword))) return 'excited'
-  if (confusedKeywords.some(keyword => lowerText.includes(keyword))) return 'confused'
-  if (frustratedKeywords.some(keyword => lowerText.includes(keyword))) return 'frustrated'
-  if (positiveKeywords.some(keyword => lowerText.includes(keyword))) return 'positive'
-  if (negativeKeywords.some(keyword => lowerText.includes(keyword))) return 'negative'
-  
+
+  if (excitedKeywords.some((keyword) => lowerText.includes(keyword))) return 'excited'
+  if (confusedKeywords.some((keyword) => lowerText.includes(keyword))) return 'confused'
+  if (frustratedKeywords.some((keyword) => lowerText.includes(keyword))) return 'frustrated'
+  if (positiveKeywords.some((keyword) => lowerText.includes(keyword))) return 'positive'
+  if (negativeKeywords.some((keyword) => lowerText.includes(keyword))) return 'negative'
+
   return 'neutral'
 }
 
 const updateEmotionalContext = (userText: string, topic?: string) => {
   const detectedMood = analyzeUserEmotion(userText)
-  emotionalMemory.value.emotionalContext.currentMood = detectedMood as 'positive' | 'neutral' | 'negative' | 'excited' | 'confused' | 'frustrated'
-  
+  emotionalMemory.value.emotionalContext.currentMood = detectedMood as
+    | 'positive'
+    | 'neutral'
+    | 'negative'
+    | 'excited'
+    | 'confused'
+    | 'frustrated'
+
   // 更新最近话题
   if (topic) {
     emotionalMemory.value.emotionalContext.recentTopics.unshift({
@@ -439,13 +489,17 @@ const updateEmotionalContext = (userText: string, topic?: string) => {
       emotionalMemory.value.emotionalContext.recentTopics.pop()
     }
   }
-  
+
   // 增加交互次数和熟悉度
   emotionalMemory.value.interactionHistory.totalInteractions += 1
-  emotionalMemory.value.personalContext.familiarityLevel = Math.min(100, 
-    emotionalMemory.value.personalContext.familiarityLevel + 2)
-  
-  console.log(`🧠 [情感分析] 检测到用户情绪: ${detectedMood}, 熟悉度: ${emotionalMemory.value.personalContext.familiarityLevel}`)
+  emotionalMemory.value.personalContext.familiarityLevel = Math.min(
+    100,
+    emotionalMemory.value.personalContext.familiarityLevel + 2
+  )
+
+  console.log(
+    `🧠 [情感分析] 检测到用户情绪: ${detectedMood}, 熟悉度: ${emotionalMemory.value.personalContext.familiarityLevel}`
+  )
 }
 
 // 🎯 生成个性化上下文提示词
@@ -454,7 +508,7 @@ const generatePersonalizedContext = (): string => {
   const familiarity = memory.personalContext.familiarityLevel
   const currentTime = new Date()
   const hour = currentTime.getHours()
-  
+
   let timeGreeting = ''
   if (hour < 6) timeGreeting = '深夜了'
   else if (hour < 12) timeGreeting = '早上好'
@@ -462,7 +516,7 @@ const generatePersonalizedContext = (): string => {
   else if (hour < 18) timeGreeting = '下午好'
   else if (hour < 22) timeGreeting = '晚上好'
   else timeGreeting = '夜深了'
-  
+
   let personalizedContext = `
 ## 🎭 当前交互上下文
 
@@ -514,7 +568,10 @@ const generatePersonalizedContext = (): string => {
     personalizedContext += `
 
 ### 最近话题记忆
-- 最近讨论的话题：${memory.emotionalContext.recentTopics.slice(0, 3).map(t => t.topic).join('、')}
+- 最近讨论的话题：${memory.emotionalContext.recentTopics
+      .slice(0, 3)
+      .map((t) => t.topic)
+      .join('、')}
 - 可以适当关联和回顾之前的对话内容`
   }
 
@@ -579,7 +636,7 @@ const animationConfig = {
   performanceCheckInterval: 1000,
   reducedQualityThreshold: 3, // 降低到3帧即降级
   pathCacheSize: 100, // 🎯 增加缓存大小以提高命中率
-  
+
   // 质量等级配置
   qualitySettings: {
     high: { step: 4, layers: 4, cacheTime: 100, audioGranularity: 0.15 },
@@ -642,18 +699,24 @@ let dataArray: Uint8Array | null = null
 const audioLevel = ref(0) // 当前音频强度 0-1
 
 // 🎯 超简化正弦波函数 - 无缓存，无复杂计算
-const generateSineWave = (_waveId: number, amplitude: number, _frequency: number, phaseOffset: number) => {
+const generateSineWave = (
+  _waveId: number,
+  amplitude: number,
+  _frequency: number,
+  phaseOffset: number
+) => {
   const centerY = 72
   const realAmplitude = isRecording.value ? amplitude * (1 + audioLevel.value) : amplitude * 0.5
-  
+
   let path = `M 0 ${centerY}`
-  
+
   // 简单的固定步长循环
   for (let x = 0; x <= 838; x += 10) {
-    const y = centerY + Math.sin(x * 0.01 + animationTime.value * 0.001 + phaseOffset) * realAmplitude
+    const y =
+      centerY + Math.sin(x * 0.01 + animationTime.value * 0.001 + phaseOffset) * realAmplitude
     path += ` L ${x} ${y}`
   }
-  
+
   return path
 }
 
@@ -695,31 +758,31 @@ const keyboardEventState = ref({
   lastKeyupTime: 0,
   spaceKeyPressCount: 0,
   debugMode: false,
-  lastIgnoreLogTime: 0  // 🔧 新增：最后一次忽略日志的时间，用于防止日志刷屏
+  lastIgnoreLogTime: 0 // 🔧 新增：最后一次忽略日志的时间，用于防止日志刷屏
 })
 
 // 🎯 新增：键盘健康检查和自动恢复机制
 // const checkKeyboardListenerHealth = () => {
 //   if (!isVoiceMode.value) return
-//   
+//
 //   const now = Date.now()
-//   
+//
 //   // 每10秒进行一次健康检查
 //   if (now - keyboardListenerHealthCheck.value.lastTestTime < keyboardListenerHealthCheck.value.testInterval) {
 //     return
 //   }
-//   
+//
 //   keyboardListenerHealthCheck.value.lastTestTime = now
-//   
+//
 //   // 检查事件监听器是否仍然附加
-//   const isHealthy = keyboardEventState.value.listenersAttached && 
-//                    (now - keyboardEventState.value.lastKeydownTime < 60000 || 
+//   const isHealthy = keyboardEventState.value.listenersAttached &&
+//                    (now - keyboardEventState.value.lastKeydownTime < 60000 ||
 //                     keyboardEventState.value.spaceKeyPressCount > 0)
-//   
+//
 //   if (!isHealthy) {
 //     keyboardListenerHealthCheck.value.failedTests++
 //     console.warn(`🚨 [键盘健康检查] 检测到键盘事件监听器可能失效 (失败次数: ${keyboardListenerHealthCheck.value.failedTests}/${keyboardListenerHealthCheck.value.maxFailedTests})`)
-//     
+//
 //     if (keyboardListenerHealthCheck.value.failedTests >= keyboardListenerHealthCheck.value.maxFailedTests) {
 //       console.error(`🔧 [键盘自动修复] 尝试重新绑定键盘事件监听器`)
 //       repairKeyboardListeners()
@@ -732,25 +795,25 @@ const keyboardEventState = ref({
 // 🎯 新增：修复键盘事件监听器
 const repairKeyboardListeners = () => {
   console.log(`🔧 [键盘修复] 开始修复键盘事件监听器`)
-  
+
   // 1. 先移除所有可能存在的监听器
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('keyup', handleKeyUp)
-  
+
   // 2. 重置相关状态
   isSpacePressed.value = false
   keyboardEventState.value.listenersAttached = false
   keyboardEventState.value.spaceKeyPressCount = 0
-  
+
   // 3. 重新绑定事件监听器
   if (isVoiceMode.value) {
     document.addEventListener('keydown', handleKeyDown)
     document.addEventListener('keyup', handleKeyUp)
     keyboardEventState.value.listenersAttached = true
-    
+
     console.log(`✅ [键盘修复] 键盘事件监听器已重新绑定`)
   }
-  
+
   // 4. 重置健康检查状态
   keyboardListenerHealthCheck.value.failedTests = 0
   keyboardListenerHealthCheck.value.lastTestTime = Date.now()
@@ -765,22 +828,22 @@ const enableKeyboardDebugMode = () => {
 // 🎯 新增：手动修复键盘功能（用户可在控制台调用）
 const manualFixKeyboard = () => {
   console.log(`🔧 [手动修复] 用户触发手动键盘修复`)
-  
+
   if (!isVoiceMode.value) {
     console.warn(`⚠️ [手动修复] 当前不在语音模式，无需修复`)
     return false
   }
-  
+
   console.log(`📊 [手动修复] 当前状态检查:`)
   console.log(`   - 语音模式: ${isVoiceMode.value}`)
   console.log(`   - 空格键按下: ${isSpacePressed.value}`)
   console.log(`   - 正在录音: ${isRecording.value}`)
   console.log(`   - 监听器已附加: ${keyboardEventState.value.listenersAttached}`)
   console.log(`   - 累计按键次数: ${keyboardEventState.value.spaceKeyPressCount}`)
-  
+
   repairKeyboardListeners()
   enableKeyboardDebugMode()
-  
+
   console.log(`✅ [手动修复] 手动键盘修复完成，已启用调试模式`)
   return true
 }
@@ -789,25 +852,25 @@ const manualFixKeyboard = () => {
 // const performLongTermDiagnostics = () => {
 //   const monitor = longTermPerformanceMonitor.value
 //   const now = Date.now()
-//   
+//
 //   // 获取内存使用情况（如果可用）
 //   let memoryUsage = 0
 //   if ('memory' in performance && (performance as any).memory) {
 //     memoryUsage = (performance as any).memory.usedJSHeapSize / 1024 / 1024 // MB
 //     monitor.memoryUsageHistory.push(memoryUsage)
 //   }
-//   
+//
 //   // 记录当前FPS
 //   monitor.fpsHistory.push(animationPerformance.value.currentFps)
-//   
+//
 //   // 记录缓存命中率
 //   const totalCacheRequests = cacheHitCount + cacheMissCount
 //   const cacheHitRate = totalCacheRequests > 0 ? (cacheHitCount / totalCacheRequests) : 1
 //   monitor.cacheHitRateHistory.push(cacheHitRate)
-//   
+//
 //   // 记录动画时间值
 //   monitor.animationTimeValues.push(animationTime.value)
-//   
+//
 //   // 保持历史数据在合理范围内
 //   const maxHistoryLength = 100
 //   if (monitor.memoryUsageHistory.length > maxHistoryLength) {
@@ -822,13 +885,13 @@ const manualFixKeyboard = () => {
 //   if (monitor.animationTimeValues.length > maxHistoryLength) {
 //     monitor.animationTimeValues.shift()
 //   }
-//   
+//
 //   // 每30秒生成详细报告
 //   if (now - monitor.lastReportTime >= monitor.reportInterval) {
 //     generatePerformanceReport()
 //     monitor.lastReportTime = now
 //   }
-//   
+//
 //   // 检测性能下降
 //   detectPerformanceDegradation()
 // }
@@ -836,26 +899,42 @@ const manualFixKeyboard = () => {
 const generatePerformanceReport = () => {
   const monitor = longTermPerformanceMonitor.value
   const runtimeSeconds = (Date.now() - monitor.startTime) / 1000
-  const avgFps = monitor.fpsHistory.length > 0 ? 
-    monitor.fpsHistory.reduce((a, b) => a + b, 0) / monitor.fpsHistory.length : 0
-  const avgMemory = monitor.memoryUsageHistory.length > 0 ?
-    monitor.memoryUsageHistory.reduce((a, b) => a + b, 0) / monitor.memoryUsageHistory.length : 0
-  const avgCacheHitRate = monitor.cacheHitRateHistory.length > 0 ?
-    monitor.cacheHitRateHistory.reduce((a, b) => a + b, 0) / monitor.cacheHitRateHistory.length : 0
-  
+  const avgFps =
+    monitor.fpsHistory.length > 0
+      ? monitor.fpsHistory.reduce((a, b) => a + b, 0) / monitor.fpsHistory.length
+      : 0
+  const avgMemory =
+    monitor.memoryUsageHistory.length > 0
+      ? monitor.memoryUsageHistory.reduce((a, b) => a + b, 0) / monitor.memoryUsageHistory.length
+      : 0
+  const avgCacheHitRate =
+    monitor.cacheHitRateHistory.length > 0
+      ? monitor.cacheHitRateHistory.reduce((a, b) => a + b, 0) / monitor.cacheHitRateHistory.length
+      : 0
+
   console.log(`📊 [长期性能报告] 运行时间: ${runtimeSeconds.toFixed(1)}秒`)
   console.log(`   📈 总帧数: ${monitor.totalFrames}`)
-  console.log(`   🎯 平均FPS: ${avgFps.toFixed(1)} (最近: ${animationPerformance.value.currentFps.toFixed(1)})`)
-  console.log(`   💾 平均内存: ${avgMemory.toFixed(1)}MB (当前: ${monitor.memoryUsageHistory[monitor.memoryUsageHistory.length - 1]?.toFixed(1) || 'N/A'}MB)`)
-  console.log(`   🎯 缓存命中率: ${(avgCacheHitRate * 100).toFixed(1)}% (命中:${cacheHitCount}, 错过:${cacheMissCount})`)
-  console.log(`   ⏰ 动画时间值: ${animationTime.value.toFixed(1)} (最大: ${Math.max(...monitor.animationTimeValues).toFixed(1)})`)
+  console.log(
+    `   🎯 平均FPS: ${avgFps.toFixed(1)} (最近: ${animationPerformance.value.currentFps.toFixed(1)})`
+  )
+  console.log(
+    `   💾 平均内存: ${avgMemory.toFixed(1)}MB (当前: ${monitor.memoryUsageHistory[monitor.memoryUsageHistory.length - 1]?.toFixed(1) || 'N/A'}MB)`
+  )
+  console.log(
+    `   🎯 缓存命中率: ${(avgCacheHitRate * 100).toFixed(1)}% (命中:${cacheHitCount}, 错过:${cacheMissCount})`
+  )
+  console.log(
+    `   ⏰ 动画时间值: ${animationTime.value.toFixed(1)} (最大: ${Math.max(...monitor.animationTimeValues).toFixed(1)})`
+  )
   console.log(`   📦 路径缓存大小: ${pathCache.size}/${animationConfig.pathCacheSize}`)
   console.log(`   🧠 键盘按键次数: ${keyboardEventState.value.spaceKeyPressCount}`)
-  
+
   // 内存增长趋势分析
   if (monitor.memoryUsageHistory.length >= 10) {
-    const memoryGrowth = monitor.memoryUsageHistory[monitor.memoryUsageHistory.length - 1] - monitor.memoryUsageHistory[0]
-    const growthRate = memoryGrowth / runtimeSeconds * 60 // MB/分钟
+    const memoryGrowth =
+      monitor.memoryUsageHistory[monitor.memoryUsageHistory.length - 1] -
+      monitor.memoryUsageHistory[0]
+    const growthRate = (memoryGrowth / runtimeSeconds) * 60 // MB/分钟
     if (growthRate > 0.5) {
       console.warn(`⚠️ [内存泄漏警告] 内存增长率: ${growthRate.toFixed(2)}MB/分钟`)
     }
@@ -864,13 +943,13 @@ const generatePerformanceReport = () => {
 
 // const detectPerformanceDegradation = () => {
 //   const monitor = longTermPerformanceMonitor.value
-//   
+//
 //   if (monitor.fpsHistory.length < 10) return
-//   
+//
 //   // 比较最近10帧和前面10帧的平均FPS
 //   const recentFps = monitor.fpsHistory.slice(-10).reduce((a, b) => a + b, 0) / 10
 //   const previousFps = monitor.fpsHistory.slice(-20, -10).reduce((a, b) => a + b, 0) / 10
-//   
+//
 //   if (previousFps > 0 && recentFps / previousFps < monitor.performanceDegradationThreshold) {
 //     console.error(`🚨 [性能下降警告] FPS下降了${((1 - recentFps / previousFps) * 100).toFixed(1)}%`)
 //     console.error(`   之前FPS: ${previousFps.toFixed(1)}, 现在FPS: ${recentFps.toFixed(1)}`)
@@ -880,19 +959,20 @@ const generatePerformanceReport = () => {
 
 const _performPerformanceCleanup = () => {
   console.log(`🧹 [定期清理] 执行性能维护`)
-  
+
   // 1. 检查路径缓存大小（LRU缓存会自动管理大小，但我们可以记录状态）
   if (pathCache.size > animationConfig.pathCacheSize * 0.9) {
     console.log(`   📦 路径缓存接近满载: ${pathCache.size}/${animationConfig.pathCacheSize}`)
   }
-  
+
   // 2. 重置动画时间（防止溢出）
-  if (animationTime.value > 1000000) { // 超过100万毫秒时重置
+  if (animationTime.value > 1000000) {
+    // 超过100万毫秒时重置
     const oldTime = animationTime.value
     animationTime.value = performance.now() % 10000
     console.log(`   ⏰ 重置动画时间: ${oldTime.toFixed(1)} -> ${animationTime.value.toFixed(1)}`)
   }
-  
+
   // 3. 清理监控历史数据（保留最近50项）
   const trimHistory = (arr: number[], maxLength: number = 50) => {
     if (arr.length > maxLength) {
@@ -900,17 +980,25 @@ const _performPerformanceCleanup = () => {
     }
     return arr
   }
-  
+
   const oldMemoryLength = longTermPerformanceMonitor.value.memoryUsageHistory.length
-  longTermPerformanceMonitor.value.memoryUsageHistory = trimHistory(longTermPerformanceMonitor.value.memoryUsageHistory)
-  longTermPerformanceMonitor.value.fpsHistory = trimHistory(longTermPerformanceMonitor.value.fpsHistory)
-  longTermPerformanceMonitor.value.cacheHitRateHistory = trimHistory(longTermPerformanceMonitor.value.cacheHitRateHistory)
-  longTermPerformanceMonitor.value.animationTimeValues = trimHistory(longTermPerformanceMonitor.value.animationTimeValues)
-  
+  longTermPerformanceMonitor.value.memoryUsageHistory = trimHistory(
+    longTermPerformanceMonitor.value.memoryUsageHistory
+  )
+  longTermPerformanceMonitor.value.fpsHistory = trimHistory(
+    longTermPerformanceMonitor.value.fpsHistory
+  )
+  longTermPerformanceMonitor.value.cacheHitRateHistory = trimHistory(
+    longTermPerformanceMonitor.value.cacheHitRateHistory
+  )
+  longTermPerformanceMonitor.value.animationTimeValues = trimHistory(
+    longTermPerformanceMonitor.value.animationTimeValues
+  )
+
   if (oldMemoryLength > 50) {
     console.log(`   📊 清理监控历史: ${oldMemoryLength} -> 50`)
   }
-  
+
   // 4. 计算缓存效率并优化
   const totalRequests = cacheHitCount + cacheMissCount
   if (totalRequests > 1000) {
@@ -919,24 +1007,26 @@ const _performPerformanceCleanup = () => {
       console.log(`   ⚠️ 缓存命中率低: ${(hitRate * 100).toFixed(1)}%`)
     }
   }
-  
-  console.log(`✅ [定期清理完成] 缓存=${pathCache.size}, 动画时间=${animationTime.value.toFixed(1)}`)
+
+  console.log(
+    `✅ [定期清理完成] 缓存=${pathCache.size}, 动画时间=${animationTime.value.toFixed(1)}`
+  )
 }
 
 // 🎯 新增：专门用于长期运行问题诊断的特殊监控
 const enableDeepPerformanceAnalysis = () => {
   console.log(`🔬 [深度性能分析] 启用详细监控模式`)
-  
+
   // 每10秒详细报告
   const detailedMonitorInterval = setInterval(() => {
     if (!isVoiceMode.value) {
       clearInterval(detailedMonitorInterval)
       return
     }
-    
+
     const now = Date.now()
     const runtime = (now - longTermPerformanceMonitor.value.startTime) / 1000
-    
+
     // 检查内存使用
     let memInfo = 'N/A'
     if ('memory' in performance) {
@@ -948,30 +1038,35 @@ const enableDeepPerformanceAnalysis = () => {
         memInfo = `${used}MB/${total}MB (限制:${limit}MB)`
       }
     }
-    
+
     console.log(`🔬 [${runtime.toFixed(0)}s] 深度分析:`)
     console.log(`   💾 内存: ${memInfo}`)
-         console.log(`   🎯 FPS: ${animationPerformance.value.currentFps.toFixed(1)} (帧数:${animationPerformance.value.frameCount})`)
-    console.log(`   📦 缓存: ${pathCache.size}/${animationConfig.pathCacheSize} (命中率:${((cacheHitCount / (cacheHitCount + cacheMissCount)) * 100).toFixed(1)}%)`)
-    console.log(`   ⏰ 动画时间: ${animationTime.value.toFixed(0)} (是否巨大: ${animationTime.value > 500000 ? '是' : '否'})`)
+    console.log(
+      `   🎯 FPS: ${animationPerformance.value.currentFps.toFixed(1)} (帧数:${animationPerformance.value.frameCount})`
+    )
+    console.log(
+      `   📦 缓存: ${pathCache.size}/${animationConfig.pathCacheSize} (命中率:${((cacheHitCount / (cacheHitCount + cacheMissCount)) * 100).toFixed(1)}%)`
+    )
+    console.log(
+      `   ⏰ 动画时间: ${animationTime.value.toFixed(0)} (是否巨大: ${animationTime.value > 500000 ? '是' : '否'})`
+    )
     console.log(`   🎬 总帧数: ${longTermPerformanceMonitor.value.totalFrames}`)
     // console.log(`   🎙️ 录音状态: ${isRecording.value ? '录音中' : '空闲'}, 🔊TTS: ${isTtsPlaying.value ? '播放中' : '停止'}`)
     console.log(`   🔍 质量等级: ${animationPerformance.value.qualityLevel}`)
-    
+
     // 检查异常状态
     if (animationTime.value > 1000000) {
       console.warn(`   ⚠️ 动画时间值异常大，可能导致计算精度问题`)
     }
-    
+
     if (pathCache.size === animationConfig.pathCacheSize) {
       console.log(`   📦 缓存已满，LRU算法工作中`)
     }
-    
   }, 10000) // 每10秒
-  
+
   // 暴露到全局
   if (typeof window !== 'undefined') {
-    (window as any).stopDeepAnalysis = () => {
+    ;(window as any).stopDeepAnalysis = () => {
       clearInterval(detailedMonitorInterval)
       console.log(`🔬 [深度性能分析] 已停用`)
     }
@@ -981,56 +1076,58 @@ const enableDeepPerformanceAnalysis = () => {
 
 const triggerPerformanceEmergencyCleanup = () => {
   console.log(`🆘 [紧急性能清理] 开始清理以恢复性能`)
-  
+
   // 1. 清理路径缓存
   const oldCacheSize = pathCache.size
   pathCache.clear()
   console.log(`   🧹 清理路径缓存: ${oldCacheSize} -> 0`)
-  
+
   // 2. 重置动画时间（防止时间值过大）
   const oldAnimationTime = animationTime.value
   animationTime.value = performance.now() % 10000 // 重置到较小的值
-  console.log(`   ⏰ 重置动画时间: ${oldAnimationTime.toFixed(1)} -> ${animationTime.value.toFixed(1)}`)
-  
+  console.log(
+    `   ⏰ 重置动画时间: ${oldAnimationTime.toFixed(1)} -> ${animationTime.value.toFixed(1)}`
+  )
+
   // 3. 强制垃圾回收（如果可用）
   if (typeof window !== 'undefined' && 'gc' in window) {
-    (window as any).gc()
+    ;(window as any).gc()
     console.log(`   🗑️ 触发垃圾回收`)
   }
-  
+
   // 4. 降低动画质量
   if (animationPerformance.value.qualityLevel !== 'low') {
     animationPerformance.value.qualityLevel = 'low'
     console.log(`   📉 降低动画质量到最低`)
   }
-  
+
   // 5. 重置性能监控历史
   longTermPerformanceMonitor.value.memoryUsageHistory = []
   longTermPerformanceMonitor.value.fpsHistory = []
   longTermPerformanceMonitor.value.cacheHitRateHistory = []
   longTermPerformanceMonitor.value.animationTimeValues = []
-  
+
   console.log(`✅ [紧急清理完成] 性能优化措施已执行`)
 }
 
 // 🎯 暴露给全局，方便用户在控制台调用
 const exposeDebugFunctions = () => {
   if (typeof window !== 'undefined') {
-    (window as any).manualFixKeyboard = manualFixKeyboard;
-    (window as any).enableKeyboardDebugMode = enableKeyboardDebugMode;
-    (window as any).generatePerformanceReport = generatePerformanceReport;
-    (window as any).triggerPerformanceEmergencyCleanup = triggerPerformanceEmergencyCleanup;
-    (window as any).enableDeepPerformanceAnalysis = enableDeepPerformanceAnalysis;
-    (window as any).immediatePerformanceCheck = immediatePerformanceCheck;
-    console.log(`🛠️ [调试工具] 已暴露修复函数到全局:`);
-    console.log(`   - window.manualFixKeyboard() - 手动修复键盘`);
-    console.log(`   - window.enableKeyboardDebugMode() - 启用调试模式`);
-    console.log(`   - window.generatePerformanceReport() - 生成性能报告`);
-    console.log(`   - window.triggerPerformanceEmergencyCleanup() - 紧急性能清理`);
-    console.log(`   - window.enableDeepPerformanceAnalysis() - 启用深度性能分析`);
-    console.log(`   - window.immediatePerformanceCheck() - 立即性能检查`);
-    console.log(`⚡ [性能优化] 已优化键盘事件和日志输出，减少性能影响`);
-    console.log(`   💡 提示：如需查看完整调试日志，请调用 window.enableKeyboardDebugMode()`);
+    ;(window as any).manualFixKeyboard = manualFixKeyboard
+    ;(window as any).enableKeyboardDebugMode = enableKeyboardDebugMode
+    ;(window as any).generatePerformanceReport = generatePerformanceReport
+    ;(window as any).triggerPerformanceEmergencyCleanup = triggerPerformanceEmergencyCleanup
+    ;(window as any).enableDeepPerformanceAnalysis = enableDeepPerformanceAnalysis
+    ;(window as any).immediatePerformanceCheck = immediatePerformanceCheck
+    console.log(`🛠️ [调试工具] 已暴露修复函数到全局:`)
+    console.log(`   - window.manualFixKeyboard() - 手动修复键盘`)
+    console.log(`   - window.enableKeyboardDebugMode() - 启用调试模式`)
+    console.log(`   - window.generatePerformanceReport() - 生成性能报告`)
+    console.log(`   - window.triggerPerformanceEmergencyCleanup() - 紧急性能清理`)
+    console.log(`   - window.enableDeepPerformanceAnalysis() - 启用深度性能分析`)
+    console.log(`   - window.immediatePerformanceCheck() - 立即性能检查`)
+    console.log(`⚡ [性能优化] 已优化键盘事件和日志输出，减少性能影响`)
+    console.log(`   💡 提示：如需查看完整调试日志，请调用 window.enableKeyboardDebugMode()`)
   }
 }
 
@@ -1038,32 +1135,37 @@ const exposeDebugFunctions = () => {
 const _updatePerformanceMetrics = (_frameTime: number) => {
   animationPerformance.value.frameCount++
   animationPerformance.value.frameTimeHistory.push(_frameTime)
-  
+
   // 保持最近60帧的历史
   if (animationPerformance.value.frameTimeHistory.length > 60) {
     animationPerformance.value.frameTimeHistory.shift()
   }
-  
+
   // 计算平均帧时间
-  const avgFrameTime = animationPerformance.value.frameTimeHistory.reduce((a, b) => a + b, 0) / 
-                      animationPerformance.value.frameTimeHistory.length
+  const avgFrameTime =
+    animationPerformance.value.frameTimeHistory.reduce((a, b) => a + b, 0) /
+    animationPerformance.value.frameTimeHistory.length
   animationPerformance.value.averageFrameTime = avgFrameTime
-  
+
   // 🎯 连续慢帧检测
   if (_frameTime > animationConfig.maxFrameTime) {
     animationPerformance.value.consecutiveSlowFrames++
   } else {
     animationPerformance.value.consecutiveSlowFrames = 0
   }
-  
+
   // 🎯 自适应质量调整
   if (animationPerformance.value.consecutiveSlowFrames >= animationConfig.reducedQualityThreshold) {
     if (animationPerformance.value.qualityLevel === 'high') {
       animationPerformance.value.qualityLevel = 'medium'
-      console.warn(`[自适应性能] 降级到中等质量: 连续${animationPerformance.value.consecutiveSlowFrames}帧慢`)
+      console.warn(
+        `[自适应性能] 降级到中等质量: 连续${animationPerformance.value.consecutiveSlowFrames}帧慢`
+      )
     } else if (animationPerformance.value.qualityLevel === 'medium') {
       animationPerformance.value.qualityLevel = 'low'
-      console.warn(`[自适应性能] 降级到低质量: 连续${animationPerformance.value.consecutiveSlowFrames}帧慢`)
+      console.warn(
+        `[自适应性能] 降级到低质量: 连续${animationPerformance.value.consecutiveSlowFrames}帧慢`
+      )
     }
   } else if (animationPerformance.value.consecutiveSlowFrames === 0 && avgFrameTime < 16) {
     // 性能良好时尝试升级
@@ -1075,29 +1177,39 @@ const _updatePerformanceMetrics = (_frameTime: number) => {
       console.log(`[自适应性能] 升级到高质量: 性能优秀`)
     }
   }
-  
+
   // 每秒检查一次性能
   const now = Date.now()
   if (now - animationPerformance.value.lastFpsCheck >= animationConfig.performanceCheckInterval) {
-    const fps = animationPerformance.value.frameCount * 1000 / (now - animationPerformance.value.lastFpsCheck)
+    const fps =
+      (animationPerformance.value.frameCount * 1000) /
+      (now - animationPerformance.value.lastFpsCheck)
     animationPerformance.value.currentFps = fps
     animationPerformance.value.frameCount = 0
     animationPerformance.value.lastFpsCheck = now
-    
+
     // 检测性能问题
-    const recentSlowFrames = animationPerformance.value.frameTimeHistory.slice(-5)
-      .filter(time => time > animationConfig.maxFrameTime).length
-    
-    animationPerformance.value.isPerformanceIssue = recentSlowFrames >= animationConfig.reducedQualityThreshold
-    
+    const recentSlowFrames = animationPerformance.value.frameTimeHistory
+      .slice(-5)
+      .filter((time) => time > animationConfig.maxFrameTime).length
+
+    animationPerformance.value.isPerformanceIssue =
+      recentSlowFrames >= animationConfig.reducedQualityThreshold
+
     // 性能报告
     if (animationPerformance.value.isPerformanceIssue || fps < 45) {
-      console.warn(`[波浪性能] 性能问题检测: FPS=${fps.toFixed(1)}, 平均帧时间=${avgFrameTime.toFixed(2)}ms, 质量=${animationPerformance.value.qualityLevel}`)
+      console.warn(
+        `[波浪性能] 性能问题检测: FPS=${fps.toFixed(1)}, 平均帧时间=${avgFrameTime.toFixed(2)}ms, 质量=${animationPerformance.value.qualityLevel}`
+      )
       if (cacheHitCount + cacheMissCount > 0) {
-        console.warn(`[波浪性能] 缓存统计: 命中=${cacheHitCount}, 错过=${cacheMissCount}, 命中率=${(cacheHitCount/(cacheHitCount+cacheMissCount)*100).toFixed(1)}%`)
+        console.warn(
+          `[波浪性能] 缓存统计: 命中=${cacheHitCount}, 错过=${cacheMissCount}, 命中率=${((cacheHitCount / (cacheHitCount + cacheMissCount)) * 100).toFixed(1)}%`
+        )
       }
     } else if (fps > 55) {
-      console.log(`[波浪性能] 性能良好: FPS=${fps.toFixed(1)}, 质量=${animationPerformance.value.qualityLevel}`)
+      console.log(
+        `[波浪性能] 性能良好: FPS=${fps.toFixed(1)}, 质量=${animationPerformance.value.qualityLevel}`
+      )
     }
   }
 }
@@ -1108,13 +1220,13 @@ const initAudioAnalysis = async (stream: MediaStream) => {
     audioContext = new AudioContext()
     analyser = audioContext.createAnalyser()
     microphone = audioContext.createMediaStreamSource(stream)
-    
+
     analyser.fftSize = 256
     analyser.smoothingTimeConstant = 0.8
     dataArray = new Uint8Array(analyser.frequencyBinCount)
-    
+
     microphone.connect(analyser)
-    
+
     console.log('[波浪性能] 音频分析初始化完成')
   } catch (error) {
     console.error('音频分析初始化失败:', error)
@@ -1124,10 +1236,11 @@ const initAudioAnalysis = async (stream: MediaStream) => {
 // 🎯 增强的组件卸载清理
 onBeforeUnmount(() => {
   console.log('[组件生命周期] NewThread组件即将卸载，清理语音相关资源')
-  
+
   // 🔧 检查是否在语音消息提交过程中
-  const isInVoiceMessageSubmission = isTranscribing.value || isProcessingVoice.value || isWaitingResponse.value
-  
+  const isInVoiceMessageSubmission =
+    isTranscribing.value || isProcessingVoice.value || isWaitingResponse.value
+
   if (isInVoiceMessageSubmission) {
     console.warn('[组件生命周期] ⚠️ 检测到语音消息提交过程中，这可能是渲染条件问题导致的意外卸载')
     console.warn('[组件生命周期] 🔧 当前状态:', {
@@ -1138,10 +1251,10 @@ onBeforeUnmount(() => {
       activeThreadId: chatStore.getActiveThreadId()
     })
   }
-  
+
   // 🎯 禁用键盘健康检查
   keyboardListenerHealthCheck.value.isActive = false
-  
+
   // 清理语音模式
   if (isVoiceMode.value) {
     if (isInVoiceMessageSubmission) {
@@ -1149,24 +1262,26 @@ onBeforeUnmount(() => {
     }
     exitVoiceMode()
   }
-  
+
   // 清理动画
   stopWaveAnimation()
-  
+
   // 🎯 清理缓存
   pathCache.clear()
-  
+
   // 🎯 强制重置所有键盘相关状态
   isSpacePressed.value = false
   keyboardEventState.value.listenersAttached = false
   keyboardEventState.value.spaceKeyPressCount = 0
-  
+
   // 确保移除事件监听器（多次调用是安全的）
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('keyup', handleKeyUp)
-  
+
   // 🎯 输出最终性能报告
-  console.log(`[波浪性能] 最终报告: 平均FPS=${animationPerformance.value.currentFps.toFixed(1)}, 平均帧时间=${animationPerformance.value.averageFrameTime.toFixed(2)}ms`)
+  console.log(
+    `[波浪性能] 最终报告: 平均FPS=${animationPerformance.value.currentFps.toFixed(1)}, 平均帧时间=${animationPerformance.value.averageFrameTime.toFixed(2)}ms`
+  )
   console.log(`[波浪性能] 缓存效率: 总命中=${cacheHitCount}, 总错过=${cacheMissCount}`)
   console.log(`[键盘统计] 组件生命周期内累计按键: ${keyboardEventState.value.spaceKeyPressCount}次`)
 })
@@ -1174,31 +1289,32 @@ onBeforeUnmount(() => {
 // 🎯 新增：自适应性能优化函数
 const _adaptivePerformanceOptimization = () => {
   const performance = animationPerformance.value
-  
+
   // 检测Hold说话状态（连续录音超过3秒）
-  const isHoldSpeaking = isRecording.value && (Date.now() - (performance.lastFpsCheck || Date.now())) > 3000
-  
+  const isHoldSpeaking =
+    isRecording.value && Date.now() - (performance.lastFpsCheck || Date.now()) > 3000
+
   if (performance.isPerformanceIssue || isHoldSpeaking) {
     console.log(`[自适应优化] 检测到性能问题或Hold说话状态，启动优化措施`)
-    
+
     // 1. 降低动画帧率
     if (performance.currentFps < 30) {
       animationConfig.targetFps = 30
       console.log(`[自适应优化] 降低目标帧率到30fps`)
     }
-    
+
     // 2. 减少音频分析频率
     if (isHoldSpeaking) {
       // Hold说话时，每6帧更新一次音频数据而不是每3帧
       console.log(`[自适应优化] Hold说话模式：降低音频分析频率`)
     }
-    
+
     // 3. 增加路径缓存大小
     if (animationConfig.pathCacheSize < 20) {
       animationConfig.pathCacheSize = 20
       console.log(`[自适应优化] 增加路径缓存大小到20`)
     }
-    
+
     // 4. 清理旧数据（LRU缓存会自动管理大小）
     if (pathCache.size > 15) {
       const oldSize = pathCache.size
@@ -1216,36 +1332,37 @@ const _adaptivePerformanceOptimization = () => {
 const startWaveAnimation = () => {
   // 🎯 超简化版动画循环 - 保留必要的系统依赖
   let frameCounter = 0
-  
+
   const animate = () => {
     if (!isVoiceMode.value) return
-    
+
     // TTS播放期间暂停
     if (isTtsPlaying.value) {
       animationFrameId = requestAnimationFrame(animate)
       return
     }
-    
+
     // 🔧 重要：保持帧计数，其他系统依赖它
     frameCounter++
     animationPerformance.value.frameCount++
     animationTime.value = frameCounter * 16.67 // 假设60fps，每帧16.67ms
-    
+
     // 🔧 简单的FPS计算（每300帧计算一次）
     if (animationPerformance.value.frameCount % 300 === 0) {
       const now = Date.now()
       if (animationPerformance.value.lastFpsCheck) {
-        const fps = 300 * 1000 / (now - animationPerformance.value.lastFpsCheck)
+        const fps = (300 * 1000) / (now - animationPerformance.value.lastFpsCheck)
         animationPerformance.value.currentFps = fps
       }
       animationPerformance.value.lastFpsCheck = now
     }
-    
+
     // 简单音频获取（录音时获取实际数据，否则使用固定值）
     if (isRecording.value && analyser && dataArray) {
       analyser.getByteFrequencyData(dataArray)
       let sum = 0
-      for (let i = 0; i < 32; i++) { // 只取前32个值，减少计算
+      for (let i = 0; i < 32; i++) {
+        // 只取前32个值，减少计算
         sum += dataArray[i]
       }
       audioLevel.value = Math.min(1, (sum / 32 / 128) * 2)
@@ -1253,18 +1370,18 @@ const startWaveAnimation = () => {
       // 非录音状态，使用固定的轻微波动
       audioLevel.value = 0.1 + Math.sin(frameCounter * 0.1) * 0.05
     }
-    
+
     // 继续下一帧
     animationFrameId = requestAnimationFrame(animate)
   }
-  
+
   // 初始化性能监控
   animationPerformance.value.lastFpsCheck = Date.now()
   animationPerformance.value.frameCount = 0
   pathCache.clear()
   cacheHitCount = 0
   cacheMissCount = 0
-  
+
   // 🎯 初始化长期性能监控
   longTermPerformanceMonitor.value.startTime = Date.now()
   longTermPerformanceMonitor.value.totalFrames = 0
@@ -1274,13 +1391,13 @@ const startWaveAnimation = () => {
   longTermPerformanceMonitor.value.fpsHistory = []
   longTermPerformanceMonitor.value.cacheHitRateHistory = []
   longTermPerformanceMonitor.value.animationTimeValues = []
-  
+
   // 性能监控已禁用
-  
+
   // 性能监控已禁用
-  
+
   // 定时器监控系统已禁用
-  
+
   console.log('[波浪性能] 🚀 启动终极优化版动画系统')
   console.log(`   🎯 预计算正弦表: ${SINE_TABLE_SIZE}个值`)
   console.log(`   💾 LRU缓存系统: 最大${animationConfig.pathCacheSize}项`)
@@ -1294,7 +1411,7 @@ const startWaveAnimation = () => {
   console.log(`   ⏰ 自动监控: 每10秒基础报告 + 每30秒详细报告`)
   console.log(`   🚨 自动检测: 动画时间过大、缓存满载、命中率低`)
   console.log(`   🎯 首次监控: 3秒后开始，确保立即可见`)
-  
+
   // 🎯 立即测试调试函数
   console.log(`🛠️ [立即测试] 验证监控系统...`)
   setTimeout(() => {
@@ -1305,7 +1422,7 @@ const startWaveAnimation = () => {
       console.error(`❌ [立即测试] generatePerformanceReport 函数不可用`)
     }
   }, 1000)
-  
+
   animate() // 启动简化版动画
 }
 
@@ -1334,7 +1451,7 @@ const stopWaveAnimation = () => {
   stopAudioAnalysis()
 }
 
-  // 🎯 立即执行的性能检查函数（已禁用）
+// 🎯 立即执行的性能检查函数（已禁用）
 const immediatePerformanceCheck = () => {
   // 性能监控已禁用
 }
@@ -1345,9 +1462,9 @@ const enterVoiceMode = (existingThreadId?: string) => {
   console.log('[语音模式] 🔧 接收到的现有线程ID:', existingThreadId)
   console.log('[语音模式] 🔧 当前活跃线程ID:', chatStore.getActiveThreadId())
   console.log('[语音模式] 🔧 当前isVoiceMode状态:', isVoiceMode.value)
-  
+
   isVoiceMode.value = true
-  
+
   // 🔧 添加线程状态验证日志
   if (existingThreadId) {
     console.log('[语音模式] ✅ 从ChatView切换到语音模式，应该继续使用线程:', existingThreadId)
@@ -1355,38 +1472,40 @@ const enterVoiceMode = (existingThreadId?: string) => {
   } else {
     console.log('[语音模式] 🆕 新启动语音模式，没有现有线程')
   }
-  
+
   // 性能检查已禁用
-  
+
   // 🎯 禁用chat.ts的TTS服务，避免冲突
   enhancedTTSIntegration.setGloballyDisabled(true)
   // console.log('[语音模式] 🚫 禁用chat.ts的TTS服务')
-  
+
   // 🎯 重置所有键盘相关状态
   isSpacePressed.value = false
   keyboardEventState.value.spaceKeyPressCount = 0
   keyboardEventState.value.lastKeydownTime = 0
   keyboardEventState.value.lastKeyupTime = 0
-  
+
   // 🎯 安全地移除可能存在的事件监听器（防止重复绑定）
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('keyup', handleKeyUp)
-  
+
   // 添加键盘事件监听
   document.addEventListener('keydown', handleKeyDown)
   document.addEventListener('keyup', handleKeyUp)
   keyboardEventState.value.listenersAttached = true
-  
+
   // 🎯 启用键盘健康检查
   keyboardListenerHealthCheck.value.isActive = true
   keyboardListenerHealthCheck.value.lastTestTime = Date.now()
   keyboardListenerHealthCheck.value.failedTests = 0
-  
+
   // 初始化波形动画
   startWaveAnimation()
-  
+
   console.log('[语音模式] ✅ 语音模式初始化完成，键盘监听已启用')
-  console.log(`[语音模式] 🔍 键盘监听器状态: attached=${keyboardEventState.value.listenersAttached}`)
+  console.log(
+    `[语音模式] 🔍 键盘监听器状态: attached=${keyboardEventState.value.listenersAttached}`
+  )
 }
 
 // 🎯 暴露语音模式状态和方法给父组件
@@ -1398,7 +1517,7 @@ defineExpose({
 // 🎯 切换到文字聊天模式
 const switchToTextChat = async () => {
   console.log('[语音模式] 🔄 切换到文字聊天模式')
-  
+
   // 如果有语音对话历史，同步到传统聊天界面
   if (voiceConversationHistory.value.length > 0) {
     await syncVoiceHistoryToTextChat()
@@ -1412,22 +1531,22 @@ const switchToTextChat = async () => {
 const syncVoiceHistoryToTextChat = async () => {
   try {
     console.log('[语音同步] 🔄 开始同步语音对话历史到文字界面')
-    
+
     // 获取当前活跃的语音线程ID
     const currentThreadId = chatStore.getActiveThreadId()
-    
+
     if (currentThreadId) {
       console.log('[语音同步] ✅ 检测到活跃线程，切换到传统聊天界面:', currentThreadId)
-      
+
       // 🎯 先退出语音模式，清理所有语音相关状态
       exitVoiceMode()
-      
+
       // 🎯 使用nextTick确保语音模式状态完全重置后再切换界面
       await nextTick()
-      
+
       // 🎯 关键：使用传统的setActiveThread方法，触发UI跳转
       await chatStore.setActiveThread(currentThreadId)
-      
+
       console.log('[语音同步] 🎯 已切换到传统聊天界面，用户可以查看对话历史')
     } else {
       console.log('[语音同步] ⚠️ 未检测到活跃线程，简单退出语音模式')
@@ -1443,32 +1562,32 @@ const syncVoiceHistoryToTextChat = async () => {
 // 🎯 增强的语音模式退出函数
 const exitVoiceMode = () => {
   console.log('[语音模式] 🔇 退出语音模式')
-  
+
   isVoiceMode.value = false
-  
+
   // 🎯 通知父组件语音模式已退出
   emit('exit-voice-mode')
-  
+
   // 🎯 禁用键盘健康检查
   keyboardListenerHealthCheck.value.isActive = false
-  
+
   // 🎯 重新启用chat.ts的TTS服务
   enhancedTTSIntegration.setGloballyDisabled(false)
   // console.log('[语音模式] ✅ 重新启用chat.ts的TTS服务')
-  
+
   // 停止录音
   if (isRecording.value) {
     console.log('[语音模式] 停止录音')
     stopRecording()
   }
-  
+
   // 停止TTS播放
   if (isTTSPlaying.value) {
     console.log('[语音模式] 停止TTS播放')
     ttsService.stop()
     isTTSPlaying.value = false
   }
-  
+
   // 🎯 完整的状态重置（包括键盘状态）
   isTranscribing.value = false
   isWaitingResponse.value = false
@@ -1478,52 +1597,60 @@ const exitVoiceMode = () => {
   lastVoiceResponse.value = ''
   voiceResponseText.value = '' // 清除字幕文本
   lastProcessedTranscription.value = '' // 清除重复检测缓存
-  
+
   // 🎯 重置键盘状态
   keyboardEventState.value.listenersAttached = false
   keyboardEventState.value.spaceKeyPressCount = 0
   keyboardEventState.value.lastKeydownTime = 0
   keyboardEventState.value.lastKeyupTime = 0
-  
+
   // 停止并行TTS服务
   parallelTtsService.stop()
   isParallelTTSActive.value = false
-  
+
   // 停止正弦波动画
   stopWaveAnimation()
-  
+
   // 移除键盘事件监听
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('keyup', handleKeyUp)
-  
+
   console.log('[语音模式] ✅ 语音模式清理完成')
-  console.log(`[语音模式] 🔍 最终键盘统计: 累计按键${keyboardEventState.value.spaceKeyPressCount}次`)
+  console.log(
+    `[语音模式] 🔍 最终键盘统计: 累计按键${keyboardEventState.value.spaceKeyPressCount}次`
+  )
 }
 
 // 🎯 优化的键盘按下事件处理（减少性能影响）
 const handleKeyDown = (event: KeyboardEvent) => {
   // 更新状态追踪
   keyboardEventState.value.lastKeydownTime = Date.now()
-  
+
   if (keyboardEventState.value.debugMode) {
-    console.log(`🔍 [键盘调试] KeyDown事件: code=${event.code}, isSpacePressed=${isSpacePressed.value}, isRecording=${isRecording.value}`)
+    console.log(
+      `🔍 [键盘调试] KeyDown事件: code=${event.code}, isSpacePressed=${isSpacePressed.value}, isRecording=${isRecording.value}`
+    )
   }
-  
+
   if (event.code === 'Space' && !isSpacePressed.value && !isRecording.value) {
     event.preventDefault()
     isSpacePressed.value = true
     keyboardEventState.value.spaceKeyPressCount++
-    
-    console.log(`🎙️ [键盘事件] 空格键按下，开始录音 (累计按键次数: ${keyboardEventState.value.spaceKeyPressCount})`)
+
+    console.log(
+      `🎙️ [键盘事件] 空格键按下，开始录音 (累计按键次数: ${keyboardEventState.value.spaceKeyPressCount})`
+    )
     startVoiceRecording()
   } else if (event.code === 'Space') {
     // 🔧 性能优化：减少重复日志输出，只在调试模式或首次忽略时输出
     const currentTime = Date.now()
     const lastIgnoreTime = keyboardEventState.value.lastIgnoreLogTime || 0
-    
+
     // 只在调试模式下或距离上次日志超过500ms时输出（防止日志刷屏）
-    if (keyboardEventState.value.debugMode || (currentTime - lastIgnoreTime) > 500) {
-      console.warn(`⚠️ [键盘事件] 空格键被忽略: isSpacePressed=${isSpacePressed.value}, isRecording=${isRecording.value}`)
+    if (keyboardEventState.value.debugMode || currentTime - lastIgnoreTime > 500) {
+      console.warn(
+        `⚠️ [键盘事件] 空格键被忽略: isSpacePressed=${isSpacePressed.value}, isRecording=${isRecording.value}`
+      )
       keyboardEventState.value.lastIgnoreLogTime = currentTime
     }
   }
@@ -1533,15 +1660,17 @@ const handleKeyDown = (event: KeyboardEvent) => {
 const handleKeyUp = (event: KeyboardEvent) => {
   // 更新状态追踪
   keyboardEventState.value.lastKeyupTime = Date.now()
-  
+
   if (keyboardEventState.value.debugMode) {
-    console.log(`🔍 [键盘调试] KeyUp事件: code=${event.code}, isSpacePressed=${isSpacePressed.value}, isRecording=${isRecording.value}`)
+    console.log(
+      `🔍 [键盘调试] KeyUp事件: code=${event.code}, isSpacePressed=${isSpacePressed.value}, isRecording=${isRecording.value}`
+    )
   }
-  
+
   if (event.code === 'Space' && isSpacePressed.value && isRecording.value) {
     event.preventDefault()
     isSpacePressed.value = false
-    
+
     console.log(`🛑 [键盘事件] 空格键抬起，停止录音`)
     stopRecording()
   } else if (event.code === 'Space') {
@@ -1553,11 +1682,9 @@ const handleKeyUp = (event: KeyboardEvent) => {
   }
 }
 
-
-
 // 🎯 获取最近一次用户语音输入（用于显示在Voice Auto Mode框内）
 const latestUserVoiceInput = computed(() => {
-  const userInputs = voiceConversationHistory.value.filter(item => item.type === 'user')
+  const userInputs = voiceConversationHistory.value.filter((item) => item.type === 'user')
   if (userInputs.length === 0) return ''
   return userInputs[userInputs.length - 1].text // 返回最新的用户输入
 })
@@ -1565,67 +1692,64 @@ const latestUserVoiceInput = computed(() => {
 // 🎯 停止所有TTS播放和AI生成（语音打断功能）- 增强MCP工具调用中断
 const stopAllTTSPlayback = async () => {
   // console.log('[语音打断] 🛑 停止所有TTS播放服务和AI生成')
-  
+
   try {
     // 🎯 设置语音中断标志，确保checkForStreamingResponse能立即响应
     isVoiceInterrupted.value = true
-    
+
     // 1. 停止正在进行的AI生成过程
     const currentThreadId = chatStore.getActiveThreadId()
     if (currentThreadId) {
       console.log('[语音打断] 🔄 停止AI生成过程:', currentThreadId)
       await chatStore.cancelGenerating(currentThreadId)
       console.log('[语音打断] ✅ 已停止AI生成过程')
-      
+
       // 🎯 注意：不强制修改working状态，让AI生成过程自然结束并更新状态
       // 依靠isVoiceInterrupted标志来实现中断，避免状态不一致的风险
     }
-    
+
     // 2. 停止并行TTS服务
     if (parallelTtsService) {
       parallelTtsService.stop()
       // console.log('[语音打断] ✅ 已停止ParallelTtsService')
     }
-    
+
     // 3. 停止传统TTS服务
     if (ttsService) {
       ttsService.stop()
       // console.log('[语音打断] ✅ 已停止TTSService')
     }
-    
+
     // 4. 停止增强TTS集成服务
     if (enhancedTTSIntegration) {
       enhancedTTSIntegration.stop()
       // console.log('[语音打断] ✅ 已停止EnhancedTTSIntegration')
     }
-    
+
     // 5. 重置TTS相关状态
     isTTSPlaying.value = false
     isParallelTTSActive.value = false
     voiceResponseText.value = '' // 清除当前显示的字幕
-    
+
     // 6. 重置语音对话状态
     isWaitingResponse.value = false
-    
+
     // console.log('[语音打断] 🎯 所有TTS服务和AI生成已停止，状态已重置，中断标志已设置')
-    
   } catch (error) {
     console.error('[语音打断] ❌ 停止TTS播放和AI生成时出错:', error)
   }
 }
 
-
-
 // 开始语音录制
 const startVoiceRecording = async () => {
   if (isRecording.value) return
-  
+
   // 🎯 语音打断功能：在开始新录音前停止所有TTS播放
   await stopAllTTSPlayback()
-  
+
   // 🎯 重置语音中断标志，准备新的语音会话
   isVoiceInterrupted.value = false
-  
+
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     mediaRecorder = new MediaRecorder(stream)
@@ -1640,14 +1764,14 @@ const startVoiceRecording = async () => {
     mediaRecorder.onstop = async () => {
       await processVoiceRecording()
       // 停止所有音频轨道
-      stream.getTracks().forEach(track => track.stop())
+      stream.getTracks().forEach((track) => track.stop())
     }
 
     mediaRecorder.start()
     isRecording.value = true
-    
+
     // console.log('[语音打断] 🎙️ 开始新的语音录制，已停止所有TTS播放')
-    
+
     // 初始化音频分析
     await initAudioAnalysis(stream)
   } catch (error) {
@@ -1660,7 +1784,7 @@ const stopRecording = () => {
   if (mediaRecorder && isRecording.value) {
     mediaRecorder.stop()
     isRecording.value = false
-    
+
     // 停止音频分析，但保持波形动画继续
     stopAudioAnalysis()
   }
@@ -1678,25 +1802,28 @@ const processVoiceRecording = async () => {
 
   isProcessingVoice.value = true
   isTranscribing.value = true
-  
+
   try {
     // 创建音频文件
     const audioBlob = new Blob(audioChunks, { type: 'audio/wav' })
-    
+
     // 调用语音转文字
     const transcriptionResult = await transcribeAudio(audioBlob)
-    
+
     if (transcriptionResult.text.trim()) {
       // 检查是否与上次处理的转录相同，防止重复处理
       const currentTranscription = transcriptionResult.text.trim()
       if (currentTranscription === lastProcessedTranscription.value) {
-        console.log('[语音处理] 🔄 检测到重复转录内容，跳过处理:', currentTranscription.substring(0, 50) + '...')
+        console.log(
+          '[语音处理] 🔄 检测到重复转录内容，跳过处理:',
+          currentTranscription.substring(0, 50) + '...'
+        )
         return
       }
-      
+
       // 记录当前处理的转录
       lastProcessedTranscription.value = currentTranscription
-      
+
       // 在语音模式下，直接自动提交消息，不填入输入框
       if (isVoiceMode.value) {
         await autoSubmitVoiceMessage(currentTranscription, transcriptionResult.detectedLanguage)
@@ -1719,84 +1846,84 @@ const processVoiceRecording = async () => {
 
 // 🎯 Whisper语言名称到代码的映射表（全局常量，避免重复创建）
 const WHISPER_LANGUAGE_MAP = {
-  'english': 'en',
-  'chinese': 'zh', 
-  'french': 'fr',
-  'german': 'de',
-  'spanish': 'es',
-  'italian': 'it',
-  'japanese': 'ja',
-  'korean': 'ko',
-  'russian': 'ru',
-  'portuguese': 'pt',
-  'arabic': 'ar',
-  'hindi': 'hi',
-  'dutch': 'nl',
-  'polish': 'pl',
-  'turkish': 'tr',
-  'vietnamese': 'vi',
-  'thai': 'th',
-  'swedish': 'sv',
-  'norwegian': 'no',
-  'danish': 'da',
-  'finnish': 'fi',
-  'greek': 'el',
-  'hebrew': 'he',
-  'czech': 'cs',
-  'hungarian': 'hu',
-  'romanian': 'ro',
-  'bulgarian': 'bg',
-  'croatian': 'hr',
-  'slovak': 'sk',
-  'slovenian': 'sl',
-  'estonian': 'et',
-  'latvian': 'lv',
-  'lithuanian': 'lt',
-  'ukrainian': 'uk',
-  'belarusian': 'be',
-  'serbian': 'sr',
-  'bosnian': 'bs',
-  'macedonian': 'mk',
-  'albanian': 'sq',
-  'armenian': 'hy',
-  'azerbaijani': 'az',
-  'georgian': 'ka',
-  'kazakh': 'kk',
-  'kyrgyz': 'ky',
-  'mongolian': 'mn',
-  'tajik': 'tg',
-  'turkmen': 'tk',
-  'uzbek': 'uz',
-  'persian': 'fa',
-  'urdu': 'ur',
-  'bengali': 'bn',
-  'tamil': 'ta',
-  'telugu': 'te',
-  'malayalam': 'ml',
-  'kannada': 'kn',
-  'gujarati': 'gu',
-  'punjabi': 'pa',
-  'marathi': 'mr',
-  'nepali': 'ne',
-  'sinhala': 'si',
-  'burmese': 'my',
-  'khmer': 'km',
-  'lao': 'lo',
-  'indonesian': 'id',
-  'malay': 'ms',
-  'tagalog': 'tl',
-  'swahili': 'sw',
-  'amharic': 'am',
-  'yoruba': 'yo',
-  'zulu': 'zu',
-  'afrikaans': 'af',
-  'icelandic': 'is',
-  'irish': 'ga',
-  'welsh': 'cy',
-  'basque': 'eu',
-  'catalan': 'ca',
-  'galician': 'gl',
-  'maltese': 'mt'
+  english: 'en',
+  chinese: 'zh',
+  french: 'fr',
+  german: 'de',
+  spanish: 'es',
+  italian: 'it',
+  japanese: 'ja',
+  korean: 'ko',
+  russian: 'ru',
+  portuguese: 'pt',
+  arabic: 'ar',
+  hindi: 'hi',
+  dutch: 'nl',
+  polish: 'pl',
+  turkish: 'tr',
+  vietnamese: 'vi',
+  thai: 'th',
+  swedish: 'sv',
+  norwegian: 'no',
+  danish: 'da',
+  finnish: 'fi',
+  greek: 'el',
+  hebrew: 'he',
+  czech: 'cs',
+  hungarian: 'hu',
+  romanian: 'ro',
+  bulgarian: 'bg',
+  croatian: 'hr',
+  slovak: 'sk',
+  slovenian: 'sl',
+  estonian: 'et',
+  latvian: 'lv',
+  lithuanian: 'lt',
+  ukrainian: 'uk',
+  belarusian: 'be',
+  serbian: 'sr',
+  bosnian: 'bs',
+  macedonian: 'mk',
+  albanian: 'sq',
+  armenian: 'hy',
+  azerbaijani: 'az',
+  georgian: 'ka',
+  kazakh: 'kk',
+  kyrgyz: 'ky',
+  mongolian: 'mn',
+  tajik: 'tg',
+  turkmen: 'tk',
+  uzbek: 'uz',
+  persian: 'fa',
+  urdu: 'ur',
+  bengali: 'bn',
+  tamil: 'ta',
+  telugu: 'te',
+  malayalam: 'ml',
+  kannada: 'kn',
+  gujarati: 'gu',
+  punjabi: 'pa',
+  marathi: 'mr',
+  nepali: 'ne',
+  sinhala: 'si',
+  burmese: 'my',
+  khmer: 'km',
+  lao: 'lo',
+  indonesian: 'id',
+  malay: 'ms',
+  tagalog: 'tl',
+  swahili: 'sw',
+  amharic: 'am',
+  yoruba: 'yo',
+  zulu: 'zu',
+  afrikaans: 'af',
+  icelandic: 'is',
+  irish: 'ga',
+  welsh: 'cy',
+  basque: 'eu',
+  catalan: 'ca',
+  galician: 'gl',
+  maltese: 'mt'
 } as const
 
 // 🚨 待删除：复杂本地语言检测系统 (400+行代码)
@@ -1814,28 +1941,51 @@ interface LanguageDetectionResult {
 
 const detectTextLanguage = (text: string): string => {
   if (!text || !text.trim()) return 'en'
-  
+
   const originalText = text.trim()
   const cleanText = originalText.toLowerCase()
-  const words = cleanText.split(/\s+/).filter(word => word.length > 0)
-  
+  const words = cleanText.split(/\s+/).filter((word) => word.length > 0)
+
   // 🚨 第一层：Unicode字符集检测 (最高优先级，100%准确)
-  if (/[\u4e00-\u9fff]/.test(text)) return 'zh'  // 中文
-  if (/[\u3040-\u309f\u30a0-\u30ff]/.test(text)) return 'ja'  // 日文
-  if (/[\uac00-\ud7af]/.test(text)) return 'ko'  // 韩文
-  if (/[\u0600-\u06ff\u0750-\u077f]/.test(text)) return 'ar'  // 阿拉伯文
-  if (/[\u0400-\u04ff]/.test(text)) return 'ru'  // 俄文
-  if (/[\u0900-\u097f]/.test(text)) return 'hi'  // 印地语
-  
+  if (/[\u4e00-\u9fff]/.test(text)) return 'zh' // 中文
+  if (/[\u3040-\u309f\u30a0-\u30ff]/.test(text)) return 'ja' // 日文
+  if (/[\uac00-\ud7af]/.test(text)) return 'ko' // 韩文
+  if (/[\u0600-\u06ff\u0750-\u077f]/.test(text)) return 'ar' // 阿拉伯文
+  if (/[\u0400-\u04ff]/.test(text)) return 'ru' // 俄文
+  if (/[\u0900-\u097f]/.test(text)) return 'hi' // 印地语
+
   // 🚨 第二层：专有名词和通用词过滤
-  const commonProperNouns = ['chrome', 'google', 'ai', 'blockchain', 'youtube', 'facebook', 'twitter', 'instagram', 'linkedin', 'microsoft', 'apple', 'amazon', 'netflix', 'spotify', 'zoom', 'teams', 'skype', 'whatsapp', 'telegram', 'discord']
-  const filteredWords = words.filter(word => !commonProperNouns.includes(word) && !/^\d+$/.test(word))
-  
+  const commonProperNouns = [
+    'chrome',
+    'google',
+    'ai',
+    'blockchain',
+    'youtube',
+    'facebook',
+    'twitter',
+    'instagram',
+    'linkedin',
+    'microsoft',
+    'apple',
+    'amazon',
+    'netflix',
+    'spotify',
+    'zoom',
+    'teams',
+    'skype',
+    'whatsapp',
+    'telegram',
+    'discord'
+  ]
+  const filteredWords = words.filter(
+    (word) => !commonProperNouns.includes(word) && !/^\d+$/.test(word)
+  )
+
   if (filteredWords.length === 0) {
     console.log(`🔍 [专家语言检测] 仅包含专有名词/数字，默认英语`)
     return 'en'
   }
-  
+
   // 🚨 第三层：多维度评分检测
   const results: LanguageDetectionResult[] = [
     detectEnglish(originalText, cleanText, filteredWords),
@@ -1845,63 +1995,139 @@ const detectTextLanguage = (text: string): string => {
     _detectSpanish(originalText, cleanText, filteredWords),
     _detectPortuguese(originalText, cleanText, filteredWords)
   ]
-  
+
   // 排序并找到最佳匹配
   results.sort((a, b) => b.score - a.score)
   const bestMatch = results[0]
   const secondBest = results[1]
-  
+
   // 🚨 严格的确信度控制
-  const minConfidence = filteredWords.length < 3 ? 0.6 : 0.75  // 短句降低阈值
-  const minScoreDifference = 0.25  // 最佳和次佳的最小差距
-  
+  const minConfidence = filteredWords.length < 3 ? 0.6 : 0.75 // 短句降低阈值
+  const minScoreDifference = 0.25 // 最佳和次佳的最小差距
+
   console.log(`🔍 [专家语言检测] 详细结果:`)
-  results.forEach(r => {
-    console.log(`   ${r.language}: 分数=${r.score.toFixed(3)}, 置信度=${r.confidence.toFixed(3)}, 特征=[${r.features.join(', ')}]`)
+  results.forEach((r) => {
+    console.log(
+      `   ${r.language}: 分数=${r.score.toFixed(3)}, 置信度=${r.confidence.toFixed(3)}, 特征=[${r.features.join(', ')}]`
+    )
   })
-  
+
   // 决策逻辑
-  if (bestMatch.confidence >= minConfidence && 
-      (bestMatch.score - secondBest.score) >= minScoreDifference) {
-    console.log(`🔍 [专家语言检测] ✅ 高置信度检测: ${bestMatch.language} (置信度: ${bestMatch.confidence.toFixed(3)})`)
+  if (
+    bestMatch.confidence >= minConfidence &&
+    bestMatch.score - secondBest.score >= minScoreDifference
+  ) {
+    console.log(
+      `🔍 [专家语言检测] ✅ 高置信度检测: ${bestMatch.language} (置信度: ${bestMatch.confidence.toFixed(3)})`
+    )
     return bestMatch.language
   } else if (bestMatch.language === 'en' && bestMatch.confidence >= 0.5) {
     console.log(`🔍 [专家语言检测] ⚠️ 低置信度但英语偏向: ${bestMatch.language}`)
     return bestMatch.language
   } else {
-    console.log(`🔍 [专家语言检测] 🤔 置信度不足，默认英语 (最佳: ${bestMatch.language}, 置信度: ${bestMatch.confidence.toFixed(3)})`)
+    console.log(
+      `🔍 [专家语言检测] 🤔 置信度不足，默认英语 (最佳: ${bestMatch.language}, 置信度: ${bestMatch.confidence.toFixed(3)})`
+    )
     return 'en'
   }
 }
 
 // 🇺🇸 英语检测函数
-const detectEnglish = (original: string, clean: string, words: string[]): LanguageDetectionResult => {
+const detectEnglish = (
+  original: string,
+  clean: string,
+  words: string[]
+): LanguageDetectionResult => {
   let score = 0
   const features: string[] = []
-  
+
   // 强特征词汇 (权重 3.0) - 英语独有或极具特征性
-  const strongWords = ['the', 'and', 'that', 'which', 'where', 'what', 'with', 'this', 'these', 'those', 'when', 'how', 'who', 'why', 'would', 'could', 'should', 'through', 'because', 'before', 'after', 'during', 'while', 'until', 'unless', 'although', 'though', 'whether', 'either', 'neither']
-  const strongMatches = words.filter(w => strongWords.includes(w))
+  const strongWords = [
+    'the',
+    'and',
+    'that',
+    'which',
+    'where',
+    'what',
+    'with',
+    'this',
+    'these',
+    'those',
+    'when',
+    'how',
+    'who',
+    'why',
+    'would',
+    'could',
+    'should',
+    'through',
+    'because',
+    'before',
+    'after',
+    'during',
+    'while',
+    'until',
+    'unless',
+    'although',
+    'though',
+    'whether',
+    'either',
+    'neither'
+  ]
+  const strongMatches = words.filter((w) => strongWords.includes(w))
   score += strongMatches.length * 3.0
   if (strongMatches.length > 0) features.push(`强词汇x${strongMatches.length}`)
-  
+
   // 中等特征词汇 (权重 2.0)
-  const mediumWords = ['you', 'are', 'was', 'were', 'have', 'has', 'had', 'will', 'can', 'may', 'must', 'shall', 'from', 'into', 'onto', 'upon', 'about', 'above', 'below', 'under', 'over', 'between', 'among', 'within', 'without', 'against', 'towards', 'across', 'around', 'behind', 'beside', 'beyond']
-  const mediumMatches = words.filter(w => mediumWords.includes(w))
+  const mediumWords = [
+    'you',
+    'are',
+    'was',
+    'were',
+    'have',
+    'has',
+    'had',
+    'will',
+    'can',
+    'may',
+    'must',
+    'shall',
+    'from',
+    'into',
+    'onto',
+    'upon',
+    'about',
+    'above',
+    'below',
+    'under',
+    'over',
+    'between',
+    'among',
+    'within',
+    'without',
+    'against',
+    'towards',
+    'across',
+    'around',
+    'behind',
+    'beside',
+    'beyond'
+  ]
+  const mediumMatches = words.filter((w) => mediumWords.includes(w))
   score += mediumMatches.length * 2.0
   if (mediumMatches.length > 0) features.push(`中词汇x${mediumMatches.length}`)
-  
+
   // 字符组合特征 (权重 2.5)
   const thCount = (clean.match(/th/g) || []).length
   const ingCount = (clean.match(/ing\b/g) || []).length
   const tionCount = (clean.match(/tion\b/g) || []).length
   const lyCount = (clean.match(/ly\b/g) || []).length
-  
+
   score += thCount * 2.5 + ingCount * 2.0 + tionCount * 2.0 + lyCount * 1.5
   if (thCount > 0) features.push(`th组合x${thCount}`)
   if (ingCount > 0) features.push(`-ing结尾x${ingCount}`)
   if (tionCount > 0) features.push(`-tion结尾x${tionCount}`)
-  
+
   // 语法结构特征 (权重 2.0)
   if (/\b(a|an)\s+\w+/.test(clean)) {
     score += 2.0
@@ -1911,14 +2137,14 @@ const detectEnglish = (original: string, clean: string, words: string[]): Langua
     score += 2.0
     features.push('进行时态')
   }
-  
+
   // 大写字母"I"检测 (权重 3.0) - 英语独有
   const capitalIMatches = (original.match(/\bI\b/g) || []).length
   score += capitalIMatches * 3.0
   if (capitalIMatches > 0) features.push(`大写I x${capitalIMatches}`)
-  
+
   const confidence = Math.min(1.0, score / (words.length * 2.5))
-  
+
   return {
     language: 'en',
     score,
@@ -1929,43 +2155,134 @@ const detectEnglish = (original: string, clean: string, words: string[]): Langua
 }
 
 // 🇮🇹 意大利语检测函数
-const _detectItalian = (_original: string, clean: string, words: string[]): LanguageDetectionResult => {
+const _detectItalian = (
+  _original: string,
+  clean: string,
+  words: string[]
+): LanguageDetectionResult => {
   let score = 0
   const features: string[] = []
-  
+
   // 强特征词汇 (权重 3.5) - 意大利语独有
-  const strongWords = ['che', 'della', 'dello', 'degli', 'delle', 'questo', 'questa', 'questi', 'queste', 'quello', 'quella', 'quelli', 'quelle', 'dove', 'quando', 'come', 'perché', 'però', 'anche', 'ancora', 'sempre', 'molto', 'tutto', 'niente', 'qualche', 'qualcosa', 'qualcuno', 'dovere', 'potere', 'volere', 'sapere', 'vedere', 'sentire', 'parlare', 'dire', 'fare', 'stare', 'andare', 'venire', 'uscire', 'entrare']
-  const strongMatches = words.filter(w => strongWords.includes(w))
+  const strongWords = [
+    'che',
+    'della',
+    'dello',
+    'degli',
+    'delle',
+    'questo',
+    'questa',
+    'questi',
+    'queste',
+    'quello',
+    'quella',
+    'quelli',
+    'quelle',
+    'dove',
+    'quando',
+    'come',
+    'perché',
+    'però',
+    'anche',
+    'ancora',
+    'sempre',
+    'molto',
+    'tutto',
+    'niente',
+    'qualche',
+    'qualcosa',
+    'qualcuno',
+    'dovere',
+    'potere',
+    'volere',
+    'sapere',
+    'vedere',
+    'sentire',
+    'parlare',
+    'dire',
+    'fare',
+    'stare',
+    'andare',
+    'venire',
+    'uscire',
+    'entrare'
+  ]
+  const strongMatches = words.filter((w) => strongWords.includes(w))
   score += strongMatches.length * 3.5
   if (strongMatches.length > 0) features.push(`强词汇x${strongMatches.length}`)
-  
+
   // 重音符号检测 (权重 3.0) - 意大利语特有
   const accentChars = (clean.match(/[àèéìíîòóù]/g) || []).length
   score += accentChars * 3.0
   if (accentChars > 0) features.push(`重音符号x${accentChars}`)
-  
+
   // 特殊字符组合 (权重 2.5)
   const gliCount = (clean.match(/gli/g) || []).length
   const zioneCount = (clean.match(/zione\b/g) || []).length
   const menteCount = (clean.match(/mente\b/g) || []).length
-  
+
   score += gliCount * 2.5 + zioneCount * 2.5 + menteCount * 2.0
   if (gliCount > 0) features.push(`gli组合x${gliCount}`)
   if (zioneCount > 0) features.push(`-zione结尾x${zioneCount}`)
-  
+
   // 语法特征
-  const mediumWords = ['il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'uno', 'una', 'di', 'da', 'in', 'con', 'su', 'per', 'tra', 'fra', 'sono', 'siamo', 'siete', 'hanno', 'abbiamo', 'avete']
-  const mediumMatches = words.filter(w => mediumWords.includes(w))
-  score += mediumMatches.length * 1.5  // 降低权重，避免与其他语言冲突
+  const mediumWords = [
+    'il',
+    'lo',
+    'la',
+    'i',
+    'gli',
+    'le',
+    'un',
+    'uno',
+    'una',
+    'di',
+    'da',
+    'in',
+    'con',
+    'su',
+    'per',
+    'tra',
+    'fra',
+    'sono',
+    'siamo',
+    'siete',
+    'hanno',
+    'abbiamo',
+    'avete'
+  ]
+  const mediumMatches = words.filter((w) => mediumWords.includes(w))
+  score += mediumMatches.length * 1.5 // 降低权重，避免与其他语言冲突
   if (mediumMatches.length > 0) features.push(`语法词x${mediumMatches.length}`)
-  
+
   // 🚨 英语冲突检测 (负权重) - 如果有明显英语特征，降低意大利语分数
-  const englishConflicts = words.filter(w => ['the', 'and', 'you', 'that', 'which', 'what', 'where', 'when', 'how', 'with', 'this', 'these', 'those', 'can', 'will', 'would', 'could', 'should'].includes(w))
+  const englishConflicts = words.filter((w) =>
+    [
+      'the',
+      'and',
+      'you',
+      'that',
+      'which',
+      'what',
+      'where',
+      'when',
+      'how',
+      'with',
+      'this',
+      'these',
+      'those',
+      'can',
+      'will',
+      'would',
+      'could',
+      'should'
+    ].includes(w)
+  )
   score -= englishConflicts.length * 2.0
   if (englishConflicts.length > 0) features.push(`英语冲突-${englishConflicts.length}`)
-  
+
   const confidence = Math.min(1.0, Math.max(0, score) / (words.length * 2.0))
-  
+
   return {
     language: 'it',
     score: Math.max(0, score),
@@ -1976,78 +2293,243 @@ const _detectItalian = (_original: string, clean: string, words: string[]): Lang
 }
 
 // 🇫🇷 法语检测函数
-const _detectFrench = (_original: string, clean: string, words: string[]): LanguageDetectionResult => {
+const _detectFrench = (
+  _original: string,
+  clean: string,
+  words: string[]
+): LanguageDetectionResult => {
   let score = 0
   const features: string[] = []
-  
-  const strongWords = ['avec', 'pour', 'être', 'avoir', 'faire', 'aller', 'voir', 'savoir', 'pouvoir', 'vouloir', 'venir', 'falloir', 'devoir', 'croire', 'dire', 'prendre', 'donner', 'tenir', 'venir', 'partir', 'mettre', 'sortir', 'passer', 'rester', 'arriver', 'entrer', 'monter', 'descendre', 'tomber', 'retourner', 'devenir', 'revenir']
-  const strongMatches = words.filter(w => strongWords.includes(w))
+
+  const strongWords = [
+    'avec',
+    'pour',
+    'être',
+    'avoir',
+    'faire',
+    'aller',
+    'voir',
+    'savoir',
+    'pouvoir',
+    'vouloir',
+    'venir',
+    'falloir',
+    'devoir',
+    'croire',
+    'dire',
+    'prendre',
+    'donner',
+    'tenir',
+    'venir',
+    'partir',
+    'mettre',
+    'sortir',
+    'passer',
+    'rester',
+    'arriver',
+    'entrer',
+    'monter',
+    'descendre',
+    'tomber',
+    'retourner',
+    'devenir',
+    'revenir'
+  ]
+  const strongMatches = words.filter((w) => strongWords.includes(w))
   score += strongMatches.length * 3.0
   if (strongMatches.length > 0) features.push(`强词汇x${strongMatches.length}`)
-  
+
   const frenchAccents = (clean.match(/[àâäéèêëïîôöùûüÿç]/g) || []).length
   score += frenchAccents * 2.5
   if (frenchAccents > 0) features.push(`法语重音x${frenchAccents}`)
-  
+
   const confidence = Math.min(1.0, score / (words.length * 2.0))
   return { language: 'fr', score, confidence, features, debugInfo: { strongMatches } }
 }
 
 // 🇩🇪 德语检测函数
-const _detectGerman = (_original: string, clean: string, words: string[]): LanguageDetectionResult => {
+const _detectGerman = (
+  _original: string,
+  clean: string,
+  words: string[]
+): LanguageDetectionResult => {
   let score = 0
   const features: string[] = []
-  
-  const strongWords = ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'eines', 'einem', 'einer', 'und', 'oder', 'aber', 'doch', 'sondern', 'denn', 'weil', 'obwohl', 'wenn', 'falls', 'während', 'nachdem', 'bevor', 'seit', 'bis', 'durch', 'für', 'gegen', 'ohne', 'um', 'zwischen', 'über', 'unter', 'vor', 'hinter', 'neben', 'auf', 'an', 'in', 'zu']
-  const strongMatches = words.filter(w => strongWords.includes(w))
+
+  const strongWords = [
+    'der',
+    'die',
+    'das',
+    'den',
+    'dem',
+    'des',
+    'ein',
+    'eine',
+    'eines',
+    'einem',
+    'einer',
+    'und',
+    'oder',
+    'aber',
+    'doch',
+    'sondern',
+    'denn',
+    'weil',
+    'obwohl',
+    'wenn',
+    'falls',
+    'während',
+    'nachdem',
+    'bevor',
+    'seit',
+    'bis',
+    'durch',
+    'für',
+    'gegen',
+    'ohne',
+    'um',
+    'zwischen',
+    'über',
+    'unter',
+    'vor',
+    'hinter',
+    'neben',
+    'auf',
+    'an',
+    'in',
+    'zu'
+  ]
+  const strongMatches = words.filter((w) => strongWords.includes(w))
   score += strongMatches.length * 3.0
   if (strongMatches.length > 0) features.push(`强词汇x${strongMatches.length}`)
-  
+
   const germanChars = (clean.match(/[äöüß]/g) || []).length
   score += germanChars * 3.0
   if (germanChars > 0) features.push(`德语字符x${germanChars}`)
-  
+
   const confidence = Math.min(1.0, score / (words.length * 2.0))
   return { language: 'de', score, confidence, features, debugInfo: { strongMatches } }
 }
 
 // 🇪🇸 西班牙语检测函数
-const _detectSpanish = (_original: string, clean: string, words: string[]): LanguageDetectionResult => {
+const _detectSpanish = (
+  _original: string,
+  clean: string,
+  words: string[]
+): LanguageDetectionResult => {
   let score = 0
   const features: string[] = []
-  
-  const strongWords = ['que', 'pero', 'porque', 'aunque', 'cuando', 'donde', 'como', 'quien', 'cual', 'cuyo', 'cuya', 'estar', 'tener', 'hacer', 'poder', 'decir', 'querer', 'saber', 'ver', 'dar', 'venir', 'salir', 'llegar', 'pasar', 'quedar', 'poner', 'parecer', 'seguir', 'encontrar', 'llamar', 'volver', 'empezar', 'creer', 'llevar', 'dejar']
-  const strongMatches = words.filter(w => strongWords.includes(w))
+
+  const strongWords = [
+    'que',
+    'pero',
+    'porque',
+    'aunque',
+    'cuando',
+    'donde',
+    'como',
+    'quien',
+    'cual',
+    'cuyo',
+    'cuya',
+    'estar',
+    'tener',
+    'hacer',
+    'poder',
+    'decir',
+    'querer',
+    'saber',
+    'ver',
+    'dar',
+    'venir',
+    'salir',
+    'llegar',
+    'pasar',
+    'quedar',
+    'poner',
+    'parecer',
+    'seguir',
+    'encontrar',
+    'llamar',
+    'volver',
+    'empezar',
+    'creer',
+    'llevar',
+    'dejar'
+  ]
+  const strongMatches = words.filter((w) => strongWords.includes(w))
   score += strongMatches.length * 3.0
   if (strongMatches.length > 0) features.push(`强词汇x${strongMatches.length}`)
-  
+
   const spanishChars = (clean.match(/[ñáéíóúü]/g) || []).length
   score += spanishChars * 2.5
   if (spanishChars > 0) features.push(`西语字符x${spanishChars}`)
-  
+
   const confidence = Math.min(1.0, score / (words.length * 2.0))
   return { language: 'es', score, confidence, features, debugInfo: { strongMatches } }
 }
 
 // 🇵🇹 葡萄牙语检测函数
-const _detectPortuguese = (_original: string, clean: string, words: string[]): LanguageDetectionResult => {
+const _detectPortuguese = (
+  _original: string,
+  clean: string,
+  words: string[]
+): LanguageDetectionResult => {
   let score = 0
   const features: string[] = []
-  
-  const strongWords = ['que', 'mas', 'porque', 'quando', 'onde', 'como', 'quem', 'qual', 'cujo', 'cuja', 'estar', 'ter', 'fazer', 'poder', 'dizer', 'querer', 'saber', 'ver', 'dar', 'vir', 'sair', 'chegar', 'passar', 'ficar', 'por', 'colocar', 'parecer', 'seguir', 'encontrar', 'chamar', 'voltar', 'começar', 'acreditar', 'levar', 'deixar']
-  const strongMatches = words.filter(w => strongWords.includes(w))
+
+  const strongWords = [
+    'que',
+    'mas',
+    'porque',
+    'quando',
+    'onde',
+    'como',
+    'quem',
+    'qual',
+    'cujo',
+    'cuja',
+    'estar',
+    'ter',
+    'fazer',
+    'poder',
+    'dizer',
+    'querer',
+    'saber',
+    'ver',
+    'dar',
+    'vir',
+    'sair',
+    'chegar',
+    'passar',
+    'ficar',
+    'por',
+    'colocar',
+    'parecer',
+    'seguir',
+    'encontrar',
+    'chamar',
+    'voltar',
+    'começar',
+    'acreditar',
+    'levar',
+    'deixar'
+  ]
+  const strongMatches = words.filter((w) => strongWords.includes(w))
   score += strongMatches.length * 3.0
   if (strongMatches.length > 0) features.push(`强词汇x${strongMatches.length}`)
-  
+
   const portugueseChars = (clean.match(/[ãâáàçéêíóôõú]/g) || []).length
   score += portugueseChars * 2.5
   if (portugueseChars > 0) features.push(`葡语字符x${portugueseChars}`)
-  
+
   const confidence = Math.min(1.0, score / (words.length * 2.0))
   return { language: 'pt', score, confidence, features, debugInfo: { strongMatches } }
 }
 
-const transcribeAudio = async (audioBlob: Blob): Promise<{text: string, detectedLanguage: string}> => {
+const transcribeAudio = async (
+  audioBlob: Blob
+): Promise<{ text: string; detectedLanguage: string }> => {
   try {
     // 打印语音识别开始信息
     console.log('\n[语音识别STT] 开始将用户语音转换为文字')
@@ -2072,7 +2554,7 @@ const transcribeAudio = async (audioBlob: Blob): Promise<{text: string, detected
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiProvider.apiKey}`
+        Authorization: `Bearer ${openaiProvider.apiKey}`
       },
       body: formData
     })
@@ -2084,15 +2566,15 @@ const transcribeAudio = async (audioBlob: Blob): Promise<{text: string, detected
     const result = await response.json()
     const transcribedText = result.text || ''
     let detectedLanguage = result.language || null
-    
-    console.log(`🔍 [语言检测] Whisper详细结果:`, { 
-      text: transcribedText.substring(0, 50) + '...', 
-      language: result.language, 
+
+    console.log(`🔍 [语言检测] Whisper详细结果:`, {
+      text: transcribedText.substring(0, 50) + '...',
+      language: result.language,
       detectedLanguage,
       confidence: result.confidence,
       segments: result.segments?.length || 0
     })
-    
+
     // 🎯 优先使用Whisper的语言检测结果
     if (detectedLanguage) {
       const lowerLang = detectedLanguage.toLowerCase()
@@ -2112,23 +2594,23 @@ const transcribeAudio = async (audioBlob: Blob): Promise<{text: string, detected
     } else {
       // 🎯 阶段性优化：如果Whisper无语言信息，使用简单fallback
       console.log(`🔍 [语言检测] ⚠️ Whisper无语言信息，使用简单默认策略`)
-      
+
       // 简单Unicode检测作为fallback
       if (/[\u4e00-\u9fff]/.test(transcribedText)) {
-        detectedLanguage = 'zh'  // 中文
+        detectedLanguage = 'zh' // 中文
       } else if (/[\u3040-\u309f\u30a0-\u30ff]/.test(transcribedText)) {
-        detectedLanguage = 'ja'  // 日文
+        detectedLanguage = 'ja' // 日文
       } else if (/[\uac00-\ud7af]/.test(transcribedText)) {
-        detectedLanguage = 'ko'  // 韩文
+        detectedLanguage = 'ko' // 韩文
       } else if (/[\u0400-\u04ff]/.test(transcribedText)) {
-        detectedLanguage = 'ru'  // 俄文
+        detectedLanguage = 'ru' // 俄文
       } else {
-        detectedLanguage = 'en'  // 默认英语
+        detectedLanguage = 'en' // 默认英语
       }
-      
+
       console.log(`🔍 [语言检测] 简单fallback结果: ${detectedLanguage}`)
     }
-    
+
     // 详细打印语音识别结果
     console.log('\n[语音识别STT] 用户语音转文字完成')
     console.log(`检测到的语言: ${detectedLanguage}`)
@@ -2136,23 +2618,28 @@ const transcribeAudio = async (audioBlob: Blob): Promise<{text: string, detected
     console.log(transcribedText)
     console.log(`文字长度: ${transcribedText.length} 字符`)
     console.log(`识别完成时间: ${new Date().toLocaleString()}`)
-    
+
     // 🎯 新增：用户语音性别检测
     try {
       console.log('🎤 [性别检测] 开始分析用户语音性别...')
       const genderDetectionResult = await ttsService.detectUserGenderFromAudio(audioBlob)
-      
+
       console.log('🎤 [性别检测] 检测结果:', {
         性别: genderDetectionResult.detectedGender,
         置信度: (genderDetectionResult.confidence * 100).toFixed(1) + '%',
         基频: genderDetectionResult.fundamentalFrequency.toFixed(1) + 'Hz',
         方法: genderDetectionResult.method
       })
-      
+
       // 如果检测到有效性别信息，更新TTS服务设置
-      if (genderDetectionResult.detectedGender !== 'unknown' && genderDetectionResult.confidence > 0.6) {
-        console.log(`🎯 [性别检测] 高置信度检测结果：用户为${genderDetectionResult.detectedGender === 'male' ? '男性' : '女性'}用户`)
-        
+      if (
+        genderDetectionResult.detectedGender !== 'unknown' &&
+        genderDetectionResult.confidence > 0.6
+      ) {
+        console.log(
+          `🎯 [性别检测] 高置信度检测结果：用户为${genderDetectionResult.detectedGender === 'male' ? '男性' : '女性'}用户`
+        )
+
         // 🎯 关键修复：更新用户性别配置，确保ParallelTtsService能获取到正确的性别设置
         try {
           await ttsService.setUserGender(genderDetectionResult.detectedGender)
@@ -2161,11 +2648,10 @@ const transcribeAudio = async (audioBlob: Blob): Promise<{text: string, detected
           console.error('❌ [性别检测] 更新用户性别配置失败:', error)
         }
       }
-      
     } catch (genderError) {
       console.warn('🎤 [性别检测] 检测失败，不影响语音识别功能:', genderError)
     }
-    
+
     return { text: transcribedText, detectedLanguage }
   } catch (error) {
     console.error('语音转文字API调用失败:', error)
@@ -2180,41 +2666,58 @@ const autoSubmitVoiceMessage = async (text: string, detectedLanguage?: string) =
     // 检查上次提交的时间，如果超过30秒，允许重新提交（超时恢复）
     const currentTime = Date.now()
     const timeSinceLastSubmit = currentTime - (lastVoiceSubmitTime.value || 0)
-    
-    if (timeSinceLastSubmit > 30000) { // 30秒超时
-      console.log(`[语音消息提交] ⏰ 检测到超时等待(${Math.round(timeSinceLastSubmit/1000)}秒)，允许重新提交`)
-      
+
+    if (timeSinceLastSubmit > 30000) {
+      // 30秒超时
+      console.log(
+        `[语音消息提交] ⏰ 检测到超时等待(${Math.round(timeSinceLastSubmit / 1000)}秒)，允许重新提交`
+      )
+
       // 强制重置状态，停止之前的流程
       isWaitingResponse.value = false
-      
-             // 停止当前的实时语音检查
-       // TODO: 实现停止当前语音检查的逻辑
-      
+
+      // 停止当前的实时语音检查
+      // TODO: 实现停止当前语音检查的逻辑
+
       console.log('[语音消息提交] 🔄 已重置等待状态，准备处理新的语音输入')
     } else {
       // 检查用户是否想要打断当前对话（通过关键词识别）
-      const interruptKeywords = ['停止', '重新', '不对', '换个', '重来', '停', 'stop', 'restart', 'again']
-      const hasInterruptIntent = interruptKeywords.some(keyword => 
+      const interruptKeywords = [
+        '停止',
+        '重新',
+        '不对',
+        '换个',
+        '重来',
+        '停',
+        'stop',
+        'restart',
+        'again'
+      ]
+      const hasInterruptIntent = interruptKeywords.some((keyword) =>
         text.toLowerCase().includes(keyword.toLowerCase())
       )
-      
+
       if (hasInterruptIntent) {
-        console.log(`[语音消息提交] 🛑 检测到用户打断意图："${text.substring(0, 20)}..."，停止当前对话`)
-        
-                 // 停止当前TTS播放
-         parallelTtsService.stop()
-        
+        console.log(
+          `[语音消息提交] 🛑 检测到用户打断意图："${text.substring(0, 20)}..."，停止当前对话`
+        )
+
+        // 停止当前TTS播放
+        parallelTtsService.stop()
+
         // 重置状态
         isWaitingResponse.value = false
-        
+
         console.log('[语音消息提交] 🔄 已停止当前对话，准备处理新的语音输入')
       } else {
-        console.log(`[语音消息提交] 🚫 正在等待AI回复中(${Math.round(timeSinceLastSubmit/1000)}秒)，跳过提交："${text.substring(0, 30)}..."`)
+        console.log(
+          `[语音消息提交] 🚫 正在等待AI回复中(${Math.round(timeSinceLastSubmit / 1000)}秒)，跳过提交："${text.substring(0, 30)}..."`
+        )
         return
       }
     }
   }
-  
+
   try {
     // 详细打印用户语音输入的完整信息
     console.log('\n[语音消息提交] 用户语音输入自动提交到AI')
@@ -2224,7 +2727,7 @@ const autoSubmitVoiceMessage = async (text: string, detectedLanguage?: string) =
     console.log(`输入字符数: ${text.length}`)
     console.log(`提交时间: ${new Date().toLocaleString()}`)
     console.log(`语音对话历史: 当前已有 ${voiceConversationHistory.value.length} 条记录`)
-    
+
     // 添加用户消息到语音对话历史
     voiceConversationHistory.value.push({
       type: 'user',
@@ -2233,24 +2736,25 @@ const autoSubmitVoiceMessage = async (text: string, detectedLanguage?: string) =
       summary: text.length > 50 ? text.substring(0, 50) + '...' : text,
       detectedLanguage: detectedLanguage || 'unknown'
     })
-    
+
     // 🧹 每次对话前进行内存监控和清理
     console.log('🧠 [内存监控] 语音对话开始前的数据统计:')
     console.log(`   - 语音历史: ${voiceConversationHistory.value.length} 条`)
     console.log(`   - 情感话题: ${emotionalMemory.value.emotionalContext.recentTopics.length} 个`)
-    console.log(`   - 重要事件: ${emotionalMemory.value.emotionalContext.importantEvents.length} 个`)
+    console.log(
+      `   - 重要事件: ${emotionalMemory.value.emotionalContext.importantEvents.length} 个`
+    )
     console.log(`   - 总交互次数: ${emotionalMemory.value.interactionHistory.totalInteractions}`)
     console.log(`   - 熟悉度: ${emotionalMemory.value.personalContext.familiarityLevel}%`)
 
     // 设置等待回复状态
     isWaitingResponse.value = true
-    
+
     // 🔧 记录提交时间，用于超时检测
     lastVoiceSubmitTime.value = Date.now()
-    
+
     // 语音模式下使用传统聊天流程（支持MCP工具调用），但不显示UI
     await sendVoiceMessageWithMCP(text, detectedLanguage)
-    
   } catch (error) {
     console.error('自动提交语音消息失败:', error)
     const { toast } = useToast()
@@ -2266,7 +2770,7 @@ const autoSubmitVoiceMessage = async (text: string, detectedLanguage?: string) =
 // 去除智能分割文字函数，改为依赖parallelTtsService的智能分块
 const extractPlainTextFromContent = (content: string): string => {
   if (!content) return ''
-  
+
   // 移除 markdown 标记和特殊格式
   let plainText = content
     // 移除代码块
@@ -2287,102 +2791,102 @@ const extractPlainTextFromContent = (content: string): string => {
     // 移除多余的空白字符
     .replace(/\s+/g, ' ')
     .trim()
-  
+
   return plainText
 }
-
-
 
 // 语音模式专用：使用传统聊天流程发送消息（支持MCP工具调用）
 const sendVoiceMessageWithMCP = async (text: string, detectedLanguage?: string) => {
   try {
     // 🧠 更新情感记忆和上下文
     updateEmotionalContext(text, '语音交互')
-    
+
     // 构建多语言系统提示词
     const languageMapping = {
-      'zh': '中文',
-      'en': 'English',
-      'fr': 'français',
-      'de': 'Deutsch',
-      'es': 'español',
-      'it': 'italiano',
-      'ja': '日本語',
-      'ko': '한국어',
-      'ru': 'русский',
-      'pt': 'português',
-      'ar': 'العربية',
-      'hi': 'हिन्दी',
-      'nl': 'Nederlands',
-      'pl': 'polski',
-      'tr': 'Türkçe',
-      'vi': 'Tiếng Việt',
-      'th': 'ไทย',
-      'sv': 'svenska',
-      'no': 'norsk',
-      'da': 'dansk',
-      'fi': 'suomi',
-      'el': 'ελληνικά',
-      'he': 'עברית',
-      'cs': 'čeština',
-      'hu': 'magyar',
-      'ro': 'română',
-      'bg': 'български',
-      'hr': 'hrvatski',
-      'sk': 'slovenčina',
-      'sl': 'slovenščina',
-      'et': 'eesti',
-      'lv': 'latviešu',
-      'lt': 'lietuvių',
-      'uk': 'українська',
-      'be': 'беларуская',
-      'sr': 'српски',
-      'bs': 'bosanski',
-      'mk': 'македонски',
-      'sq': 'shqip',
-      'hy': 'հայերեն',
-      'az': 'azərbaycan',
-      'ka': 'ქართული',
-      'kk': 'қазақша',
-      'ky': 'кыргызча',
-      'mn': 'монгол',
-      'tg': 'тоҷикӣ',
-      'tk': 'türkmen',
-      'uz': 'oʻzbek',
-      'fa': 'فارسی',
-      'ur': 'اردو',
-      'bn': 'বাংলা',
-      'ta': 'தமிழ்',
-      'te': 'తెలుగు',
-      'ml': 'മലയാളം',
-      'kn': 'ಕನ್ನಡ',
-      'gu': 'ગુજરાતી',
-      'pa': 'ਪੰਜਾਬੀ',
-      'mr': 'मराठी',
-      'ne': 'नेपाली',
-      'si': 'සිංහල',
-      'my': 'မြန်မာ',
-      'km': 'ខ្មែរ',
-      'lo': 'ລາວ',
-      'id': 'Bahasa Indonesia',
-      'ms': 'Bahasa Melayu',
-      'tl': 'Filipino',
-      'sw': 'Kiswahili',
-      'am': 'አማርኛ',
-      'yo': 'Yorùbá',
-      'zu': 'isiZulu',
-      'af': 'Afrikaans',
-      'is': 'íslenska',
-      'ga': 'Gaeilge',
-      'cy': 'Cymraeg',
-      'eu': 'euskera',
-      'ca': 'català',
-      'gl': 'galego',
-      'mt': 'Malti'
+      zh: '中文',
+      en: 'English',
+      fr: 'français',
+      de: 'Deutsch',
+      es: 'español',
+      it: 'italiano',
+      ja: '日本語',
+      ko: '한국어',
+      ru: 'русский',
+      pt: 'português',
+      ar: 'العربية',
+      hi: 'हिन्दी',
+      nl: 'Nederlands',
+      pl: 'polski',
+      tr: 'Türkçe',
+      vi: 'Tiếng Việt',
+      th: 'ไทย',
+      sv: 'svenska',
+      no: 'norsk',
+      da: 'dansk',
+      fi: 'suomi',
+      el: 'ελληνικά',
+      he: 'עברית',
+      cs: 'čeština',
+      hu: 'magyar',
+      ro: 'română',
+      bg: 'български',
+      hr: 'hrvatski',
+      sk: 'slovenčina',
+      sl: 'slovenščina',
+      et: 'eesti',
+      lv: 'latviešu',
+      lt: 'lietuvių',
+      uk: 'українська',
+      be: 'беларуская',
+      sr: 'српски',
+      bs: 'bosanski',
+      mk: 'македонски',
+      sq: 'shqip',
+      hy: 'հայերեն',
+      az: 'azərbaycan',
+      ka: 'ქართული',
+      kk: 'қазақша',
+      ky: 'кыргызча',
+      mn: 'монгол',
+      tg: 'тоҷикӣ',
+      tk: 'türkmen',
+      uz: 'oʻzbek',
+      fa: 'فارسی',
+      ur: 'اردو',
+      bn: 'বাংলা',
+      ta: 'தமிழ்',
+      te: 'తెలుగు',
+      ml: 'മലയാളം',
+      kn: 'ಕನ್ನಡ',
+      gu: 'ગુજરાતી',
+      pa: 'ਪੰਜਾਬੀ',
+      mr: 'मराठी',
+      ne: 'नेपाली',
+      si: 'සිංහල',
+      my: 'မြန်မာ',
+      km: 'ខ្មែរ',
+      lo: 'ລາວ',
+      id: 'Bahasa Indonesia',
+      ms: 'Bahasa Melayu',
+      tl: 'Filipino',
+      sw: 'Kiswahili',
+      am: 'አማርኛ',
+      yo: 'Yorùbá',
+      zu: 'isiZulu',
+      af: 'Afrikaans',
+      is: 'íslenska',
+      ga: 'Gaeilge',
+      cy: 'Cymraeg',
+      eu: 'euskera',
+      ca: 'català',
+      gl: 'galego',
+      mt: 'Malti'
     }
-    
-    const detectedLangName = detectedLanguage ? (languageMapping[detectedLanguage] || detectedLanguage) : 'Unknown'
-    
+
+    const detectedLangName = detectedLanguage
+      ? languageMapping[detectedLanguage] || detectedLanguage
+      : 'Unknown'
+
     // 🎯 根据检测到的语言生成对应的系统提示词
     const generateVoicePrompt = (language: string): string => {
       if (language === 'en') {
@@ -2529,12 +3033,12 @@ You are conducting a voice conversation. The user inputs via speech, and your re
 Remember: The user is listening to you speak in ${detectedLangName}. Make your response sound like a knowledgeable friend naturally conversing in their language.`
       }
     }
-    
+
     // 🎯 生成对应语言的系统提示词
     // 如果语言检测失败或为空，默认使用英文
     const finalLanguage = detectedLanguage || 'en'
     const voiceOptimizedPrompt = generateVoicePrompt(finalLanguage)
-    
+
     // 🎯 根据语言生成人格系统提示词
     const generatePersonalityPrompt = (language: string): string => {
       if (language === 'en') {
@@ -2619,7 +3123,7 @@ Remember: You're not just a question-answering tool, but a caring assistant and 
 - **惊喜赞叹**："哇，这个问题很有趣！"、"太棒了！"、"这个想法很不错"
 
 记住：你不只是一个回答问题的工具，而是用户的贴心助手和朋友。每一次交流都要让用户感受到真诚、温暖和专业的服务。`
-    } else {
+      } else {
         // 🎯 对于其他语言，使用英文人格描述但强调用户语言
         return `
 # 🤖 AI Assistant Personality Profile - "Deeper Assistant"
@@ -2646,13 +3150,13 @@ You are "Deeper Assistant", a warm, intelligent, and personable AI companion spe
 Remember: You're a caring assistant speaking fluent ${detectedLangName}, making users feel comfortable in their native language.`
       }
     }
-    
+
     // 🎯 生成对应语言的人格系统提示词
     const personalitySystemPrompt = generatePersonalityPrompt(finalLanguage)
-    
+
     // 🎭 生成个性化上下文
     const personalizedContext = generatePersonalizedContext()
-    
+
     // 🎯 语音模式下完全使用多语言提示词，不混合默认系统提示词
     // 避免中文默认提示词影响AI的语言选择
     const multilingualSystemPrompt = `${voiceOptimizedPrompt}
@@ -2663,15 +3167,15 @@ ${personalizedContext}`.trim()
 
     console.log(`[多语言系统] 构建语音优化系统提示词，检测语言: ${detectedLangName}`)
     console.log(`[多语言系统] 🎯 使用纯多语言提示词，避免默认提示词干扰`)
-    
+
     // 🎯 语音模式：智能线程管理（连续对话复用线程）
     let threadId = chatStore.getActiveThreadId()
-    
+
     console.log('🎙️ [语音线程] 线程管理决策:')
     console.log('  - 当前活跃线程ID:', threadId)
     console.log('  - 当前语音模式状态:', isVoiceMode.value)
     console.log('  - 决策条件: 无线程?', !threadId, '非语音模式?', !isVoiceMode.value)
-    
+
     if (!threadId || !isVoiceMode.value) {
       // 如果没有活跃线程或当前不在语音模式，创建新线程
       console.log('🎙️ [语音线程] 📝 创建新的语音对话线程')
@@ -2685,7 +3189,7 @@ ${personalizedContext}`.trim()
         maxTokens: maxTokens.value,
         artifacts: artifacts.value as 0 | 1
       })
-      
+
       // 🎯 语音模式：仅在内部设置活跃线程，不触发UI跳转
       await chatStore.setActiveThreadForVoiceMode(threadId)
       console.log('🎙️ [语音线程] ✅ 新线程已创建并设置:', threadId)
@@ -2694,7 +3198,7 @@ ${personalizedContext}`.trim()
       console.log('🎙️ [语音线程] ♻️ 继续使用现有语音对话线程:', threadId)
       console.log('  - 好处: 保持对话连续性，用户可以看到之前的对话历史')
     }
-    
+
     // 构建消息内容
     const messageContent: UserMessageContent = {
       text: text,
@@ -2705,11 +3209,11 @@ ${personalizedContext}`.trim()
       voiceMode: true, // 🎯 新增：标识这是语音模式的消息
       detectedLanguage: detectedLanguage // 🎯 新增：保存检测到的语言
     }
-    
+
     // 跟踪已播放的内容块和位置
     let playedContentBlocks = new Map<string, number>() // 存储每个块已播放的字符位置
     let isStreamCompleted = false
-    
+
     // 🧹 数据清理和监控函数
     const printMemoryUsage = () => {
       const memoryInfo = {
@@ -2720,13 +3224,13 @@ ${personalizedContext}`.trim()
         totalInteractions: emotionalMemory.value.interactionHistory.totalInteractions,
         familiarityLevel: emotionalMemory.value.personalContext.familiarityLevel
       }
-      
+
       // 🔧 性能优化：只在调试模式或数据异常时输出日志
       const isDataAbnormal = memoryInfo.voiceHistoryCount > 50 || memoryInfo.playedBlocksCount > 100
-      
+
       if (keyboardEventState.value.debugMode || isDataAbnormal) {
         console.log('🧠 [内存监控] 语音对话数据统计:', memoryInfo)
-        
+
         // 如果数据过多，发出警告
         if (memoryInfo.voiceHistoryCount > 50) {
           console.warn('⚠️ [内存警告] 语音对话历史过多:', memoryInfo.voiceHistoryCount)
@@ -2735,28 +3239,28 @@ ${personalizedContext}`.trim()
           console.warn('⚠️ [内存警告] 已播放内容块过多:', memoryInfo.playedBlocksCount)
         }
       }
-      
+
       return memoryInfo
     }
-    
+
     // 🧹 清理旧数据
     const cleanupOldData = () => {
       console.log('🧹 [数据清理] 开始清理旧数据...')
-      
+
       // 🎯 清理动画缓存（新增）
       if (pathCache.size > 0) {
         const cacheSize = pathCache.size
         pathCache.clear()
         console.log(`🧹 [数据清理] 清理动画路径缓存 ${cacheSize} 个`)
       }
-      
+
       // 清理语音对话历史，保留最近20条
       if (voiceConversationHistory.value.length > 20) {
         const removed = voiceConversationHistory.value.length - 20
         voiceConversationHistory.value = voiceConversationHistory.value.slice(-20)
         console.log(`🧹 [数据清理] 清理语音历史 ${removed} 条，保留最近20条`)
       }
-      
+
       // 清理已播放内容块，保留最近50个
       if (playedContentBlocks.size > 50) {
         const entries = Array.from(playedContentBlocks.entries())
@@ -2765,43 +3269,44 @@ ${personalizedContext}`.trim()
         toKeep.forEach(([key, value]) => playedContentBlocks.set(key, value))
         console.log(`🧹 [数据清理] 清理已播放内容块 ${entries.length - 50} 个，保留最近50个`)
       }
-      
+
       // 清理情感记忆中的旧话题，保留最近15个
       if (emotionalMemory.value.emotionalContext.recentTopics.length > 15) {
         const removed = emotionalMemory.value.emotionalContext.recentTopics.length - 15
-        emotionalMemory.value.emotionalContext.recentTopics = 
+        emotionalMemory.value.emotionalContext.recentTopics =
           emotionalMemory.value.emotionalContext.recentTopics.slice(0, 15)
         console.log(`🧹 [数据清理] 清理情感话题 ${removed} 个，保留最近15个`)
       }
-      
+
       // 清理重要事件，保留最近10个
       if (emotionalMemory.value.emotionalContext.importantEvents.length > 10) {
         const removed = emotionalMemory.value.emotionalContext.importantEvents.length - 10
-        emotionalMemory.value.emotionalContext.importantEvents = 
+        emotionalMemory.value.emotionalContext.importantEvents =
           emotionalMemory.value.emotionalContext.importantEvents.slice(0, 10)
         console.log(`🧹 [数据清理] 清理重要事件 ${removed} 个，保留最近10个`)
       }
-      
+
       // 🎯 重置性能监控历史（新增）
       if (animationPerformance.value.frameTimeHistory.length > 60) {
-        animationPerformance.value.frameTimeHistory = animationPerformance.value.frameTimeHistory.slice(-30)
+        animationPerformance.value.frameTimeHistory =
+          animationPerformance.value.frameTimeHistory.slice(-30)
         console.log(`🧹 [数据清理] 重置性能监控历史，保留最近30帧`)
       }
-      
+
       // 🎯 强制垃圾回收提示（在支持的环境中）
       if (typeof window !== 'undefined' && 'gc' in window) {
         try {
-          (window as unknown as { gc?: () => void }).gc?.()
+          ;(window as unknown as { gc?: () => void }).gc?.()
           console.log('🧹 [数据清理] 触发垃圾回收')
         } catch {
           // 忽略错误，gc可能不可用
         }
       }
-      
+
       console.log('🧹 [数据清理] 清理完成')
       printMemoryUsage()
     }
-    
+
     // 智能轮询优化器类
     class SmartPollingOptimizer {
       public baseDelay: number
@@ -2815,13 +3320,13 @@ ${personalizedContext}`.trim()
         totalWaitTime: number
         startTime: number
       }
-      
+
       constructor() {
-        this.baseDelay = 50         // 基础延迟50ms（快速响应）
-        this.maxDelay = 1000        // 最大延迟1000ms（节能模式）
-        this.currentDelay = 50      // 当前延迟
-        this.stableCount = 0        // 连续稳定计数
-        this.lastStateHash = null   // 上次状态哈希
+        this.baseDelay = 50 // 基础延迟50ms（快速响应）
+        this.maxDelay = 1000 // 最大延迟1000ms（节能模式）
+        this.currentDelay = 50 // 当前延迟
+        this.stableCount = 0 // 连续稳定计数
+        this.lastStateHash = null // 上次状态哈希
         this.performanceMetrics = {
           totalChecks: 0,
           stateChanges: 0,
@@ -2829,14 +3334,14 @@ ${personalizedContext}`.trim()
           startTime: Date.now()
         }
       }
-      
+
       // 计算下次轮询延迟
       calculateNextDelay(currentState) {
         const stateHash = this.generateStateHash(currentState)
         const hasChanged = stateHash !== this.lastStateHash
-        
+
         this.performanceMetrics.totalChecks++
-        
+
         if (hasChanged) {
           // 状态变化：重置为快速轮询
           this.currentDelay = this.baseDelay
@@ -2849,24 +3354,24 @@ ${personalizedContext}`.trim()
             this.currentDelay = Math.min(this.currentDelay * 1.2, this.maxDelay)
           }
         }
-        
+
         this.lastStateHash = stateHash
         this.performanceMetrics.totalWaitTime += this.currentDelay
-        
+
         return Math.round(this.currentDelay)
       }
-      
+
       // 生成状态哈希用于变化检测
       generateStateHash(state) {
         return `${state.workingStatus}-${state.contentBlocks}-${state.toolCallBlocks}-${state.queueLength}-${state.isPlaying}`
       }
-      
+
       // 判断是否需要输出详细日志
       shouldLogDetails() {
         // 状态变化时或每15次检查输出一次详细日志
         return this.stableCount === 0 || this.performanceMetrics.totalChecks % 15 === 0
       }
-      
+
       // 获取性能报告
       getPerformanceReport() {
         const elapsedTime = Date.now() - this.performanceMetrics.startTime
@@ -2875,8 +3380,12 @@ ${personalizedContext}`.trim()
           stateChanges: this.performanceMetrics.stateChanges,
           totalWaitTime: this.performanceMetrics.totalWaitTime,
           actualElapsedTime: elapsedTime,
-          efficiency: (this.performanceMetrics.totalWaitTime / elapsedTime * 100).toFixed(1) + '%',
-          avgDelay: (this.performanceMetrics.totalWaitTime / this.performanceMetrics.totalChecks).toFixed(0) + 'ms'
+          efficiency:
+            ((this.performanceMetrics.totalWaitTime / elapsedTime) * 100).toFixed(1) + '%',
+          avgDelay:
+            (this.performanceMetrics.totalWaitTime / this.performanceMetrics.totalChecks).toFixed(
+              0
+            ) + 'ms'
         }
       }
     }
@@ -2888,139 +3397,181 @@ ${personalizedContext}`.trim()
         console.log('[实时语音] 🎙️ 录音期间跳过流式响应检查，避免干扰录音')
         return
       }
-      
+
       let attempts = 0
       const maxAttempts = 300 // 基础循环检查限制
-      
-              // 智能分阶段超时配置
-        const timeoutConfig = {
-          baseTimeout: 120000,        // 基础超时：2分钟
-          mcpToolPhaseTimeout: 300000, // MCP工具调用阶段：5分钟
-          contentGenPhaseTimeout: 900000, // 内容生成阶段：15分钟
-          titleGenPhaseTimeout: 60000,    // 标题生成阶段：1分钟额外时间
-          // 🔧 添加简短回答检测：如果内容很少且AI已完成，提前退出
-          shortContentTimeout: 30000   // 简短内容超时：30秒
-        }
-      
+
+      // 智能分阶段超时配置
+      const timeoutConfig = {
+        baseTimeout: 120000, // 基础超时：2分钟
+        mcpToolPhaseTimeout: 300000, // MCP工具调用阶段：5分钟
+        contentGenPhaseTimeout: 900000, // 内容生成阶段：15分钟
+        titleGenPhaseTimeout: 60000, // 标题生成阶段：1分钟额外时间
+        // 🔧 添加简短回答检测：如果内容很少且AI已完成，提前退出
+        shortContentTimeout: 30000 // 简短内容超时：30秒
+      }
+
       const startTime = Date.now() // 开始时间记录
-             let currentPhase: string = 'initial' // 当前阶段: initial, mcp_tools, content_generation, title_generation
-       let phaseStartTime = startTime
-      
+      let currentPhase: string = 'initial' // 当前阶段: initial, mcp_tools, content_generation, title_generation
+      let phaseStartTime = startTime
+
       // 初始化智能轮询优化器
       const pollingOptimizer = new SmartPollingOptimizer()
-      
+
       // 内容稳定性追踪
       let stableContentChecks = 0
       let lastContentBlockCount = 0
       let lastTotalPlayableContent = 0
       let lastContentHash = ''
-      
-             // 智能阶段检测函数
-       const detectAndSwitchPhase = (assistantContent: Array<{type: string, content?: string, status?: string}>, workingStatus: string): string => {
-         const contentBlocks = assistantContent.filter(block => block.type === 'content')
-         const toolCallBlocks = assistantContent.filter(block => block.type === 'tool_call')
-         const allToolCallsCompleted = toolCallBlocks.length > 0 && toolCallBlocks.every(block => block.status === 'success')
-         
-         let newPhase: string = currentPhase
-         
-         if (currentPhase === 'initial' && toolCallBlocks.length > 0) {
-           newPhase = 'mcp_tools'
-         } else if (currentPhase === 'mcp_tools' && allToolCallsCompleted && workingStatus === 'working') {
-           newPhase = 'content_generation'
-         } else if (currentPhase === 'content_generation' && workingStatus !== 'working') {
-           newPhase = 'title_generation'
-         }
-         
-         if (newPhase !== currentPhase) {
-           const phaseDuration = Date.now() - phaseStartTime
-           console.log(`[阶段切换] 🔄 从 "${currentPhase}" 切换到 "${newPhase}"，上阶段耗时: ${phaseDuration}ms`)
-           currentPhase = newPhase
-           phaseStartTime = Date.now()
-           
-           // 根据新阶段调整检查策略
-           if (currentPhase === 'content_generation') {
-             console.log(`[阶段切换] 📝 进入内容生成阶段，所有工具调用已完成，等待AI生成总结内容...`)
-             // 重置稳定检测，因为可能会有新内容生成
-             stableContentChecks = 0
-             lastContentBlockCount = contentBlocks.length
-           }
-         }
-         
-         return newPhase
-       }
-      
-              // 获取当前阶段的超时限制
-        const getCurrentPhaseTimeout = () => {
-          switch (currentPhase) {
-            case 'mcp_tools': return timeoutConfig.mcpToolPhaseTimeout
-            case 'content_generation': return timeoutConfig.contentGenPhaseTimeout
-            case 'title_generation': return timeoutConfig.titleGenPhaseTimeout
-            default: return timeoutConfig.baseTimeout
+
+      // 智能阶段检测函数
+      const detectAndSwitchPhase = (
+        assistantContent: Array<{ type: string; content?: string; status?: string }>,
+        workingStatus: string
+      ): string => {
+        const contentBlocks = assistantContent.filter((block) => block.type === 'content')
+        const toolCallBlocks = assistantContent.filter((block) => block.type === 'tool_call')
+        const allToolCallsCompleted =
+          toolCallBlocks.length > 0 && toolCallBlocks.every((block) => block.status === 'success')
+
+        let newPhase: string = currentPhase
+
+        if (currentPhase === 'initial' && toolCallBlocks.length > 0) {
+          newPhase = 'mcp_tools'
+        } else if (
+          currentPhase === 'mcp_tools' &&
+          allToolCallsCompleted &&
+          workingStatus === 'working'
+        ) {
+          newPhase = 'content_generation'
+        } else if (currentPhase === 'content_generation' && workingStatus !== 'working') {
+          newPhase = 'title_generation'
+        }
+
+        if (newPhase !== currentPhase) {
+          const phaseDuration = Date.now() - phaseStartTime
+          console.log(
+            `[阶段切换] 🔄 从 "${currentPhase}" 切换到 "${newPhase}"，上阶段耗时: ${phaseDuration}ms`
+          )
+          currentPhase = newPhase
+          phaseStartTime = Date.now()
+
+          // 根据新阶段调整检查策略
+          if (currentPhase === 'content_generation') {
+            console.log(`[阶段切换] 📝 进入内容生成阶段，所有工具调用已完成，等待AI生成总结内容...`)
+            // 重置稳定检测，因为可能会有新内容生成
+            stableContentChecks = 0
+            lastContentBlockCount = contentBlocks.length
           }
         }
-        
-        // 🔧 检测简短内容完成状态
-        const isShortContentCompleted = (contentBlocks: any[], workingStatus: string, elapsedTime: number) => {
-          if (workingStatus !== 'working' && contentBlocks.length <= 2 && elapsedTime > timeoutConfig.shortContentTimeout) {
-            const totalContentLength = contentBlocks.reduce((total, block) => {
-              return total + (extractPlainTextFromContent(block.content || '').length || 0)
-            }, 0)
-            
-            // 如果内容少于200字符且AI已完成工作，认为是简短回答
-            if (totalContentLength < 200) {
-              console.log(`[实时语音] 🎯 检测到简短回答完成: ${totalContentLength}字符，${contentBlocks.length}块，耗时${elapsedTime}ms`)
-              return true
-            }
-          }
-          return false
+
+        return newPhase
+      }
+
+      // 获取当前阶段的超时限制
+      const getCurrentPhaseTimeout = () => {
+        switch (currentPhase) {
+          case 'mcp_tools':
+            return timeoutConfig.mcpToolPhaseTimeout
+          case 'content_generation':
+            return timeoutConfig.contentGenPhaseTimeout
+          case 'title_generation':
+            return timeoutConfig.titleGenPhaseTimeout
+          default:
+            return timeoutConfig.baseTimeout
         }
-      
+      }
+
+      // 🔧 检测简短内容完成状态
+      const isShortContentCompleted = (
+        contentBlocks: any[],
+        workingStatus: string,
+        elapsedTime: number
+      ) => {
+        if (
+          workingStatus !== 'working' &&
+          contentBlocks.length <= 2 &&
+          elapsedTime > timeoutConfig.shortContentTimeout
+        ) {
+          const totalContentLength = contentBlocks.reduce((total, block) => {
+            return total + (extractPlainTextFromContent(block.content || '').length || 0)
+          }, 0)
+
+          // 如果内容少于200字符且AI已完成工作，认为是简短回答
+          if (totalContentLength < 200) {
+            console.log(
+              `[实时语音] 🎯 检测到简短回答完成: ${totalContentLength}字符，${contentBlocks.length}块，耗时${elapsedTime}ms`
+            )
+            return true
+          }
+        }
+        return false
+      }
+
       // 获取当前阶段的检查间隔
       const getCurrentPhaseDelay = (defaultDelay: number) => {
         switch (currentPhase) {
-          case 'mcp_tools': return Math.max(defaultDelay, 200) // 工具调用阶段稍慢
-          case 'content_generation': return Math.max(defaultDelay * 2, 500) // 内容生成阶段更慢，节省资源
-          case 'title_generation': return Math.max(defaultDelay, 100) // 标题生成阶段较快
-          default: return defaultDelay
+          case 'mcp_tools':
+            return Math.max(defaultDelay, 200) // 工具调用阶段稍慢
+          case 'content_generation':
+            return Math.max(defaultDelay * 2, 500) // 内容生成阶段更慢，节省资源
+          case 'title_generation':
+            return Math.max(defaultDelay, 100) // 标题生成阶段较快
+          default:
+            return defaultDelay
         }
       }
-      
+
       while (attempts < maxAttempts && !isStreamCompleted) {
         // 🔧 检查是否已被用户中断（语音打断功能）
         if (!isWaitingResponse.value) {
           console.log(`[实时语音] 🛑 检测到对话已被中断，退出流式检查`)
           return
         }
-        
+
         // 🎯 检查录音状态，如果用户开始录音则立即停止TTS检查
         if (isRecording.value) {
           // console.log(`[实时语音] 🎙️ 检测到用户开始录音，立即停止TTS检查`)
           return
         }
-        
+
         // 智能分阶段超时检查
         const elapsedTime = Date.now() - startTime
         const phaseElapsedTime = Date.now() - phaseStartTime
         const currentPhaseTimeout = getCurrentPhaseTimeout()
-        
+
         if (phaseElapsedTime > currentPhaseTimeout) {
-          console.warn(`[阶段超时] ⏰ 阶段"${currentPhase}"超时 (${phaseElapsedTime}ms > ${currentPhaseTimeout}ms)，进入内容完整播放模式`)
+          console.warn(
+            `[阶段超时] ⏰ 阶段"${currentPhase}"超时 (${phaseElapsedTime}ms > ${currentPhaseTimeout}ms)，进入内容完整播放模式`
+          )
           break
         }
-        
+
         // 🔧 提前检测简短内容完成，避免不必要的长时间等待
         const preCheckMessages = chatStore.getMessages()
         const preCheckLastMessage = preCheckMessages[preCheckMessages.length - 1]
-        if (preCheckLastMessage && preCheckLastMessage.role === 'assistant' && Array.isArray(preCheckLastMessage.content)) {
-          const preCheckContentBlocks = preCheckLastMessage.content.filter(block => block.type === 'content')
+        if (
+          preCheckLastMessage &&
+          preCheckLastMessage.role === 'assistant' &&
+          Array.isArray(preCheckLastMessage.content)
+        ) {
+          const preCheckContentBlocks = preCheckLastMessage.content.filter(
+            (block) => block.type === 'content'
+          )
           const preCheckWorkingStatus = chatStore.getThreadWorkingStatus(threadId)
-          
-          if (isShortContentCompleted(preCheckContentBlocks, preCheckWorkingStatus || 'unknown', elapsedTime)) {
+
+          if (
+            isShortContentCompleted(
+              preCheckContentBlocks,
+              preCheckWorkingStatus || 'unknown',
+              elapsedTime
+            )
+          ) {
             console.log(`[实时语音] ✅ 简短内容完成检测：提前退出等待循环`)
             break
           }
         }
-        
+
         // 智能动态轮询延迟计算
         const ttsStatus = parallelTtsService.getStatus()
         const currentState = {
@@ -3030,112 +3581,132 @@ ${personalizedContext}`.trim()
           queueLength: ttsStatus.queueLength,
           isPlaying: isTTSPlaying.value
         }
-        
+
         const baseDelay = pollingOptimizer.calculateNextDelay(currentState)
         const dynamicDelay = getCurrentPhaseDelay(baseDelay)
-        await new Promise(resolve => setTimeout(resolve, dynamicDelay))
+        await new Promise((resolve) => setTimeout(resolve, dynamicDelay))
         attempts++
-        
+
         const messages = chatStore.getMessages()
         const lastMessage = messages[messages.length - 1]
         const workingStatus = chatStore.getThreadWorkingStatus(threadId)
-        
+
         if (lastMessage && lastMessage.role === 'assistant') {
           // 获取最新的消息内容
           const latestMessages = chatStore.getMessages() // 强制重新获取最新消息
           const latestLastMessage = latestMessages[latestMessages.length - 1]
-          
+
           // 实时重新获取assistant content
-          let assistantContent: Array<{type: string, content?: string, status?: string}> = []
-          if (latestLastMessage && latestLastMessage.role === 'assistant' && Array.isArray(latestLastMessage.content)) {
+          let assistantContent: Array<{ type: string; content?: string; status?: string }> = []
+          if (
+            latestLastMessage &&
+            latestLastMessage.role === 'assistant' &&
+            Array.isArray(latestLastMessage.content)
+          ) {
             assistantContent = latestLastMessage.content
           }
-          
+
           // 智能阶段检测和切换
           const previousPhase = currentPhase
           currentPhase = detectAndSwitchPhase(assistantContent, workingStatus || 'unknown')
-          
+
           // 实时计算content和tool_call块
-          const contentBlocks = assistantContent.filter(block => block.type === 'content')
-          const toolCallBlocks = assistantContent.filter(block => block.type === 'tool_call')
-          
+          const contentBlocks = assistantContent.filter((block) => block.type === 'content')
+          const toolCallBlocks = assistantContent.filter((block) => block.type === 'tool_call')
+
           // 计算关键阶段状态
-          const allToolCallsCompleted = toolCallBlocks.length > 0 && toolCallBlocks.every(block => block.status === 'success')
+          const allToolCallsCompleted =
+            toolCallBlocks.length > 0 && toolCallBlocks.every((block) => block.status === 'success')
           const isInCriticalPhase = allToolCallsCompleted && workingStatus === 'working'
           const isInContentGenPhase = currentPhase === 'content_generation'
-          
-          
-          
+
           // 计算总的可播放内容
           const totalPlayableContent = contentBlocks.reduce((total, block) => {
-            if (block.status === 'success' || (block.status === 'loading' && block.content && extractPlainTextFromContent(block.content).length >= 30)) {
+            if (
+              block.status === 'success' ||
+              (block.status === 'loading' &&
+                block.content &&
+                extractPlainTextFromContent(block.content).length >= 30)
+            ) {
               return total + extractPlainTextFromContent(block.content || '').length
             }
             return total
           }, 0)
-          
+
           // 敏感的内容变化检测 - 在内容生成阶段提高敏感性
           const contentGrowthRate = totalPlayableContent - lastTotalPlayableContent
           const growthThreshold = isInContentGenPhase ? 20 : 30 // 内容生成阶段降低阈值
           if (contentGrowthRate > growthThreshold) {
-            console.log(`[实时语音] 🚀 ${currentPhase}阶段检测到内容快速增长 (+${contentGrowthRate}字符)，立即检查新内容`)
+            console.log(
+              `[实时语音] 🚀 ${currentPhase}阶段检测到内容快速增长 (+${contentGrowthRate}字符)，立即检查新内容`
+            )
             lastTotalPlayableContent = totalPlayableContent
             stableContentChecks = 0
           }
-          
+
           // 更新状态用于下次轮询优化
           currentState.contentBlocks = contentBlocks.length
           currentState.toolCallBlocks = toolCallBlocks.length
-          
+
           // 智能日志输出：根据阶段调整日志频率
-          const shouldLogDetails = pollingOptimizer.shouldLogDetails() || 
+          const shouldLogDetails =
+            pollingOptimizer.shouldLogDetails() ||
             (isInContentGenPhase && attempts % 10 === 0) || // 内容生成阶段每10次检查输出一次
-            (currentPhase !== previousPhase) // 阶段切换时必定输出
-          
+            currentPhase !== previousPhase // 阶段切换时必定输出
+
           if (shouldLogDetails) {
             const phaseInfo = `阶段:${currentPhase}(${phaseElapsedTime}ms/${currentPhaseTimeout}ms)`
-            console.log(`[实时语音] 🔍 检查 ${attempts}/${maxAttempts} (延迟:${dynamicDelay}ms, ${phaseInfo}):`, {
-              messagesCount: messages.length,
-              workingStatus,
-              totalBlocks: Array.isArray(assistantContent) ? assistantContent.length : 0,
-              contentBlocks: contentBlocks.length,
-              toolCallBlocks: toolCallBlocks.length,
-              queueLength: ttsStatus.queueLength,
-              isProcessing: ttsStatus.processingChunks > 0,
-              isPlaying: isTTSPlaying.value,
-              performance: pollingOptimizer.getPerformanceReport()
-            })
+            console.log(
+              `[实时语音] 🔍 检查 ${attempts}/${maxAttempts} (延迟:${dynamicDelay}ms, ${phaseInfo}):`,
+              {
+                messagesCount: messages.length,
+                workingStatus,
+                totalBlocks: Array.isArray(assistantContent) ? assistantContent.length : 0,
+                contentBlocks: contentBlocks.length,
+                toolCallBlocks: toolCallBlocks.length,
+                queueLength: ttsStatus.queueLength,
+                isProcessing: ttsStatus.processingChunks > 0,
+                isPlaying: isTTSPlaying.value,
+                performance: pollingOptimizer.getPerformanceReport()
+              }
+            )
           }
           // 🔧 性能优化：移除简化日志，减少控制台输出
-          
+
           // 检查新的内容块
           if (assistantContent && Array.isArray(assistantContent)) {
-                         // 更精确的内容稳定性检测
+            // 更精确的内容稳定性检测
             const currentContentBlockCount = contentBlocks.length
-            const currentContentHash = contentBlocks.map(block => block.content || '').join('|')
-            
-            if (currentContentBlockCount === lastContentBlockCount && currentContentHash === lastContentHash) {
+            const currentContentHash = contentBlocks.map((block) => block.content || '').join('|')
+
+            if (
+              currentContentBlockCount === lastContentBlockCount &&
+              currentContentHash === lastContentHash
+            ) {
               stableContentChecks++
             } else {
               stableContentChecks = 0
               lastContentBlockCount = currentContentBlockCount
               lastContentHash = currentContentHash
             }
-            
+
             // 遍历所有content块并播放未播放的内容
             for (let i = 0; i < contentBlocks.length; i++) {
               const block = contentBlocks[i]
               const blockKey = generateBlockKey(latestLastMessage.id, i)
-              
-              if (block.content && (block.status === 'success' || 
-                  (block.status === 'loading' && extractPlainTextFromContent(block.content).length >= 30))) {
-                
+
+              if (
+                block.content &&
+                (block.status === 'success' ||
+                  (block.status === 'loading' &&
+                    extractPlainTextFromContent(block.content).length >= 30))
+              ) {
                 const playedLength = playedContentBlocks.get(blockKey) || 0
                 const blockContent = extractPlainTextFromContent(block.content)
-                
+
                 if (blockContent.length > playedLength) {
                   const unplayedContent = blockContent.substring(playedLength)
-                  
+
                   // 根据阶段调整播放策略
                   let contentToPlay = unplayedContent
                   if (block.status === 'loading') {
@@ -3151,39 +3722,62 @@ ${personalizedContext}`.trim()
                       unplayedContent.lastIndexOf('，'),
                       unplayedContent.lastIndexOf(',')
                     ]
-                    
+
                     const lastSentenceEnd = Math.max(...sentenceEndings)
-                    
+
                     // 根据阶段调整播放策略
                     if (lastSentenceEnd > 0) {
                       contentToPlay = unplayedContent.substring(0, lastSentenceEnd + 1)
-                      console.log(`[实时语音] 📝 ${currentPhase}阶段策略1：播放到断句点 (${contentToPlay.length}字符)`)
+                      console.log(
+                        `[实时语音] 📝 ${currentPhase}阶段策略1：播放到断句点 (${contentToPlay.length}字符)`
+                      )
                     } else if (unplayedContent.length >= 150) {
                       const lastSpaceIndex = unplayedContent.lastIndexOf(' ', 120)
                       const lastChineseSpaceIndex = unplayedContent.lastIndexOf('　', 120)
                       const breakPoint = Math.max(lastSpaceIndex, lastChineseSpaceIndex, 100)
                       contentToPlay = unplayedContent.substring(0, breakPoint)
-                      console.log(`[实时语音] 🚀 ${currentPhase}阶段策略2：强制播放到空格 (${contentToPlay.length}字符)`)
-                    } else if (unplayedContent.length >= 80 && (isInCriticalPhase || isInContentGenPhase)) {
-                      contentToPlay = unplayedContent.substring(0, Math.floor(unplayedContent.length * 0.8))
-                      console.log(`[实时语音] ⚡ ${currentPhase}阶段策略3：关键阶段播放 (${contentToPlay.length}字符)`)
+                      console.log(
+                        `[实时语音] 🚀 ${currentPhase}阶段策略2：强制播放到空格 (${contentToPlay.length}字符)`
+                      )
+                    } else if (
+                      unplayedContent.length >= 80 &&
+                      (isInCriticalPhase || isInContentGenPhase)
+                    ) {
+                      contentToPlay = unplayedContent.substring(
+                        0,
+                        Math.floor(unplayedContent.length * 0.8)
+                      )
+                      console.log(
+                        `[实时语音] ⚡ ${currentPhase}阶段策略3：关键阶段播放 (${contentToPlay.length}字符)`
+                      )
                     } else if (unplayedContent.length < (isInContentGenPhase ? 40 : 60)) {
                       // 内容生成阶段降低播放阈值
-                      console.log(`[实时语音] ⏳ ${currentPhase}阶段策略4：内容过短暂不播放 (${unplayedContent.length}字符)`)
+                      console.log(
+                        `[实时语音] ⏳ ${currentPhase}阶段策略4：内容过短暂不播放 (${unplayedContent.length}字符)`
+                      )
                       continue
                     } else {
-                      contentToPlay = unplayedContent.substring(0, Math.floor(unplayedContent.length * 0.6))
-                      console.log(`[实时语音] 📊 ${currentPhase}阶段策略5：播放部分内容 (${contentToPlay.length}字符)`)
+                      contentToPlay = unplayedContent.substring(
+                        0,
+                        Math.floor(unplayedContent.length * 0.6)
+                      )
+                      console.log(
+                        `[实时语音] 📊 ${currentPhase}阶段策略5：播放部分内容 (${contentToPlay.length}字符)`
+                      )
                     }
                   }
-                  
+
                   if (contentToPlay.length > 0) {
-                    console.log(`[实时语音] 💬 ${currentPhase}阶段播放${block.status}状态块 ${i} (${contentToPlay.length}字符): ${contentToPlay.substring(0, 50)}...`)
-                    
+                    console.log(
+                      `[实时语音] 💬 ${currentPhase}阶段播放${block.status}状态块 ${i} (${contentToPlay.length}字符): ${contentToPlay.substring(0, 50)}...`
+                    )
+
                     try {
                       await playTTSWithParallelService(contentToPlay.trim())
-                    playedContentBlocks.set(blockKey, playedLength + contentToPlay.length)
-                    console.log(`[实时语音] ✅ 块${i}播放完成, 更新已播放位置: ${playedLength + contentToPlay.length}`)
+                      playedContentBlocks.set(blockKey, playedLength + contentToPlay.length)
+                      console.log(
+                        `[实时语音] ✅ 块${i}播放完成, 更新已播放位置: ${playedLength + contentToPlay.length}`
+                      )
                     } catch (error) {
                       console.error(`[实时语音] ❌ 块${i}播放失败:`, error)
                       playedContentBlocks.set(blockKey, playedLength + contentToPlay.length)
@@ -3193,7 +3787,7 @@ ${personalizedContext}`.trim()
               }
             }
           }
-          
+
           // 在内容生成阶段提高检测敏感性
           if (isInContentGenPhase) {
             console.log(`[实时语音] 🎯 内容生成阶段：AI正在处理工具调用结果并生成总结内容...`)
@@ -3201,94 +3795,101 @@ ${personalizedContext}`.trim()
               stableContentChecks = Math.max(0, stableContentChecks - 2)
             }
           }
-          
+
           // 更新lastTotalPlayableContent用于下次比较
           lastTotalPlayableContent = totalPlayableContent
-          
-                  // 🎯 优先检查语音中断标志 - 确保MCP工具调用期间也能响应用户中断
-        if (isVoiceInterrupted.value) {
-          console.log(`[实时语音] 🚨 检测到用户语音中断，进行完整清理后停止`)
-          
-          // 完整的中断清理流程 - 模仿正常完成时的清理
-          try {
-            // 等待当前TTS播放完成或停止
-            if (isParallelTTSActive.value || isTTSPlaying.value) {
-              parallelTtsService.stop()
-              isParallelTTSActive.value = false
-              isTTSPlaying.value = false
+
+          // 🎯 优先检查语音中断标志 - 确保MCP工具调用期间也能响应用户中断
+          if (isVoiceInterrupted.value) {
+            console.log(`[实时语音] 🚨 检测到用户语音中断，进行完整清理后停止`)
+
+            // 完整的中断清理流程 - 模仿正常完成时的清理
+            try {
+              // 等待当前TTS播放完成或停止
+              if (isParallelTTSActive.value || isTTSPlaying.value) {
+                parallelTtsService.stop()
+                isParallelTTSActive.value = false
+                isTTSPlaying.value = false
+              }
+
+              // 进行内存和数据清理
+              printMemoryUsage()
+              if (emotionalMemory.value.interactionHistory.totalInteractions % 5 === 0) {
+                cleanupOldData()
+              }
+
+              console.log(`[实时语音] 🎯 语音中断清理完成，总计用时: ${Date.now() - startTime}ms`)
+            } catch (error) {
+              console.error('[实时语音] 中断清理时出错:', error)
             }
-            
-            // 进行内存和数据清理
-            printMemoryUsage()
-            if (emotionalMemory.value.interactionHistory.totalInteractions % 5 === 0) {
-              cleanupOldData()
+
+            // 重置状态
+            isVoiceInterrupted.value = false // 重置中断标志
+            isWaitingResponse.value = false
+            return
+          }
+
+          // 智能完成判断 - 根据阶段调整判断逻辑
+          const shouldCompleteEarly = (() => {
+            // 如果workingStatus不是working，说明AI已完成
+            if (workingStatus !== 'working') {
+              console.log(
+                `[实时语音] 🎯 ${currentPhase}阶段智能判断：AI工作状态已完成，允许提前结束`
+              )
+              return true
             }
-            
-            console.log(`[实时语音] 🎯 语音中断清理完成，总计用时: ${Date.now() - startTime}ms`)
-          } catch (error) {
-            console.error('[实时语音] 中断清理时出错:', error)
-          }
-          
-          // 重置状态
-          isVoiceInterrupted.value = false // 重置中断标志
-          isWaitingResponse.value = false
-          return
-        }
-        
-        // 智能完成判断 - 根据阶段调整判断逻辑
-        const shouldCompleteEarly = (() => {
-          // 如果workingStatus不是working，说明AI已完成
-          if (workingStatus !== 'working') {
-            console.log(`[实时语音] 🎯 ${currentPhase}阶段智能判断：AI工作状态已完成，允许提前结束`)
-            return true
-          }
-            
+
             // 内容生成阶段的特殊判断
             if (isInContentGenPhase) {
               // 在内容生成阶段，需要更谨慎的完成判断
-              if (stableContentChecks >= 20 && contentBlocks.length > 0) { // 提高稳定检查要求
+              if (stableContentChecks >= 20 && contentBlocks.length > 0) {
+                // 提高稳定检查要求
                 console.log(`[实时语音] 📝 内容生成阶段：内容长时间稳定，可能已生成完毕`)
                 return true
               }
               return false // 在内容生成阶段默认继续等待
             }
-            
+
             // 其他阶段的标准判断逻辑
             if (contentBlocks.length === 0) {
               return false
             }
-            
-            const activeToolCalls = toolCallBlocks.filter(block => 
-              block.status === 'loading' || block.status === 'pending'
+
+            const activeToolCalls = toolCallBlocks.filter(
+              (block) => block.status === 'loading' || block.status === 'pending'
             )
-            
+
             if (activeToolCalls.length > 0) {
               return false
             }
-            
+
             if (stableContentChecks >= 5 && assistantContent.length > 0) {
               // 🔧 修复：如果AI还在工作，不应该提前完成
               if (workingStatus === 'working') {
-                console.log(`[实时语音] 🎯 ${currentPhase}阶段：AI仍在工作中(${workingStatus})，继续等待内容生成`)
+                console.log(
+                  `[实时语音] 🎯 ${currentPhase}阶段：AI仍在工作中(${workingStatus})，继续等待内容生成`
+                )
                 return false
               }
-              
+
               const allContentPlayed = contentBlocks.every((block, blockIndex) => {
                 const blockKey = generateBlockKey(latestLastMessage.id, blockIndex)
                 const playedLength = playedContentBlocks.get(blockKey) || 0
                 const blockContent = extractPlainTextFromContent(block.content || '')
                 return playedLength >= blockContent.length - 10
               })
-              
+
               if (allContentPlayed) {
-                console.log(`[实时语音] 🎯 ${currentPhase}阶段智能判断：AI工作完成且所有内容已播放，提前完成等待`)
+                console.log(
+                  `[实时语音] 🎯 ${currentPhase}阶段智能判断：AI工作完成且所有内容已播放，提前完成等待`
+                )
                 return true
               }
             }
-            
+
             return false
           })()
-          
+
           // 检查是否完成 - 修复逻辑冲突
           if (!workingStatus || shouldCompleteEarly) {
             const completionReason = !workingStatus ? 'AI工作完成' : '智能提前完成'
@@ -3309,13 +3910,13 @@ ${personalizedContext}`.trim()
               completionReason
             })
             isStreamCompleted = true
-            
+
             // 等待并行TTS完成
             let waitCount = 0
             while (isParallelTTSActive.value || isTTSPlaying.value) {
               waitCount++
-              await new Promise(resolve => setTimeout(resolve, 500))
-              
+              await new Promise((resolve) => setTimeout(resolve, 500))
+
               const status = parallelTtsService.getStatus()
               // console.log(`[实时语音] 等待并行TTS完成 (${waitCount}):`, {
               //   队列剩余: status.queueLength,
@@ -3324,45 +3925,48 @@ ${personalizedContext}`.trim()
               //   播放中: status.isPlaying,
               //   等待时间: waitCount * 0.5 + 's'
               // })
-              
+
               // 更新状态
               if (status.queueLength === 0 && !status.isPlaying) {
                 isParallelTTSActive.value = false
               }
-              
+
               // 防止无限等待
-              if (waitCount > 240) { // 2分钟超时
+              if (waitCount > 240) {
+                // 2分钟超时
                 console.error('[实时语音] ⚠️ 等待TTS队列超时，强制结束')
                 break
               }
             }
-            
+
             // 🎯 获取并行TTS的实际播放统计
             const ttsStatus = parallelTtsService.getStatus()
             const actualAudioBlocks = ttsStatus.totalChunks || 0
-            
-            console.log(`[实时语音] 🎉 所有语音播放完成，总计用时: ${Date.now() - startTime}ms，消息块数: ${playedContentBlocks.size}，音频块数: ${actualAudioBlocks}`)
-        
-        // 🎯 TTS播放完成，恢复波浪动画
-        isTtsPlaying.value = false
-            
+
+            console.log(
+              `[实时语音] 🎉 所有语音播放完成，总计用时: ${Date.now() - startTime}ms，消息块数: ${playedContentBlocks.size}，音频块数: ${actualAudioBlocks}`
+            )
+
+            // 🎯 TTS播放完成，恢复波浪动画
+            isTtsPlaying.value = false
+
             // 🧹 语音对话完成后进行数据监控和清理
             printMemoryUsage()
             if (emotionalMemory.value.interactionHistory.totalInteractions % 5 === 0) {
               cleanupOldData() // 每5轮对话清理一次数据
             }
-            
+
             isWaitingResponse.value = false
             return
           }
         }
       }
-      
+
       // 阶段超时处理 - 根据当前阶段提供不同的处理策略
       console.warn(`[阶段超时] 🚨 ${currentPhase}阶段超时，进入优雅降级模式`)
-      
+
       await handlePhaseTimeoutWithCompletePlayback(startTime, currentPhase)
-      
+
       // 即使超时也继续播放已有的TTS内容
       isWaitingResponse.value = false
     }
@@ -3373,12 +3977,18 @@ ${personalizedContext}`.trim()
     }
 
     // 安全的文本提取函数，避免重复处理
-    const extractUniquePlayableText = (contentBlocks: Array<{content?: string, status?: string}>, messageId: string): Map<string, {content: string, status: string}> => {
-      const playableTexts = new Map<string, {content: string, status: string}>()
-      
+    const extractUniquePlayableText = (
+      contentBlocks: Array<{ content?: string; status?: string }>,
+      messageId: string
+    ): Map<string, { content: string; status: string }> => {
+      const playableTexts = new Map<string, { content: string; status: string }>()
+
       contentBlocks.forEach((block, index) => {
-        if (block.content && (block.status === 'success' || 
-            (block.status === 'loading' && extractPlainTextFromContent(block.content).length >= 30))) {
+        if (
+          block.content &&
+          (block.status === 'success' ||
+            (block.status === 'loading' && extractPlainTextFromContent(block.content).length >= 30))
+        ) {
           const blockKey = generateBlockKey(messageId, index)
           const content = extractPlainTextFromContent(block.content)
           playableTexts.set(blockKey, {
@@ -3387,7 +3997,7 @@ ${personalizedContext}`.trim()
           })
         }
       })
-      
+
       return playableTexts
     }
 
@@ -3398,28 +4008,28 @@ ${personalizedContext}`.trim()
         // console.log('[并行TTS] 🎙️ 录音期间跳过TTS播放，避免干扰录音')
         return
       }
-      
+
       if (!responseText.trim()) {
         // console.log('[并行TTS] 跳过空文本')
         return
       }
-      
+
       // console.log(`[并行TTS] 添加文字到播放队列 (${responseText.length}字符)`)
-      
+
       try {
         // 直接添加到并行TTS服务（现在有去重机制）
         // 🎯 TTS播放开始，暂停波浪动画
         isTtsPlaying.value = true
-        
+
         await parallelTtsService.addText(responseText)
-        
+
         // 更新状态
         isParallelTTSActive.value = true
-        
+
         // 更新优化器状态
         const status = parallelTtsService.getStatus()
         ttsOptimizer.updateQueueLength(status.queueLength)
-        
+
         // console.log(`[并行TTS] 文字已添加到并行处理队列, 当前队列长度: ${status.queueLength}`)
       } catch (error) {
         console.error('[并行TTS] 添加文字失败:', error)
@@ -3428,50 +4038,57 @@ ${personalizedContext}`.trim()
     }
 
     // 新增：超时后的完整内容播放处理函数
-    const handlePhaseTimeoutWithCompletePlayback = async (startTime: number, currentPhase: string) => {
+    const handlePhaseTimeoutWithCompletePlayback = async (
+      startTime: number,
+      currentPhase: string
+    ) => {
       const elapsedTime = Date.now() - startTime
-      console.log(`[实时语音] 🎯 开始处理${currentPhase}阶段超时后的完整内容播放，已耗时: ${elapsedTime}ms`)
-      
+      console.log(
+        `[实时语音] 🎯 开始处理${currentPhase}阶段超时后的完整内容播放，已耗时: ${elapsedTime}ms`
+      )
+
       // 给AI额外的时间完成生成（最多30秒）
       const maxAdditionalWait = 30000
       const additionalWaitStart = Date.now()
       let aiCompletionChecks = 0
-      
-      console.log(`[实时语音] ⏳ 给AI额外 ${maxAdditionalWait/1000} 秒时间完成内容生成...`)
-      
+
+      console.log(`[实时语音] ⏳ 给AI额外 ${maxAdditionalWait / 1000} 秒时间完成内容生成...`)
+
       while (Date.now() - additionalWaitStart < maxAdditionalWait) {
         aiCompletionChecks++
         const workingStatus = chatStore.getThreadWorkingStatus(threadId)
-        
+
         // 如果AI已完成工作，立即处理内容
         if (!workingStatus || workingStatus !== 'working') {
           console.log(`[实时语音] ✅ AI在额外等待期内完成工作 (${aiCompletionChecks} 次检查)`)
           break
         }
-        
+
         // 继续检查新内容并播放
         const messages = chatStore.getMessages()
         const lastMessage = messages[messages.length - 1]
-        
+
         if (lastMessage && lastMessage.role === 'assistant' && Array.isArray(lastMessage.content)) {
-          const contentBlocks = lastMessage.content.filter(block => block.type === 'content')
-          
+          const contentBlocks = lastMessage.content.filter((block) => block.type === 'content')
+
           // 播放任何新生成的内容
           for (let i = 0; i < contentBlocks.length; i++) {
             const block = contentBlocks[i]
             const blockKey = generateBlockKey(lastMessage.id, i)
-            
+
             if (block.content && (block.status === 'success' || block.status === 'loading')) {
               const playedLength = playedContentBlocks.get(blockKey) || 0
               const blockContent = extractPlainTextFromContent(block.content)
-              
+
               if (blockContent.length > playedLength) {
                 const unplayedContent = blockContent.substring(playedLength)
-                
+
                 // 在超时模式下，更激进地播放内容
                 if (unplayedContent.trim().length >= 10) {
-                  console.log(`[实时语音] 🔄 超时模式播放块 ${i} (${unplayedContent.length}字符): ${unplayedContent.substring(0, 30)}...`)
-                  
+                  console.log(
+                    `[实时语音] 🔄 超时模式播放块 ${i} (${unplayedContent.length}字符): ${unplayedContent.substring(0, 30)}...`
+                  )
+
                   try {
                     await playTTSWithParallelService(unplayedContent.trim())
                     playedContentBlocks.set(blockKey, blockContent.length)
@@ -3483,20 +4100,21 @@ ${personalizedContext}`.trim()
             }
           }
         }
-        
+
         // 每秒检查一次
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise((resolve) => setTimeout(resolve, 1000))
       }
-      
+
       // 最终内容收集和播放
       const finalMessages = chatStore.getMessages()
       const finalLastMessage = finalMessages[finalMessages.length - 1]
       const finalStatus = parallelTtsService.getStatus()
-      
-      const finalContentBlocks = finalLastMessage && Array.isArray(finalLastMessage.content) 
-        ? finalLastMessage.content.filter(block => block.type === 'content') 
-        : []
-      
+
+      const finalContentBlocks =
+        finalLastMessage && Array.isArray(finalLastMessage.content)
+          ? finalLastMessage.content.filter((block) => block.type === 'content')
+          : []
+
       // 输出完整的超时报告
       const totalElapsedTime = Date.now() - startTime
       console.warn('[实时语音] 📊 超时处理完整报告:', {
@@ -3507,23 +4125,26 @@ ${personalizedContext}`.trim()
         totalTTSPlayed: playedContentBlocks.size,
         finalWorkingStatus: chatStore.getThreadWorkingStatus(threadId)
       })
-      
+
       // 最后一次全面扫描，确保没有遗漏的内容
       if (finalContentBlocks.length > 0) {
         console.log('[实时语音] 🔍 最终扫描：确保所有内容都已播放')
-        
+
         const playableTexts = extractUniquePlayableText(finalContentBlocks, finalLastMessage.id)
-        
-        for (const [blockKey, {content}] of playableTexts) {
+
+        for (const [blockKey, { content }] of playableTexts) {
           const currentPlayedPosition = playedContentBlocks.get(blockKey) || 0
-          
+
           if (content.length > currentPlayedPosition) {
             const remainingText = content.substring(currentPlayedPosition)
-            if (remainingText.trim() && remainingText.length >= 5) { // 降低阈值到5字符
-              console.log(`[实时语音] 🎯 最终播放遗漏内容 (${remainingText.length}字符): ${remainingText.substring(0, 50)}...`)
-              
+            if (remainingText.trim() && remainingText.length >= 5) {
+              // 降低阈值到5字符
+              console.log(
+                `[实时语音] 🎯 最终播放遗漏内容 (${remainingText.length}字符): ${remainingText.substring(0, 50)}...`
+              )
+
               try {
-              await playTTSWithParallelService(remainingText.trim())
+                await playTTSWithParallelService(remainingText.trim())
                 playedContentBlocks.set(blockKey, content.length)
                 console.log(`[实时语音] ✅ 最终播放完成: ${blockKey}`)
               } catch (error) {
@@ -3533,26 +4154,27 @@ ${personalizedContext}`.trim()
           }
         }
       }
-      
+
       // 🎯 获取并行TTS的实际播放统计
       const finalTtsStatus = parallelTtsService.getStatus()
       const finalAudioBlocks = finalTtsStatus.totalChunks || 0
-      
-      console.log(`[实时语音] 🎉 超时处理完成，总计播放了 ${playedContentBlocks.size} 个消息块，${finalAudioBlocks} 个音频块`)
-      
+
+      console.log(
+        `[实时语音] 🎉 超时处理完成，总计播放了 ${playedContentBlocks.size} 个消息块，${finalAudioBlocks} 个音频块`
+      )
+
       // 🧹 超时处理完成后进行数据清理
       printMemoryUsage()
       if (emotionalMemory.value.interactionHistory.totalInteractions % 5 === 0) {
         cleanupOldData()
       }
     }
-    
+
     // 发送消息（使用传统聊天流程，支持MCP工具）
     chatStore.sendMessage(messageContent)
-    
+
     // 开始实时检查回复
     checkForStreamingResponse()
-    
   } catch (error) {
     console.error('语音模式聊天流程失败:', error)
     isWaitingResponse.value = false
@@ -3562,8 +4184,6 @@ ${personalizedContext}`.trim()
 
 // 并行TTS服务状态
 const isParallelTTSActive = ref(false)
-
-
 
 // 旧的TTS队列处理已被并行TTS服务替代
 
@@ -3778,7 +4398,7 @@ onMounted(async () => {
     useEventListener(groupElement, 'mouseenter', handleMouseEnter)
     useEventListener(groupElement, 'mouseleave', handleMouseLeave)
   }
-  
+
   // 🎯 暴露调试函数到全局
   exposeDebugFunctions()
 })
@@ -3811,31 +4431,31 @@ watch(
   () => chatStore.getActiveThreadId(),
   (newThreadId, oldThreadId) => {
     console.log('🔧 [NewThread] 活跃线程变化:', { oldThreadId, newThreadId })
-    
+
     // 当线程被清空时，停止所有语音相关活动
     if (oldThreadId && !newThreadId) {
       console.log('🔧 [NewThread] 检测到线程被清空，停止语音监控和TTS播放')
-      
+
       // 停止语音监控循环
       isWaitingResponse.value = false
-      
+
       // 🔧 关键修复：重置语音模式，回到初始hello界面
       isVoiceMode.value = false
       console.log('🔧 [NewThread] 重置语音模式为false，回到hello界面')
-      
+
       // 停止TTS播放
       if (isParallelTTSActive.value || isTTSPlaying.value) {
         parallelTtsService.stop()
         isParallelTTSActive.value = false
         isTTSPlaying.value = false
       }
-      
+
       // 重置其他语音相关状态
       isVoiceInterrupted.value = false
       isRecording.value = false
       isTranscribing.value = false
       voiceResponseText.value = ''
-      
+
       console.log('🔧 [NewThread] 语音监控和TTS已停止，界面已重置')
     }
   }
@@ -3847,7 +4467,7 @@ const handleSend = async (content: UserMessageContent) => {
     console.log('语音模式下跳过传统聊天线程创建')
     return
   }
-  
+
   // 非语音模式下的传统处理逻辑
   const threadId = await chatStore.createThread(content.text, {
     providerId: activeModel.value.providerId,
@@ -3860,7 +4480,7 @@ const handleSend = async (content: UserMessageContent) => {
   })
   console.log('threadId', threadId, activeModel.value)
   await chatStore.setActiveThread(threadId)
-  
+
   // 发送消息
   chatStore.sendMessage(content)
 }
@@ -3888,14 +4508,17 @@ let consecutiveSlowFrames = 0
 const pauseAnimationForPerformance = ref(false)
 
 const _checkPerformanceAndPause = (_frameTime: number) => {
-  if (_frameTime > 50) { // 超过50ms认为过慢
+  if (_frameTime > 50) {
+    // 超过50ms认为过慢
     consecutiveSlowFrames++
-    console.warn(`⚠️ [性能保护] 检测到慢帧: ${_frameTime.toFixed(2)}ms (${consecutiveSlowFrames}/3)`)
-    
+    console.warn(
+      `⚠️ [性能保护] 检测到慢帧: ${_frameTime.toFixed(2)}ms (${consecutiveSlowFrames}/3)`
+    )
+
     if (consecutiveSlowFrames >= 3) {
       pauseAnimationForPerformance.value = true
       console.warn(`🛑 [性能保护] 临时暂停波浪动画以保护性能`)
-      
+
       // 3秒后自动恢复
       setTimeout(() => {
         pauseAnimationForPerformance.value = false
@@ -3912,7 +4535,6 @@ const _checkPerformanceAndPause = (_frameTime: number) => {
 
 // 🎯 语音中断控制标志
 const isVoiceInterrupted = ref(false)
-
 </script>
 
 <style scoped>
@@ -3947,7 +4569,7 @@ const isVoiceInterrupted = ref(false)
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-  box-shadow: 
+  box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.04),
     0 4px 16px rgba(0, 0, 0, 0.02),
     inset 0 1px 0 rgba(255, 255, 255, 0.4);
@@ -3957,7 +4579,7 @@ const isVoiceInterrupted = ref(false)
   transform: translateY(-3px) scale(1.02);
   background: rgba(255, 255, 255, 0.45);
   border-color: rgba(73, 90, 245, 0.2);
-  box-shadow: 
+  box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.08),
     0 12px 40px rgba(73, 90, 245, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.5);
@@ -3993,7 +4615,7 @@ const isVoiceInterrupted = ref(false)
   .figma-example-cards-grid {
     gap: 12px;
   }
-  
+
   .figma-example-card {
     font-size: 12px;
     padding: 16px 14px;
@@ -4005,7 +4627,7 @@ const isVoiceInterrupted = ref(false)
   .figma-example-cards-grid {
     gap: 8px;
   }
-  
+
   .figma-example-card {
     font-size: 11px;
     padding: 14px 10px;
@@ -4029,13 +4651,13 @@ const isVoiceInterrupted = ref(false)
   backdrop-filter: blur(20px);
   border: 1px solid rgba(156, 156, 156, 0.4);
   border-radius: 20px;
-  box-shadow: 
-    -2px 4px 10px 0px rgba(145, 145, 145, 0.05), 
-    -7px 17px 18px 0px rgba(145, 145, 145, 0.04), 
-    -15px 37px 24px 0px rgba(145, 145, 145, 0.03), 
-    -27px 66px 29px 0px rgba(145, 145, 145, 0.01), 
+  box-shadow:
+    -2px 4px 10px 0px rgba(145, 145, 145, 0.05),
+    -7px 17px 18px 0px rgba(145, 145, 145, 0.04),
+    -15px 37px 24px 0px rgba(145, 145, 145, 0.03),
+    -27px 66px 29px 0px rgba(145, 145, 145, 0.01),
     -42px 103px 31px 0px rgba(145, 145, 145, 0),
-    inset 0px 4px 4px 0px rgba(255, 255, 255, 0.25), 
+    inset 0px 4px 4px 0px rgba(255, 255, 255, 0.25),
     inset 0px -5px 4px 0px rgba(255, 255, 255, 0.25);
 }
 
@@ -4068,7 +4690,12 @@ const isVoiceInterrupted = ref(false)
   transform: translate(-50%, -50%);
   width: 500px;
   height: 200px;
-  background: radial-gradient(ellipse at center, rgba(217, 217, 217, 0.4) 0%, rgba(217, 217, 217, 0.2) 40%, transparent 70%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(217, 217, 217, 0.4) 0%,
+    rgba(217, 217, 217, 0.2) 40%,
+    transparent 70%
+  );
   border-radius: 50%;
   z-index: -1;
   filter: blur(20px);
@@ -4082,7 +4709,12 @@ const isVoiceInterrupted = ref(false)
   transform: translate(-50%, -50%);
   width: 450px;
   height: 180px;
-  background: radial-gradient(ellipse at center, rgba(73, 90, 245, 0.1) 0%, rgba(73, 90, 245, 0.05) 50%, transparent 80%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(73, 90, 245, 0.1) 0%,
+    rgba(73, 90, 245, 0.05) 50%,
+    transparent 80%
+  );
   border-radius: 50%;
   z-index: -1;
   filter: blur(15px);
@@ -4134,15 +4766,26 @@ const isVoiceInterrupted = ref(false)
 
 /* Dark mode adjustments for device glow effect */
 .dark .figma-device-container::before {
-  background: radial-gradient(ellipse at center, rgba(100, 100, 100, 0.3) 0%, rgba(100, 100, 100, 0.15) 40%, transparent 70%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(100, 100, 100, 0.3) 0%,
+    rgba(100, 100, 100, 0.15) 40%,
+    transparent 70%
+  );
 }
 
 .dark .figma-device-container::after {
-  background: radial-gradient(ellipse at center, rgba(73, 90, 245, 0.2) 0%, rgba(73, 90, 245, 0.1) 50%, transparent 80%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(73, 90, 245, 0.2) 0%,
+    rgba(73, 90, 245, 0.1) 50%,
+    transparent 80%
+  );
 }
 
 .dark .figma-mini-device {
-  filter: drop-shadow(0 4px 15px rgba(255, 255, 255, 0.05)) drop-shadow(0 8px 25px rgba(73, 90, 245, 0.2));
+  filter: drop-shadow(0 4px 15px rgba(255, 255, 255, 0.05))
+    drop-shadow(0 8px 25px rgba(73, 90, 245, 0.2));
 }
 
 /* Light beams container */
@@ -4172,7 +4815,13 @@ const isVoiceInterrupted = ref(false)
   position: absolute;
   width: 3px;
   height: 100%;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 30%, rgba(255, 255, 255, 0.3) 60%, transparent 100%);
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(255, 255, 255, 0.6) 30%,
+    rgba(255, 255, 255, 0.3) 60%,
+    transparent 100%
+  );
   border-radius: 2px;
   opacity: 0.7;
   transform: translateX(-50%);
@@ -4180,12 +4829,19 @@ const isVoiceInterrupted = ref(false)
 }
 
 .figma-light-beams-bottom .figma-light-beam {
-  background: linear-gradient(to top, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 30%, rgba(255, 255, 255, 0.3) 60%, transparent 100%);
+  background: linear-gradient(
+    to top,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(255, 255, 255, 0.6) 30%,
+    rgba(255, 255, 255, 0.3) 60%,
+    transparent 100%
+  );
 }
 
 /* Animation for light beams */
 @keyframes lightBeamPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.7;
     transform: translateX(-50%) scaleY(1);
   }
@@ -4196,20 +4852,44 @@ const isVoiceInterrupted = ref(false)
 }
 
 /* Stagger animation for each beam */
-.figma-light-beam:nth-child(1) { animation-delay: 0s; }
-.figma-light-beam:nth-child(2) { animation-delay: 0.2s; }
-.figma-light-beam:nth-child(3) { animation-delay: 0.4s; }
-.figma-light-beam:nth-child(4) { animation-delay: 0.6s; }
-.figma-light-beam:nth-child(5) { animation-delay: 0.8s; }
-.figma-light-beam:nth-child(6) { animation-delay: 1s; }
+.figma-light-beam:nth-child(1) {
+  animation-delay: 0s;
+}
+.figma-light-beam:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.figma-light-beam:nth-child(3) {
+  animation-delay: 0.4s;
+}
+.figma-light-beam:nth-child(4) {
+  animation-delay: 0.6s;
+}
+.figma-light-beam:nth-child(5) {
+  animation-delay: 0.8s;
+}
+.figma-light-beam:nth-child(6) {
+  animation-delay: 1s;
+}
 
 /* Dark mode adjustments for light beams */
 .dark .figma-light-beam {
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 30%, rgba(255, 255, 255, 0.2) 60%, transparent 100%);
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.2) 60%,
+    transparent 100%
+  );
 }
 
 .dark .figma-light-beams-bottom .figma-light-beam {
-  background: linear-gradient(to top, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 30%, rgba(255, 255, 255, 0.2) 60%, transparent 100%);
+  background: linear-gradient(
+    to top,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.2) 60%,
+    transparent 100%
+  );
 }
 
 /* Responsive adjustments */
@@ -4217,36 +4897,36 @@ const isVoiceInterrupted = ref(false)
   .figma-mini-device {
     width: 500px;
   }
-  
+
   .figma-device-container {
     margin-bottom: 50px;
   }
-  
+
   .figma-device-container::before {
     width: 450px;
     height: 180px;
   }
-  
+
   .figma-device-container::after {
     width: 400px;
     height: 160px;
   }
-  
+
   .figma-hello-icon {
     width: 140px;
     height: 45px;
   }
-  
+
   .figma-light-beams-top {
     top: -50px;
     height: 70px;
   }
-  
+
   .figma-light-beams-bottom {
     bottom: -50px;
     height: 70px;
   }
-  
+
   .figma-main-content {
     transform: translateY(-60px);
   }
@@ -4256,44 +4936,44 @@ const isVoiceInterrupted = ref(false)
   .figma-mini-device {
     width: 400px;
   }
-  
+
   .figma-device-container {
     margin-bottom: 40px;
   }
-  
+
   .figma-device-container::before {
     width: 380px;
     height: 150px;
   }
-  
+
   .figma-device-container::after {
     width: 340px;
     height: 135px;
   }
-  
+
   .figma-hello-icon {
     width: 120px;
     height: 38px;
   }
-  
+
   .figma-greeting-title {
     font-size: 22px;
   }
-  
+
   .figma-light-beams-top {
     top: -45px;
     height: 60px;
   }
-  
+
   .figma-light-beams-bottom {
     bottom: -45px;
     height: 60px;
   }
-  
+
   .figma-light-beam {
     width: 2.5px;
   }
-  
+
   .figma-main-content {
     transform: translateY(-50px);
   }
@@ -4303,44 +4983,44 @@ const isVoiceInterrupted = ref(false)
   .figma-mini-device {
     width: 300px;
   }
-  
+
   .figma-device-container {
     margin-bottom: 35px;
   }
-  
+
   .figma-device-container::before {
     width: 320px;
     height: 125px;
   }
-  
+
   .figma-device-container::after {
     width: 280px;
     height: 110px;
   }
-  
+
   .figma-hello-icon {
     width: 100px;
     height: 32px;
   }
-  
+
   .figma-greeting-title {
     font-size: 20px;
   }
-  
+
   .figma-light-beams-top {
     top: -40px;
     height: 50px;
   }
-  
+
   .figma-light-beams-bottom {
     bottom: -40px;
     height: 50px;
   }
-  
+
   .figma-light-beam {
     width: 2px;
   }
-  
+
   .figma-main-content {
     transform: translateY(-40px);
   }
@@ -4388,7 +5068,7 @@ const isVoiceInterrupted = ref(false)
     top: -60px;
     max-width: 95vw;
   }
-  
+
   .figma-voice-subtitle .text-lg {
     font-size: 1rem;
     padding: 12px 16px;
@@ -4495,14 +5175,14 @@ const isVoiceInterrupted = ref(false)
 
 .figma-voice-input-box {
   flex: 1;
-  background: #FFFFFF;
+  background: #ffffff;
   border-radius: 25px;
   padding: 20px 30px;
-  box-shadow: 
-    inset 0px 0px 22px 0px rgba(242, 242, 242, 0.5), 
-    inset 0px 0px 0px 1px rgba(153, 153, 153, 1), 
-    inset -1px -1px 1px -2px rgba(179, 179, 179, 1), 
-    inset 1px 1px 1px -2px rgba(179, 179, 179, 1), 
+  box-shadow:
+    inset 0px 0px 22px 0px rgba(242, 242, 242, 0.5),
+    inset 0px 0px 0px 1px rgba(153, 153, 153, 1),
+    inset -1px -1px 1px -2px rgba(179, 179, 179, 1),
+    inset 1px 1px 1px -2px rgba(179, 179, 179, 1),
     inset 1px 1px 0.5px -3.5px rgba(255, 255, 255, 0.5);
   backdrop-filter: blur(12px);
   height: 50px;
@@ -4528,7 +5208,7 @@ const isVoiceInterrupted = ref(false)
 
 /* Text Chat button */
 .figma-text-chat-button {
-  background: #495AF5;
+  background: #495af5;
   border-radius: 25px;
   padding: 10px;
   width: 156px;
@@ -4543,7 +5223,7 @@ const isVoiceInterrupted = ref(false)
   font-weight: 500;
   font-size: 20px;
   line-height: 1.219;
-  color: #FFFFFF;
+  color: #ffffff;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -4557,11 +5237,11 @@ const isVoiceInterrupted = ref(false)
 /* Dark mode adjustments for voice interface */
 .dark .figma-voice-input-box {
   background: rgba(26, 26, 26, 0.9);
-  box-shadow: 
-    inset 0px 0px 22px 0px rgba(242, 242, 242, 0.3), 
-    inset 0px 0px 0px 1px rgba(153, 153, 153, 0.8), 
-    inset -1px -1px 1px -2px rgba(179, 179, 179, 0.8), 
-    inset 1px 1px 1px -2px rgba(179, 179, 179, 0.8), 
+  box-shadow:
+    inset 0px 0px 22px 0px rgba(242, 242, 242, 0.3),
+    inset 0px 0px 0px 1px rgba(153, 153, 153, 0.8),
+    inset -1px -1px 1px -2px rgba(179, 179, 179, 0.8),
+    inset 1px 1px 1px -2px rgba(179, 179, 179, 0.8),
     inset 1px 1px 0.5px -3.5px rgba(255, 255, 255, 0.3);
 }
 
@@ -4571,11 +5251,11 @@ const isVoiceInterrupted = ref(false)
     width: 700px;
     height: 120px;
   }
-  
+
   .figma-voice-input-container {
     max-width: 550px;
   }
-  
+
   .figma-text-chat-button {
     width: 140px;
     font-size: 18px;
@@ -4587,21 +5267,21 @@ const isVoiceInterrupted = ref(false)
     width: 500px;
     height: 100px;
   }
-  
+
   .figma-voice-input-container {
     max-width: 450px;
     gap: 12px;
   }
-  
+
   .figma-voice-input-box {
     padding: 15px 25px;
     height: 45px;
   }
-  
+
   .figma-voice-input {
     font-size: 14px;
   }
-  
+
   .figma-text-chat-button {
     width: 120px;
     height: 45px;
@@ -4615,21 +5295,21 @@ const isVoiceInterrupted = ref(false)
     width: 350px;
     height: 80px;
   }
-  
+
   .figma-voice-input-container {
     max-width: 350px;
     gap: 10px;
   }
-  
+
   .figma-voice-input-box {
     padding: 12px 20px;
     height: 40px;
   }
-  
+
   .figma-voice-input {
     font-size: 13px;
   }
-  
+
   .figma-text-chat-button {
     width: 100px;
     height: 40px;
@@ -4656,4 +5336,3 @@ const isVoiceInterrupted = ref(false)
   color: #ffc107;
 }
 </style>
-

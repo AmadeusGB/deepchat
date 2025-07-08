@@ -95,7 +95,11 @@ export class SyncPresenter implements ISyncPresenter {
       await this.performBackup()
     } catch (error: unknown) {
       console.error('备份失败:', error)
-      eventBus.send(SYNC_EVENTS.BACKUP_ERROR, SendTarget.ALL_WINDOWS, (error as Error).message || 'sync.error.unknown')
+      eventBus.send(
+        SYNC_EVENTS.BACKUP_ERROR,
+        SendTarget.ALL_WINDOWS,
+        (error as Error).message || 'sync.error.unknown'
+      )
       throw error
     }
   }
@@ -236,7 +240,11 @@ export class SyncPresenter implements ISyncPresenter {
           this.copyDirectory(tempProviderModelsPath, this.PROVIDER_MODELS_DIR_PATH)
         }
 
-        eventBus.send(SYNC_EVENTS.IMPORT_ERROR, SendTarget.ALL_WINDOWS, (error as Error).message || 'sync.error.unknown')
+        eventBus.send(
+          SYNC_EVENTS.IMPORT_ERROR,
+          SendTarget.ALL_WINDOWS,
+          (error as Error).message || 'sync.error.unknown'
+        )
         return { success: false, message: 'sync.error.importFailed' }
       } finally {
         // 清理临时文件
@@ -258,7 +266,11 @@ export class SyncPresenter implements ISyncPresenter {
       }
     } catch (error: unknown) {
       console.error('导入过程出错:', error)
-      eventBus.send(SYNC_EVENTS.IMPORT_ERROR, SendTarget.ALL_WINDOWS, (error as Error).message || 'sync.error.unknown')
+      eventBus.send(
+        SYNC_EVENTS.IMPORT_ERROR,
+        SendTarget.ALL_WINDOWS,
+        (error as Error).message || 'sync.error.unknown'
+      )
       return { success: false, message: 'sync.error.importProcess' }
     }
   }
@@ -389,7 +401,11 @@ export class SyncPresenter implements ISyncPresenter {
       eventBus.send(SYNC_EVENTS.BACKUP_COMPLETED, SendTarget.ALL_WINDOWS, now)
     } catch (error: unknown) {
       console.error('备份过程出错:', error)
-      eventBus.send(SYNC_EVENTS.BACKUP_ERROR, SendTarget.ALL_WINDOWS, (error as Error).message || 'sync.error.unknown')
+      eventBus.send(
+        SYNC_EVENTS.BACKUP_ERROR,
+        SendTarget.ALL_WINDOWS,
+        (error as Error).message || 'sync.error.unknown'
+      )
       throw error
     } finally {
       // 标记备份结束

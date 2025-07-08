@@ -17,7 +17,7 @@ export function useLazyComponent(
   } = {}
 ) {
   const { t } = useI18n()
-  
+
   const defaultLoadingComponent = {
     template: `
       <div class="flex items-center justify-center p-8">
@@ -78,11 +78,13 @@ export function useConditionalLazyComponent(
 export const LazyComponents = {
   // 设置相关组件
   McpSettings: () => useLazyComponent(() => import('@/components/settings/McpSettings.vue')),
-  ModelProviderSettings: () => useLazyComponent(() => import('@/components/settings/ModelProviderSettings.vue')),
-  KnowledgeBaseSettings: () => useLazyComponent(() => import('@/components/settings/KnowledgeBaseSettings.vue')),
+  ModelProviderSettings: () =>
+    useLazyComponent(() => import('@/components/settings/ModelProviderSettings.vue')),
+  KnowledgeBaseSettings: () =>
+    useLazyComponent(() => import('@/components/settings/KnowledgeBaseSettings.vue')),
   VoiceSettings: () => useLazyComponent(() => import('@/components/settings/VoiceSettings.vue')),
-  
+
   // 其他大型组件
   ThreadsView: () => useLazyComponent(() => import('@/components/ThreadsView.vue')),
   ChatView: () => useLazyComponent(() => import('@/components/ChatView.vue'))
-} 
+}

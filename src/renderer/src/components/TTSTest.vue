@@ -1,37 +1,28 @@
 <template>
   <div class="tts-test-container p-6 max-w-md mx-auto">
     <h2 class="text-xl font-bold mb-4">TTS 测试</h2>
-    
+
     <div class="space-y-4">
       <div>
         <label class="block text-sm font-medium mb-2">测试文本:</label>
-        <textarea 
+        <textarea
           v-model="testText"
           class="w-full p-2 border rounded-md"
           rows="3"
           placeholder="输入要测试的文本..."
         />
       </div>
-      
+
       <div class="flex gap-2">
-        <Button 
-          @click="testTTS"
-          :disabled="isPlaying || !testText.trim()"
-          class="flex-1"
-        >
+        <Button @click="testTTS" :disabled="isPlaying || !testText.trim()" class="flex-1">
           {{ isPlaying ? '播放中...' : '测试 TTS' }}
         </Button>
       </div>
-      
-      <Button 
-        @click="stopTTS"
-        :disabled="!isPlaying"
-        variant="destructive"
-        class="w-full"
-      >
+
+      <Button @click="stopTTS" :disabled="!isPlaying" variant="destructive" class="w-full">
         停止播放
       </Button>
-      
+
       <div v-if="error" class="text-red-500 text-sm">
         {{ error }}
       </div>
@@ -50,7 +41,7 @@ const error = ref('')
 
 const testTTS = async () => {
   if (!testText.value.trim()) return
-  
+
   try {
     error.value = ''
     isPlaying.value = true
@@ -58,18 +49,18 @@ const testTTS = async () => {
     const audioBlob = await ttsService.generateAudioBlob(testText.value)
     const audioUrl = URL.createObjectURL(audioBlob)
     const audio = new Audio(audioUrl)
-    
+
     audio.onended = () => {
       isPlaying.value = false
       URL.revokeObjectURL(audioUrl)
     }
-    
+
     audio.onerror = () => {
       isPlaying.value = false
       URL.revokeObjectURL(audioUrl)
       error.value = 'TTS播放失败'
     }
-    
+
     await audio.play()
   } catch (err) {
     error.value = `TTS 错误: ${err instanceof Error ? err.message : String(err)}`
@@ -94,4 +85,4 @@ const stopTTS = () => {
   background: #1a1a1a;
   color: white;
 }
-</style> 
+</style>
