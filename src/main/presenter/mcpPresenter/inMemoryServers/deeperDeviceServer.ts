@@ -28,6 +28,12 @@ const DPN_MODE_TUNNEL_CODE: Record<string, string> = {
   direct: 'DIRECT'
 }
 
+// 自动登录配置
+const AUTO_LOGIN_CONFIG = {
+  username: 'admin',
+  password: 'admin'
+}
+
 // Helper functions
 const getCookie = () => cookie
 const setCookie = (newCookie: string) => {
@@ -41,6 +47,46 @@ const setDpnTunnelCode = (mode: string, code: string) => {
 
 const setBaseUrl = (url: string) => {
   BaseUrl = url
+}
+
+// 自动登录函数
+async function tryAutoLogin(): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log('尝试使用默认账户自动登录到Deeper设备...')
+    const result = await loginToDeeperDevice(AUTO_LOGIN_CONFIG.username, AUTO_LOGIN_CONFIG.password)
+    if (result.success) {
+      setCookie(result.data)
+      console.log('自动登录成功')
+      return { success: true }
+    } else {
+      console.log('自动登录失败:', result.error)
+      return { success: false, error: result.error }
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.log('自动登录异常:', errorMessage)
+    return { success: false, error: errorMessage }
+  }
+}
+
+// 获取有效的认证cookie，如果没有则尝试自动登录
+async function getValidCookie(): Promise<{ cookie: string | null; error?: string }> {
+  let currentCookie = getCookie()
+  
+  if (!currentCookie) {
+    // 没有cookie，尝试自动登录
+    const autoLoginResult = await tryAutoLogin()
+    if (autoLoginResult.success) {
+      currentCookie = getCookie()
+    } else {
+      return { 
+        cookie: null, 
+        error: `自动登录失败：${autoLoginResult.error}。请手动调用 loginToDeeperDevice 工具，使用正确的账户名和密码。` 
+      }
+    }
+  }
+  
+  return { cookie: currentCookie }
 }
 
 // Core functions
@@ -422,7 +468,7 @@ export class DeeperDeviceServer {
     // Define all tool schemas
     const loginSchema = z.object({
       username: z.string().default('admin').describe('The username for authentication.'),
-      password: z.string().default('yubo12345').describe('The password for authentication.')
+      password: z.string().default('admin').describe('The password for authentication.')
     })
 
     const setBaseUrlSchema = z.object({
@@ -495,62 +541,62 @@ export class DeeperDeviceServer {
         tools: [
           {
             name: 'loginToDeeperDevice',
-            description: 'Logs into the Deeper device to establish a session and obtain an auth cookie.',
+            description: '🔐 登录Deeper设备管理界面 - 使用admin/admin默认凭证或自定义用户名密码获取访问权限，为所有设备操作建立认证会话',
             inputSchema: zodToJsonSchema(loginSchema)
           },
           {
             name: 'setBaseUrl',
-            description: 'Configures the base URL for API calls to the Deeper device. Default: 34.34.34.34.',
+            description: '🌐 配置设备连接地址 - 设置Deeper设备的IP地址(默认34.34.34.34)，支持局域网地址如192.168.1.1，确保MCP工具能正确连接到您的设备',
             inputSchema: zodToJsonSchema(setBaseUrlSchema)
           },
           {
             name: 'setDpnMode',
-            description: 'Sets the DPN mode and the associated tunnel for that mode.',
+            description: '🚀 配置DPN路由模式 - 选择Smart Routing(智能路由)、Full Routing(完全路由)或Direct Routing(直接路由)，并设置备份隧道确保网络连接稳定性',
             inputSchema: zodToJsonSchema(setDpnModeSchema)
           },
           {
             name: 'getDpnMode',
-            description: 'Retrieves the current DPN mode and the tunnels assigned to "smart" and "full" modes.',
+            description: '📊 查看DPN路由状态 - 显示当前DPN工作模式(Smart/Full/Direct)、使用的隧道信息、节点数量和连接状态，帮助诊断网络配置',
             inputSchema: zodToJsonSchema(z.object({}))
           },
           {
             name: 'listTunnels',
-            description: 'Lists the active tunnels available for DPN configuration.',
+            description: '🌍 查看隧道列表 - 显示所有已配置的DPN隧道，包括地区、国家、活跃IP数量和连接状态，用于管理和监控隧道连接',
             inputSchema: zodToJsonSchema(z.object({}))
           },
           {
             name: 'addTunnel',
-            description: 'Adds a new tunnel to the active list, making it available for DPN configuration.',
+            description: '➕ 添加DPN隧道 - 选择指定地区和国家创建新的DPN隧道连接，提供更多网络出口选择，增强网络访问的灵活性和速度',
             inputSchema: zodToJsonSchema(addTunnelSchema)
           },
           {
             name: 'listApps',
-            description: 'Lists all applications that can have their own dedicated DPN tunnel.',
+            description: '📱 查看应用重定向列表 - 显示所有支持的应用(Netflix、YouTube、Instagram等)及其当前隧道配置，可按类型、国家、标签筛选应用',
             inputSchema: zodToJsonSchema(z.object({}))
           },
           {
             name: 'setAppTunnelCode',
-            description: 'Assigns a specific tunnel to an application, overriding the main DPN mode for that app.',
+            description: '🎯 配置应用专用隧道 - 为特定应用(如Netflix、YouTube)设置专用的地区隧道，实现地理位置重定向，解锁不同地区的内容和服务',
             inputSchema: zodToJsonSchema(setAppTunnelCodeSchema)
           },
           {
             name: 'setParentalControl',
-            description: 'Configures parental control states for porn, social, and game categories.',
+            description: '👨‍👩‍👧‍👦 配置家长控制 - 设置色情内容、社交媒体、游戏的访问控制，支持永久阻止或临时解除(2/4/8小时)，保护儿童免受不当内容影响',
             inputSchema: zodToJsonSchema(setParentalControlSchema)
           },
           {
             name: 'setAdsFilter',
-            description: 'Enables or disables the ad filter on the Deeper device.',
+            description: '🛡️ 配置DNS内容过滤 - 启用/禁用广告拦截、追踪器拦截、恶意软件拦截，在DNS层面保护所有设备免受广告和恶意内容侵扰',
             inputSchema: zodToJsonSchema(setAdsFilterSchema)
           },
           {
             name: 'setSslBypass',
-            description: 'Allows or disallows devices without certificates to connect to the network.',
+            description: '🔒 配置HTTPS过滤策略 - 启用HTTPS广告过滤或SSL绕过模式。注意：启用SSL绕过可能会降低广告过滤效果，需要安装证书才能正常工作',
             inputSchema: zodToJsonSchema(setSslBypassSchema)
           },
           {
             name: 'rebootDevice',
-            description: 'Reboots the Deeper device.',
+            description: '🔄 重启设备 - 重启Deeper设备以应用配置更改或解决系统问题，重启后需要重新连接和认证',
             inputSchema: zodToJsonSchema(z.object({}))
           }
         ]
@@ -590,13 +636,13 @@ export class DeeperDeviceServer {
 
           case 'setDpnMode': {
             const { dpnMode, tunnelCode } = setDpnModeSchema.parse(args)
-            const cookie = getCookie()
+            const { cookie, error } = await getValidCookie()
             if (!cookie) {
               return {
                 content: [
                   {
                     type: 'text',
-                    text: 'Please login to Deeper device first using loginToDeeperDevice tool.'
+                    text: error || 'Please login to Deeper device first using loginToDeeperDevice tool.'
                   }
                 ]
               }
@@ -631,13 +677,13 @@ export class DeeperDeviceServer {
           }
 
           case 'getDpnMode': {
-            const cookie = getCookie()
+            const { cookie, error } = await getValidCookie()
             if (!cookie) {
               return {
                 content: [
                   {
                     type: 'text',
-                    text: 'Please login to Deeper device first using loginToDeeperDevice tool.'
+                    text: error || 'Please login to Deeper device first using loginToDeeperDevice tool.'
                   }
                 ]
               }
@@ -666,13 +712,13 @@ export class DeeperDeviceServer {
           }
 
           case 'listTunnels': {
-            const cookie = getCookie()
+            const { cookie, error } = await getValidCookie()
             if (!cookie) {
               return {
                 content: [
                   {
                     type: 'text',
-                    text: 'Please login to Deeper device first using loginToDeeperDevice tool.'
+                    text: error || 'Please login to Deeper device first using loginToDeeperDevice tool.'
                   }
                 ]
               }
@@ -689,13 +735,13 @@ export class DeeperDeviceServer {
 
           case 'addTunnel': {
             const { regionCode, tunnelCode } = addTunnelSchema.parse(args)
-            const cookie = getCookie()
+            const { cookie, error } = await getValidCookie()
             if (!cookie) {
               return {
                 content: [
                   {
                     type: 'text',
-                    text: 'Please login to Deeper device first using loginToDeeperDevice tool.'
+                    text: error || 'Please login to Deeper device first using loginToDeeperDevice tool.'
                   }
                 ]
               }
@@ -717,7 +763,7 @@ export class DeeperDeviceServer {
           }
 
           case 'listApps': {
-            const cookie = getCookie()
+            const { cookie } = await getValidCookie()
             if (!cookie) {
               return {
                 content: [
@@ -741,7 +787,7 @@ export class DeeperDeviceServer {
 
           case 'setAppTunnelCode': {
             const { appName, tunnelCode } = setAppTunnelCodeSchema.parse(args)
-            const cookie = getCookie()
+            const { cookie } = await getValidCookie()
             if (!cookie) {
               return {
                 content: [
@@ -770,7 +816,7 @@ export class DeeperDeviceServer {
 
           case 'setParentalControl': {
             const { porn, social, game } = setParentalControlSchema.parse(args)
-            const cookie = getCookie()
+            const { cookie } = await getValidCookie()
             if (!cookie) {
               return {
                 content: [
@@ -842,7 +888,7 @@ export class DeeperDeviceServer {
 
           case 'setAdsFilter': {
             const { enabled } = setAdsFilterSchema.parse(args)
-            const cookie = getCookie()
+            const { cookie } = await getValidCookie()
             if (!cookie) {
               return {
                 content: [
@@ -871,7 +917,7 @@ export class DeeperDeviceServer {
 
           case 'setSslBypass': {
             const { enabled } = setSslBypassSchema.parse(args)
-            const cookie = getCookie()
+            const { cookie } = await getValidCookie()
             if (!cookie) {
               return {
                 content: [
@@ -923,7 +969,7 @@ export class DeeperDeviceServer {
           }
 
           case 'rebootDevice': {
-            const cookie = getCookie()
+            const { cookie } = await getValidCookie()
             if (!cookie) {
               return {
                 content: [
