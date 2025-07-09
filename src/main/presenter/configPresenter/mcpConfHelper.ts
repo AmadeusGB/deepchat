@@ -3,7 +3,6 @@ import { MCPServerConfig } from '@shared/presenter'
 import { MCP_EVENTS } from '@/events'
 import ElectronStore from 'electron-store'
 import { app } from 'electron'
-import { compare } from 'compare-versions'
 
 // MCP设置的接口
 interface IMcpSettings {
@@ -171,6 +170,16 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, MCPServerConfig> = {
     command: 'deepchat-inmemory/conversation-search-server',
     env: {},
     disable: false
+  },
+  'Deeper Device': {
+    args: [],
+    descriptions: 'DeepChat内置Deeper网络设备控制服务',
+    icons: '🌐',
+    autoApprove: ['all'],
+    type: 'inmemory' as MCPServerType,
+    command: 'deepchat-inmemory/deeper-device-server',
+    env: {},
+    disable: false
   }
 }
 
@@ -200,7 +209,7 @@ const DEFAULT_MCP_SERVERS = {
       type: 'stdio' as MCPServerType
     }
   },
-  defaultServers: ['Artifacts', 'playwright'], // 添加playwright到默认服务器列表
+  defaultServers: ['Artifacts', 'playwright', 'Deeper Device'], // 使用友好的显示名称
   mcpEnabled: true // 默认开启MCP功能
 }
 // 这部分mcp有系统逻辑判断是否启用，不受用户配置控制，受软件环境控制
@@ -238,6 +247,12 @@ export class McpConfHelper {
 
     // 检查并补充缺少的inmemory服务
     const updatedServers = { ...storedServers }
+
+    // 清理重复的 Deeper Device 配置 - 删除旧的技术名称配置
+    if (updatedServers['deepchat-inmemory/deeper-device-server'] && updatedServers['Deeper Device']) {
+      console.log('检测到重复的 Deeper Device 配置，删除旧的技术名称配置')
+      delete updatedServers['deepchat-inmemory/deeper-device-server']
+    }
 
     // 遍历所有默认的inmemory服务，确保它们都存在
     for (const [serverName, serverConfig] of Object.entries(DEFAULT_INMEMORY_SERVERS)) {
@@ -296,21 +311,31 @@ export class McpConfHelper {
     const storedDefaultServers = this.mcpStore.get('defaultServers') || []
     const expectedDefaultServers = DEFAULT_MCP_SERVERS.defaultServers
 
-    // 检查是否需要补充缺失的默认服务器
+    // 过滤出有效的默认服务器（既在期望列表中，又在当前存储中）
     let needsUpdate = false
-    const updatedDefaultServers = [...storedDefaultServers]
+    const updatedDefaultServers: string[] = []
 
-    // 遍历期望的默认服务器，检查是否都存在
+    // 首先添加所有期望的默认服务器
     for (const serverName of expectedDefaultServers) {
       if (!updatedDefaultServers.includes(serverName)) {
-        console.log(`添加缺失的默认服务器: ${serverName}`)
         updatedDefaultServers.push(serverName)
+        if (!storedDefaultServers.includes(serverName)) {
+          console.log(`添加缺失的默认服务器: ${serverName}`)
+          needsUpdate = true
+        }
+      }
+    }
+
+    // 检查是否有需要删除的旧服务器
+    for (const serverName of storedDefaultServers) {
+      if (!expectedDefaultServers.includes(serverName)) {
+        console.log(`删除过时的默认服务器: ${serverName}`)
         needsUpdate = true
       }
     }
 
     // 如果有更新，保存到存储
-    if (needsUpdate) {
+    if (needsUpdate || updatedDefaultServers.length !== storedDefaultServers.length) {
       this.mcpStore.set('defaultServers', updatedDefaultServers)
       // 发送配置变更事件
       eventBus.send(MCP_EVENTS.CONFIG_CHANGED, SendTarget.ALL_WINDOWS, {
@@ -457,72 +482,127 @@ export class McpConfHelper {
   }
 
   public onUpgrade(oldVersion: string | undefined): void {
-    console.log('onUpgrade', oldVersion)
-    if (oldVersion && compare(oldVersion, '0.0.12', '<=')) {
-      // 将旧版本的defaultServer迁移到新版本的defaultServers
-      const oldDefaultServer = this.mcpStore.get('defaultServer') as string | undefined
-      if (oldDefaultServer) {
-        console.log(`迁移旧版本defaultServer: ${oldDefaultServer}到defaultServers`)
+    if (!oldVersion) {
+      // 这是全新安装，不需要迁移
+      return
+    }
+
+    // 清理旧的 Deeper Device 配置
+    this.cleanupDeeperDeviceConfig()
+
+    // 迁移 filesystem 服务器到 buildInFileSystem
+    try {
+      const mcpServers = this.mcpStore.get('mcpServers') || {}
+      // console.log('mcpServers', mcpServers)
+      if (mcpServers.filesystem) {
+        console.log('检测到旧版本的 filesystem MCP 服务器，开始迁移到 buildInFileSystem')
+
+        // 检查 buildInFileSystem 是否已存在
+        if (!mcpServers.buildInFileSystem) {
+          // 创建 buildInFileSystem 配置
+          mcpServers.buildInFileSystem = {
+            args: [app.getPath('home')], // 默认值
+            descriptions: '内置文件系统mcp服务',
+            icons: '💾',
+            autoApprove: ['read'],
+            type: 'inmemory' as MCPServerType,
+            command: 'filesystem',
+            env: {},
+            disable: false
+          }
+        }
+
+        // 如果 filesystem 的 args 长度大于 2，将第三个参数及以后的参数迁移
+        if (mcpServers.filesystem.args && mcpServers.filesystem.args.length > 2) {
+          mcpServers.buildInFileSystem.args = mcpServers.filesystem.args.slice(2)
+        }
+
+        // 迁移 autoApprove 设置
+        if (mcpServers.filesystem.autoApprove) {
+          mcpServers.buildInFileSystem.autoApprove = [...mcpServers.filesystem.autoApprove]
+        }
+
+        delete mcpServers.filesystem
+        // 更新 mcpServers
+        this.mcpStore.set('mcpServers', mcpServers)
+
+        // 如果 filesystem 是默认服务器，将 buildInFileSystem 添加到默认服务器列表
         const defaultServers = this.mcpStore.get('defaultServers') || []
-        if (!defaultServers.includes(oldDefaultServer)) {
-          defaultServers.push(oldDefaultServer)
+        if (
+          defaultServers.includes('filesystem') &&
+          !defaultServers.includes('buildInFileSystem')
+        ) {
+          defaultServers.push('buildInFileSystem')
           this.mcpStore.set('defaultServers', defaultServers)
         }
-        // 删除旧的defaultServer字段，防止重复迁移
-        this.mcpStore.delete('defaultServer')
+
+        console.log('迁移 filesystem 到 buildInFileSystem 完成')
+      }
+    } catch (error) {
+      console.error('迁移 filesystem 失败:', error)
+    }
+  }
+
+  // 清理旧的 Deeper Device 配置
+  private cleanupDeeperDeviceConfig(): void {
+    try {
+      const mcpServers = this.mcpStore.get('mcpServers') || {}
+      const defaultServers = this.mcpStore.get('defaultServers') || []
+      
+      let serversChanged = false
+      let defaultsChanged = false
+
+      // 如果存在旧的技术名称配置，删除它
+      if (mcpServers['deepchat-inmemory/deeper-device-server']) {
+        console.log('清理旧的 deepchat-inmemory/deeper-device-server 配置')
+        delete mcpServers['deepchat-inmemory/deeper-device-server']
+        serversChanged = true
       }
 
-      // 迁移 filesystem 服务器到 buildInFileSystem
-      try {
-        const mcpServers = this.mcpStore.get('mcpServers') || {}
-        // console.log('mcpServers', mcpServers)
-        if (mcpServers.filesystem) {
-          console.log('检测到旧版本的 filesystem MCP 服务器，开始迁移到 buildInFileSystem')
+      // 从默认服务器列表中删除旧的技术名称
+      const oldServerIndex = defaultServers.indexOf('deepchat-inmemory/deeper-device-server')
+      if (oldServerIndex !== -1) {
+        console.log('从默认服务器列表中删除旧的 deepchat-inmemory/deeper-device-server')
+        defaultServers.splice(oldServerIndex, 1)
+        defaultsChanged = true
+      }
 
-          // 检查 buildInFileSystem 是否已存在
-          if (!mcpServers.buildInFileSystem) {
-            // 创建 buildInFileSystem 配置
-            mcpServers.buildInFileSystem = {
-              args: [app.getPath('home')], // 默认值
-              descriptions: '内置文件系统mcp服务',
-              icons: '💾',
-              autoApprove: ['read'],
-              type: 'inmemory' as MCPServerType,
-              command: 'filesystem',
-              env: {},
-              disable: false
-            }
-          }
-
-          // 如果 filesystem 的 args 长度大于 2，将第三个参数及以后的参数迁移
-          if (mcpServers.filesystem.args && mcpServers.filesystem.args.length > 2) {
-            mcpServers.buildInFileSystem.args = mcpServers.filesystem.args.slice(2)
-          }
-
-          // 迁移 autoApprove 设置
-          if (mcpServers.filesystem.autoApprove) {
-            mcpServers.buildInFileSystem.autoApprove = [...mcpServers.filesystem.autoApprove]
-          }
-
-          delete mcpServers.filesystem
-          // 更新 mcpServers
-          this.mcpStore.set('mcpServers', mcpServers)
-
-          // 如果 filesystem 是默认服务器，将 buildInFileSystem 添加到默认服务器列表
-          const defaultServers = this.mcpStore.get('defaultServers') || []
-          if (
-            defaultServers.includes('filesystem') &&
-            !defaultServers.includes('buildInFileSystem')
-          ) {
-            defaultServers.push('buildInFileSystem')
-            this.mcpStore.set('defaultServers', defaultServers)
-          }
-
-          console.log('迁移 filesystem 到 buildInFileSystem 完成')
+      // 确保新的 Deeper Device 配置存在
+      if (!mcpServers['Deeper Device']) {
+        console.log('添加新的 Deeper Device 配置')
+        mcpServers['Deeper Device'] = {
+          args: [],
+          descriptions: 'DeepChat内置Deeper网络设备控制服务',
+          icons: '🌐',
+          autoApprove: ['all'],
+          type: 'inmemory' as MCPServerType,
+          command: 'deepchat-inmemory/deeper-device-server',
+          env: {},
+          disable: false
         }
-      } catch (error) {
-        console.error('迁移 filesystem 服务器时出错:', error)
+        serversChanged = true
       }
+
+      // 确保 Deeper Device 在默认服务器列表中
+      if (!defaultServers.includes('Deeper Device')) {
+        console.log('将 Deeper Device 添加到默认服务器列表')
+        defaultServers.push('Deeper Device')
+        defaultsChanged = true
+      }
+
+      // 保存更改
+      if (serversChanged) {
+        this.mcpStore.set('mcpServers', mcpServers)
+      }
+      if (defaultsChanged) {
+        this.mcpStore.set('defaultServers', defaultServers)
+      }
+
+      if (serversChanged || defaultsChanged) {
+        console.log('Deeper Device 配置清理完成')
+      }
+    } catch (error) {
+      console.error('清理 Deeper Device 配置失败:', error)
     }
   }
 }

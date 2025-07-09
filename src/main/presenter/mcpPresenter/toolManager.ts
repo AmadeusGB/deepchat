@@ -136,8 +136,8 @@ export class ToolManager {
             finalDescription = `[${client.serverName}] ${tool.description}`
           }
 
-          // Validate the final name against the allowed pattern
-          const namePattern = /^[a-zA-Z0-9_-]+$/
+          // Validate the final name against the allowed pattern - allow slashes for server names
+          const namePattern = /^[a-zA-Z0-9_/-]+$/
           if (!namePattern.test(finalName)) {
             console.error(
               `Generated tool name '${finalName}' is invalid. Skipping tool '${originalName}' from server '${client.serverName}'.`
