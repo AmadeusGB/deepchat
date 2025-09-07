@@ -24,7 +24,8 @@ interface ToolUsageHistory {
 }
 
 export class SmartToolSelector {
-  private _configPresenter: IConfigPresenter // Currently unused but may be needed for future features
+  // @ts-ignore - configPresenter is passed in but currently unused, keeping for future features
+  private _configPresenter: IConfigPresenter
   private usageHistory: Map<string, ToolUsageHistory> = new Map()
 
   // 关键词匹配规则 - 优化版

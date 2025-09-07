@@ -169,20 +169,22 @@ cp deeperDeviceServer.ts deeperDeviceServer.ts.backup
 | ----- | ---------- | ------------------------------------------------------------------------------ |
 | 1.0.0 | 2024-07-09 | 初始迁移完成                                                                   |
 | 1.0.1 | 2024-07-09 | 优化显示名称：从 "deepchat-inmemory/deeper-device-server" 改为 "Deeper Device" |
-| 2.0.0 | 2025-01-07 | **重大功能更新** - 同步原项目最新功能，新增11个工具和30+个API函数               |
+| 2.0.0 | 2025-01-07 | **重大功能更新** - 同步原项目最新功能，新增11个工具和30+个API函数              |
 
 ## 2.0.0 版本更新详情
 
 ### 新增功能模块
 
 #### 🔐 访问控制管理
+
 - **listAccessControl** - 查看设备访问控制列表
-- **setAccessControl** - 配置设备访问控制  
+- **setAccessControl** - 配置设备访问控制
 - **updateOneAccessControlDevice** - 更新单个设备配置
 - 新增设备状态管理：在线/离线设备分类显示
 - 支持设备路由模式、HTTPS过滤、域名绕过、带宽限制配置
 
 #### 🌐 网络共享功能
+
 - **enableSharingState** - 配置网络共享状态
 - **setBtSharing** - BitTorrent共享配置
 - **setSmtpSharing** - SMTP共享配置
@@ -190,12 +192,14 @@ cp deeperDeviceServer.ts deeperDeviceServer.ts.backup
 - **setSharingBandwidthLimit** - 共享带宽限制（Mbps）
 
 #### 🔍 DPN增强功能
+
 - **deleteTunnels** - 批量删除DPN隧道
 - **testTunnelsConnectivity** - 隧道连接性测试与自动修复
 - 新增隧道节点切换和刷新功能
 - 集成ping连接性检测
 
 #### 📊 系统信息聚合
+
 - **getDeeperSystemInfo** - 综合系统信息获取
 - 集成软件版本、硬件信息、网络地址、会话统计
 - 一次性获取全面系统状态
@@ -203,6 +207,7 @@ cp deeperDeviceServer.ts deeperDeviceServer.ts.backup
 ### 技术架构增强
 
 #### 新增接口定义
+
 ```typescript
 interface AccessControlDevice {
   mac: string
@@ -220,10 +225,12 @@ interface AccessControlDevice {
 ```
 
 #### 状态管理扩展
+
 - 新增设备列表状态管理 `deviceList: AccessControlDevice[]`
 - 新增设备列表操作函数 `getDeviceList()`, `setDeviceList()`
 
 #### API端点映射
+
 - `/api/accessControl/*` - 访问控制相关API
 - `/api/sharing/*` - 网络共享相关API
 - `/api/system-info/*` - 系统信息相关API
@@ -234,6 +241,7 @@ interface AccessControlDevice {
 ### 新增核心函数
 
 #### 访问控制函数 (6个)
+
 - `listAccessControl()` - 获取设备列表
 - `setOneAccessControl()` - 更新设备配置
 - `switchAccessControl()` - 启用/禁用访问控制
@@ -241,6 +249,7 @@ interface AccessControlDevice {
 - `ensureAccessControlSwitch()` - 确保访问控制启用
 
 #### 网络共享函数 (6个)
+
 - `getSharingConfig()` - 获取共享配置
 - `setSharingConfig()` - 设置共享配置
 - `setSharingState()` - 设置共享状态
@@ -250,12 +259,14 @@ interface AccessControlDevice {
 - `setSharingBandwidthLimit()` - 设置带宽限制
 
 #### 系统信息函数 (4个)
+
 - `getSessionInfo()` - 获取会话信息
 - `getHardwareInfo()` - 获取硬件信息
 - `getSoftwareInfo()` - 获取软件信息
 - `getNetworkAddress()` - 获取网络地址
 
 #### DPN增强函数 (3个)
+
 - `deleteTunnels()` - 删除隧道
 - `refreshTunnel()` - 刷新隧道
 - `switchNode()` - 切换节点
@@ -263,21 +274,25 @@ interface AccessControlDevice {
 ### 用户体验提升
 
 #### 智能自动化
+
 - 隧道连接性自动检测和修复
 - 访问控制自动启用依赖检查
 - 共享功能依赖自动配置
 
 #### 详细中文描述
+
 - 所有新工具配备emoji图标和详细中文说明
 - 明确功能用途、配置选项和使用场景
 - 提供参数说明和使用建议
 
 #### 增强错误处理
+
 - 完善的错误信息提示
 - 自动登录回退机制
 - 详细的操作失败原因说明
 
 ### 兼容性保证
+
 - 保持与原有工具的完全兼容性
 - 维持现有API接口不变
 - 支持DeepChat MCP传输层

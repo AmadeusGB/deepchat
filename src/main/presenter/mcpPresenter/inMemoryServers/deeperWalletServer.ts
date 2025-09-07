@@ -101,18 +101,13 @@ const SUPPORTED_NETWORKS = {
   SOLANA: {
     name: 'Solana Mainnet',
     type: 'SOLANA',
-    rpcUrls: [
-      'https://api.mainnet-beta.solana.com',
-      'https://solana-api.projectserum.com'
-    ],
+    rpcUrls: ['https://api.mainnet-beta.solana.com', 'https://solana-api.projectserum.com'],
     currency: 'SOL'
   },
   'SOLANA-DEVNET': {
     name: 'Solana Devnet',
     type: 'SOLANA',
-    rpcUrls: [
-      'https://api.devnet.solana.com'
-    ],
+    rpcUrls: ['https://api.devnet.solana.com'],
     currency: 'SOL'
   }
 } as const
@@ -268,7 +263,9 @@ async function getEVMTokenMetadata(
 
     const name = nameResult.data ? hexToString(nameResult.data as string) : ''
     const symbol = symbolResult.data ? hexToString(symbolResult.data as string) : ''
-    const decimals = decimalsResult.data ? parseInt(hexToDecimal(decimalsResult.data as string)) : 18
+    const decimals = decimalsResult.data
+      ? parseInt(hexToDecimal(decimalsResult.data as string))
+      : 18
 
     return {
       success: true,
@@ -286,7 +283,7 @@ async function getEVMTokenMetadata(
 
 function hexToString(hex: string): string {
   if (!hex || hex === '0x') return ''
-  
+
   // Remove 0x prefix if present
   if (hex.startsWith('0x')) {
     hex = hex.slice(2)
@@ -348,12 +345,14 @@ export class DeeperWalletServer {
         tools: [
           {
             name: 'getSupportedNetworks',
-            description: '🌐 查看支持的区块链网络 - 显示所有支持的主网和测试网络列表，包括网络名称、类型、链ID和本地货币',
+            description:
+              '🌐 查看支持的区块链网络 - 显示所有支持的主网和测试网络列表，包括网络名称、类型、链ID和本地货币',
             inputSchema: zodToJsonSchema(z.object({}))
           },
           {
             name: 'getBalance',
-            description: '💰 查询地址余额 - 获取指定区块链网络上特定地址的原生代币余额（如ETH、MATIC、SOL等）',
+            description:
+              '💰 查询地址余额 - 获取指定区块链网络上特定地址的原生代币余额（如ETH、MATIC、SOL等）',
             inputSchema: zodToJsonSchema(
               z.object({
                 network: z.string().describe('区块链网络名称，如 ETHEREUM、SOLANA、POLYGON 等'),
@@ -374,7 +373,8 @@ export class DeeperWalletServer {
           },
           {
             name: 'getTokenMetadata',
-            description: '🏷️ 查询代币信息 - 获取代币合约的基本信息，包括名称、符号、小数位数等元数据',
+            description:
+              '🏷️ 查询代币信息 - 获取代币合约的基本信息，包括名称、符号、小数位数等元数据',
             inputSchema: zodToJsonSchema(
               z.object({
                 network: z.string().describe('区块链网络名称'),
