@@ -180,6 +180,16 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, MCPServerConfig> = {
     command: 'deepchat-inmemory/deeper-device-server',
     env: {},
     disable: false
+  },
+  'Deeper Wallet': {
+    args: [],
+    descriptions: 'DeepChat内置多链钱包服务 - 支持以太坊、Solana、Polygon等区块链网络查询',
+    icons: '💰',
+    autoApprove: ['all'],
+    type: 'inmemory' as MCPServerType,
+    command: 'deepchat-inmemory/deeper-wallet-server',
+    env: {},
+    disable: false
   }
 }
 
@@ -209,7 +219,7 @@ const DEFAULT_MCP_SERVERS = {
       type: 'stdio' as MCPServerType
     }
   },
-  defaultServers: ['Artifacts', 'playwright', 'Deeper Device'], // 使用友好的显示名称
+  defaultServers: ['Artifacts', 'playwright', 'Deeper Device', 'Deeper Wallet'], // 使用友好的显示名称
   mcpEnabled: true // 默认开启MCP功能
 }
 // 这部分mcp有系统逻辑判断是否启用，不受用户配置控制，受软件环境控制

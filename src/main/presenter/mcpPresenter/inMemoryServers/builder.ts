@@ -12,6 +12,7 @@ import { DeepResearchServer } from './deepResearchServer'
 import { AutoPromptingServer } from './autoPromptingServer'
 import { ConversationSearchServer } from './conversationSearchServer'
 import { DeeperDeviceServer } from './deeperDeviceServer'
+import { DeeperWalletServer } from './deeperWalletServer'
 
 export function getInMemoryServer(
   serverName: string,
@@ -79,6 +80,8 @@ export function getInMemoryServer(
       return new ConversationSearchServer()
     case 'deepchat-inmemory/deeper-device-server':
       return new DeeperDeviceServer()
+    case 'deepchat-inmemory/deeper-wallet-server':
+      return new DeeperWalletServer()
     default:
       throw new Error(`Unknown in-memory server: ${serverName}`)
   }
