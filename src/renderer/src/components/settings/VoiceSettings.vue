@@ -30,7 +30,7 @@
           <span class="text-sm font-medium">{{ t('settings.voice.userGender') }}</span>
         </span>
         <div class="flex-shrink-0 min-w-64 max-w-96">
-          <Select v-model="userGender" @update:modelValue="handleUserGenderChange">
+          <Select v-model="userGender" @update:model-value="handleUserGenderChange">
             <SelectTrigger>
               <SelectValue :placeholder="t('settings.voice.userGender')" />
             </SelectTrigger>
@@ -72,7 +72,7 @@
         <div class="flex flex-row items-center gap-2 pl-6">
           <span class="flex-grow text-sm">{{ t('settings.voice.preferredMaleVoice') }}：</span>
           <div class="flex-shrink-0 min-w-32">
-            <Select v-model="preferredMaleVoice" @update:modelValue="handlePreferredVoicesChange">
+            <Select v-model="preferredMaleVoice" @update:model-value="handlePreferredVoicesChange">
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -88,7 +88,10 @@
         <div class="flex flex-row items-center gap-2 pl-6">
           <span class="flex-grow text-sm">{{ t('settings.voice.preferredFemaleVoice') }}：</span>
           <div class="flex-shrink-0 min-w-32">
-            <Select v-model="preferredFemaleVoice" @update:modelValue="handlePreferredVoicesChange">
+            <Select
+              v-model="preferredFemaleVoice"
+              @update:model-value="handlePreferredVoicesChange"
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -114,8 +117,8 @@
             <Button
               size="sm"
               variant="outline"
-              @click="testVoiceResponse"
               :disabled="isTestingVoice"
+              @click="testVoiceResponse"
             >
               <Icon v-if="isTestingVoice" icon="lucide:loader" class="w-3 h-3 mr-1 animate-spin" />
               <Icon v-else icon="lucide:volume-2" class="w-3 h-3 mr-1" />

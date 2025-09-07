@@ -2,7 +2,7 @@
   <div v-if="showMonitor" class="parallel-tts-monitor">
     <div class="monitor-header">
       <h3>🎵 并行TTS监控</h3>
-      <button @click="toggleMonitor" class="close-btn">×</button>
+      <button class="close-btn" @click="toggleMonitor">×</button>
     </div>
 
     <div class="monitor-content">
@@ -70,7 +70,7 @@
   </div>
 
   <!-- 浮动按钮 -->
-  <button v-if="!showMonitor" @click="toggleMonitor" class="monitor-toggle-btn">📊 TTS监控</button>
+  <button v-if="!showMonitor" class="monitor-toggle-btn" @click="toggleMonitor">📊 TTS监控</button>
 </template>
 
 <script setup lang="ts">

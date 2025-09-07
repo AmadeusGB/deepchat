@@ -1,33 +1,33 @@
 <template>
   <div class="tts-control">
     <!-- TTS状态指示器 -->
-    <div class="tts-status" v-if="tts.isActive">
+    <div v-if="tts.isActive" class="tts-status">
       <div class="status-indicator" :class="statusClass">
-        <div class="pulse" v-if="tts.state.isPlaying"></div>
+        <div v-if="tts.state.isPlaying" class="pulse"></div>
       </div>
       <span class="status-text">{{ statusText }}</span>
     </div>
 
     <!-- TTS控制按钮 -->
-    <div class="tts-controls" v-if="tts.isActive">
+    <div v-if="tts.isActive" class="tts-controls">
       <!-- 播放/暂停按钮 -->
       <button
-        @click="togglePlayback"
         :disabled="!tts.canControl"
         class="control-btn primary"
         :title="tts.state.isPlaying ? '暂停' : '恢复'"
+        @click="togglePlayback"
       >
         <PlayIcon v-if="!tts.state.isPlaying" />
         <PauseIcon v-else />
       </button>
 
       <!-- 停止按钮 -->
-      <button @click="tts.stop" :disabled="!tts.canControl" class="control-btn" title="停止">
+      <button :disabled="!tts.canControl" class="control-btn" title="停止" @click="tts.stop">
         <StopIcon />
       </button>
 
       <!-- 跳过按钮 -->
-      <button @click="tts.skip" :disabled="!tts.canControl" class="control-btn" title="跳过当前">
+      <button :disabled="!tts.canControl" class="control-btn" title="跳过当前" @click="tts.skip">
         <SkipIcon />
       </button>
 
@@ -39,17 +39,17 @@
           min="0"
           max="100"
           :value="volumePercent"
-          @input="updateVolume"
           class="volume-slider"
+          @input="updateVolume"
         />
         <span class="volume-text">{{ volumePercent }}%</span>
       </div>
     </div>
 
     <!-- 策略选择 -->
-    <div class="strategy-control" v-if="tts.isActive && showAdvanced">
+    <div v-if="tts.isActive && showAdvanced" class="strategy-control">
       <label>播放策略：</label>
-      <select :value="tts.state.strategy" @change="updateStrategy" class="strategy-select">
+      <select :value="tts.state.strategy" class="strategy-select" @change="updateStrategy">
         <option value="realtime">实时模式（最低延迟）</option>
         <option value="balanced">平衡模式（推荐）</option>
         <option value="precise">精确模式（完整句子）</option>
@@ -57,7 +57,7 @@
     </div>
 
     <!-- 队列状态 -->
-    <div class="queue-status" v-if="tts.isActive && tts.state.queueLength > 0">
+    <div v-if="tts.isActive && tts.state.queueLength > 0" class="queue-status">
       <span>队列：{{ tts.state.queueLength }} 个音频块</span>
       <div class="queue-progress">
         <div class="progress-bar" :style="{ width: progressWidth }"></div>
@@ -65,13 +65,13 @@
     </div>
 
     <!-- 当前播放文本 -->
-    <div class="current-text" v-if="tts.state.currentText">
+    <div v-if="tts.state.currentText" class="current-text">
       <span class="text-label">正在播放：</span>
       <span class="text-content">{{ truncatedCurrentText }}</span>
     </div>
 
     <!-- 高级选项切换 -->
-    <button @click="showAdvanced = !showAdvanced" class="advanced-toggle" v-if="tts.isActive">
+    <button v-if="tts.isActive" class="advanced-toggle" @click="showAdvanced = !showAdvanced">
       {{ showAdvanced ? '隐藏高级选项' : '显示高级选项' }}
     </button>
   </div>

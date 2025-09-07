@@ -3,7 +3,7 @@
     <div class="monitor-header">
       <Icon icon="lucide:activity" class="w-4 h-4" />
       <span class="text-sm font-medium">TTS 性能监控</span>
-      <button @click="toggleMonitor" class="ml-auto">
+      <button class="ml-auto" @click="toggleMonitor">
         <Icon icon="lucide:x" class="w-3 h-3" />
       </button>
     </div>

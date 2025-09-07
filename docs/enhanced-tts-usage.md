@@ -212,7 +212,6 @@ const detailedStatus = tts.getDetailedStatus()
    ```
 
 2. **网络错误**
-
    - 系统会自动重试3次
    - 重试失败后会跳过当前文本块
    - 用户可以手动重新启动

@@ -14,12 +14,12 @@
       </div>
 
       <div class="flex gap-2">
-        <Button @click="testTTS" :disabled="isPlaying || !testText.trim()" class="flex-1">
+        <Button :disabled="isPlaying || !testText.trim()" class="flex-1" @click="testTTS">
           {{ isPlaying ? '播放中...' : '测试 TTS' }}
         </Button>
       </div>
 
-      <Button @click="stopTTS" :disabled="!isPlaying" variant="destructive" class="w-full">
+      <Button :disabled="!isPlaying" variant="destructive" class="w-full" @click="stopTTS">
         停止播放
       </Button>
 
