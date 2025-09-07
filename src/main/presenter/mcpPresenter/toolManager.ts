@@ -248,48 +248,56 @@ export class ToolManager {
       // 🧠 智能工具选择逻辑 - 增强版
       let finalName = requestedToolName
       let smartSelectionInfo: string | null = null
-      
+
       // 检查是否启用智能选择
       const smartSelectionEnabled = await this.smartToolSelector.isSmartSelectionEnabled()
-      
+
       if (smartSelectionEnabled) {
         // 智能选择触发条件：
         // 1. 工具不存在（原有逻辑）
         // 2. 工具名称是通用词汇（如 login, navigate, click 等）
-        const isGenericTool = !requestedToolName.includes('mcp_') && 
-                             !requestedToolName.includes('Deeper') && 
-                             requestedToolName.length < 20 // 通用工具名通常较短
-        
-        const shouldUseSmartSelection = !this.toolNameToTargetMap.has(requestedToolName) || isGenericTool
-        
+        const isGenericTool =
+          !requestedToolName.includes('mcp_') &&
+          !requestedToolName.includes('Deeper') &&
+          requestedToolName.length < 20 // 通用工具名通常较短
+
+        const shouldUseSmartSelection =
+          !this.toolNameToTargetMap.has(requestedToolName) || isGenericTool
+
         if (shouldUseSmartSelection) {
-          console.info(`[MCP] Attempting smart selection for '${requestedToolName}' (exists: ${this.toolNameToTargetMap.has(requestedToolName)}, generic: ${isGenericTool})`)
-          
+          console.info(
+            `[MCP] Attempting smart selection for '${requestedToolName}' (exists: ${this.toolNameToTargetMap.has(requestedToolName)}, generic: ${isGenericTool})`
+          )
+
           try {
             const selectionResult = await this.smartToolSelector.findBestTool(
               requestedToolName,
               allToolDefinitions
             )
-            
+
             // 如果是通用工具且已存在，需要更高的置信度
             const confidenceThreshold = this.toolNameToTargetMap.has(requestedToolName) ? 0.6 : 0.3
-            
+
             if (selectionResult.confidence > confidenceThreshold) {
               // 只有在选择的工具不同于原工具时才使用智能选择
               if (selectionResult.selectedTool !== requestedToolName) {
                 finalName = selectionResult.selectedTool
                 smartSelectionInfo = `🧠 智能选择: ${selectionResult.reason} (置信度: ${(selectionResult.confidence * 100).toFixed(1)}%)`
-                
+
                 if (selectionResult.alternatives.length > 0) {
                   smartSelectionInfo += `\n📋 其他选项: ${selectionResult.alternatives.join(', ')}`
                 }
-                
-                console.info(`[MCP] Smart selection chose '${finalName}' for '${requestedToolName}' (confidence: ${selectionResult.confidence.toFixed(3)})`)
+
+                console.info(
+                  `[MCP] Smart selection chose '${finalName}' for '${requestedToolName}' (confidence: ${selectionResult.confidence.toFixed(3)})`
+                )
               } else {
                 console.info(`[MCP] Smart selection confirmed original tool '${requestedToolName}'`)
               }
             } else {
-              console.warn(`[MCP] Smart selection confidence too low (${selectionResult.confidence.toFixed(3)}) for '${requestedToolName}', threshold: ${confidenceThreshold}`)
+              console.warn(
+                `[MCP] Smart selection confidence too low (${selectionResult.confidence.toFixed(3)}) for '${requestedToolName}', threshold: ${confidenceThreshold}`
+              )
             }
           } catch (error) {
             console.error('[MCP] Smart selection failed:', error)

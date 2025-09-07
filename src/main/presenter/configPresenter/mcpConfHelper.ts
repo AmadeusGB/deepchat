@@ -249,7 +249,10 @@ export class McpConfHelper {
     const updatedServers = { ...storedServers }
 
     // 清理重复的 Deeper Device 配置 - 删除旧的技术名称配置
-    if (updatedServers['deepchat-inmemory/deeper-device-server'] && updatedServers['Deeper Device']) {
+    if (
+      updatedServers['deepchat-inmemory/deeper-device-server'] &&
+      updatedServers['Deeper Device']
+    ) {
       console.log('检测到重复的 Deeper Device 配置，删除旧的技术名称配置')
       delete updatedServers['deepchat-inmemory/deeper-device-server']
     }
@@ -548,7 +551,7 @@ export class McpConfHelper {
     try {
       const mcpServers = this.mcpStore.get('mcpServers') || {}
       const defaultServers = this.mcpStore.get('defaultServers') || []
-      
+
       let serversChanged = false
       let defaultsChanged = false
 
