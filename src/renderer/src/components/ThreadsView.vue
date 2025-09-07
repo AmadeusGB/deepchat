@@ -55,11 +55,11 @@
               :thread="dtThread"
               :is-active="dtThread.id === chatStore.getActiveThreadId()"
               :working-status="chatStore.getThreadWorkingStatus(dtThread.id)"
+              class="figma-thread-item"
               @select="handleThreadSelect"
               @rename="showRenameDialog(dtThread)"
               @delete="showDeleteDialog(dtThread)"
               @cleanmsgs="showCleanMessagesDialog(dtThread)"
-              class="figma-thread-item"
             />
           </ul>
         </div>

@@ -9,8 +9,8 @@
         :key="chatStore.getActiveThreadId() ?? 'default'"
         ref="messageList"
         :messages="chatStore.getMessages()"
-        @scroll-bottom="scrollToBottom"
         class="h-full"
+        @scroll-bottom="scrollToBottom"
       />
     </div>
 
@@ -18,10 +18,10 @@
     <div class="figma-input-container w-full relative">
       <ChatInput
         :disabled="!chatStore.getActiveThreadId() || isGenerating"
+        class="figma-input-wrapper"
         @send="handleSend"
         @file-upload="handleFileUpload"
         @voice-mode="handleVoiceMode"
-        class="figma-input-wrapper"
         @toolbar-toggle="handleToolbarToggle"
       >
         <template #addon-buttons>

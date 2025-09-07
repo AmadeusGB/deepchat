@@ -9,9 +9,9 @@
           <!-- Light beams above device -->
           <div class="figma-light-beams figma-light-beams-top">
             <div
-              class="figma-light-beam"
               v-for="i in 6"
               :key="`top-${i}`"
+              class="figma-light-beam"
               :style="{ left: `${15 + (i - 1) * 14}%` }"
             ></div>
           </div>
@@ -22,9 +22,9 @@
           <!-- Light beams below device -->
           <div class="figma-light-beams figma-light-beams-bottom">
             <div
-              class="figma-light-beam"
               v-for="i in 6"
               :key="`bottom-${i}`"
+              class="figma-light-beam"
               :style="{ left: `${15 + (i - 1) * 14}%` }"
             ></div>
           </div>

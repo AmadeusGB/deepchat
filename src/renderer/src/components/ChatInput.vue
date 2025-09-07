@@ -45,7 +45,7 @@
           @keydown.enter.exact="handleEditorEnter"
         />
 
-        <div class="flex items-center justify-between" v-if="!props.hideToolbar">
+        <div v-if="!props.hideToolbar" class="flex items-center justify-between">
           <!-- {{ t('chat.input.functionSwitch') }} -->
           <div class="flex gap-1.5">
             <!-- 工具栏展开/收起按钮 -->
