@@ -24,7 +24,7 @@ interface ToolUsageHistory {
 }
 
 export class SmartToolSelector {
-  private configPresenter: IConfigPresenter
+  private _configPresenter: IConfigPresenter // Currently unused but may be needed for future features
   private usageHistory: Map<string, ToolUsageHistory> = new Map()
 
   // 关键词匹配规则 - 优化版
@@ -188,7 +188,7 @@ export class SmartToolSelector {
   ]
 
   constructor(configPresenter: IConfigPresenter) {
-    this.configPresenter = configPresenter
+    this._configPresenter = configPresenter
   }
 
   /**
