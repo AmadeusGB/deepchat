@@ -17,13 +17,11 @@
 核心思路是分离窗口管理和标签页管理，并实现它们之间的协作。
 
 1.  **核心组件:**
-
     - **`WindowPresenter`**: 管理 `BrowserWindow` 实例的生命周期和集合。
     - **`TabPresenter` (新增)**: 全局管理所有 `WebContentsView` (标签页) 实例的生命周期、状态、窗口归属以及跨窗口移动。
     - **`BrowserWindow`**: 作为顶级容器，包含一个用于渲染标签栏 UI 的轻量级页面，并管理一组由 `TabPresenter` 控制的 `WebContentsView`。
 
 2.  **`WindowPresenter` 改造:**
-
     - **职责:** 创建、管理 `BrowserWindow` 实例（窗口本身的最小化、最大化、关闭等）。
     - **窗口集合:** 使用 `Map<number, BrowserWindow>` 存储窗口实例，`key` 为 `BrowserWindow` 的 `id`。
     - **窗口创建:** `createWindow` 负责创建配置好标签栏 UI 和 `WebContentsView` 容器的 `BrowserWindow`。
@@ -32,7 +30,6 @@
     - **事件广播:** 应用级事件（如主题更改）需要广播到所有窗口；窗口级事件需要正确处理。
 
 3.  **`TabPresenter` (新增):**
-
     - **职责:** 核心的标签页管理器。
     - **数据结构:**
       - `tabs: Map<number, { view: WebContentsView, state: TabState, windowId: number }>`: 全局标签页实例及其状态存储。 Key 为 `tabId` (`webContents.id`), Value 为一个包含 `WebContentsView` 实例、状态对象 (`TabState`: { URL, title, favicon, isActive, etc. }) 以及所属窗口 ID (`windowId`) 的对象。
@@ -47,7 +44,6 @@
     - **事件/IPC 处理:** 监听 `WebContentsView` 事件更新 `tabs` 中对应 `TabInfo` 的 `state`，处理来自渲染进程的标签操作请求。
 
 4.  **IPC 通信:**
-
     - **Renderer -> Main:**
       - `requestNewTab(windowId, url)` -> `TabPresenter.createTab`
       - `requestCloseTab(windowId, tabId)` -> `TabPresenter.destroyTab`
@@ -59,7 +55,6 @@
       - `setActiveTab(windowId, tabId)`: 指示渲染进程高亮活动标签。
 
 5.  **`TrayPresenter` & `ContextMenuHelper`:**
-
     - 需要能访问窗口和标签列表 (`WindowPresenter`, `TabPresenter`)。
     - 明确托盘图标点击行为（如显示窗口列表、激活最近使用的标签页等）。
     - 上下文菜单能根据当前的 `WebContentsView` 提供相关操作。
@@ -67,9 +62,7 @@
 6.  **渲染进程 (Renderer): 多入口架构**
 
     为了清晰地分离窗口外壳 (Window Shell) 和标签页内容 (Tab Content) 的职责与构建产物，渲染层将采用多入口构建策略。这将需要修改 `electron.vite.config.ts` 以支持多个 `renderer` 输入。
-
     - **入口 1: Window Shell (窗口外壳)**
-
       - **代码目录:** `src/renderer/shell/`
       - **入口文件:** `src/renderer/shell/index.html` (及其关联的 `main.ts`)
       - **职责:**
@@ -82,7 +75,6 @@
       - **加载方式:** 主进程的 `WindowPresenter` 在创建 `BrowserWindow` 时，应加载此入口的 `index.html` (例如 `dist/renderer/shell/index.html`)。
 
     - **入口 2: Tab Content (标签页内容)**
-
       - **代码目录:** `src/renderer/content/`
       - **入口文件:** `src/renderer/content/index.html` (及其关联的 `main.ts`)
       - **职责:**
@@ -94,7 +86,6 @@
       - **加载方式:** 主进程的 `TabPresenter` 在创建 `WebContentsView` 实例时，应加载此入口的 `index.html` 并附加相应的 URL hash/path 以进行内容路由。
 
     - **共享代码:**
-
       - 通用的类型定义、工具函数、常量等应放置在 `@shared` 目录中，供主进程和两个渲染进程入口共享。
       - 如果有跨 `shell` 和 `content` 的共享 Vue 组件或 UI 库，需要规划好共享方式 (例如通过 `@shared` 或独立的 UI 包)。
 

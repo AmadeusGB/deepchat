@@ -18,7 +18,6 @@
 将事件按功能领域分类，并采用统一的命名规范：
 
 1. **配置相关事件**：
-
    - `config:provider-changed`：提供者配置变更
    - `config:system-changed`：系统配置变更
    - `config:model-list-changed`：配置中的模型列表变更
@@ -27,19 +26,16 @@
    全部去掉，模型状态和名称事件都有config来发起,和上层settings保持语义一致
 
 3. **会话相关事件**：
-
    - `conversation:created`
    - `conversation:activated`
    - `conversation:cleared`
 
 4. **通信相关事件**：
-
    - `stream:response`
    - `stream:end`
    - `stream:error`
 
 5. **应用更新相关事件**：
-
    - `update:status-changed`
    - `update:progress`
    - `update:error`
