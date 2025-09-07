@@ -44,26 +44,29 @@ deepchat/src/main/presenter/mcpPresenter/inMemoryServers/
 ### 2. 关键变更
 
 #### 2.1 服务器类结构
+
 - **原始**: 使用函数式创建服务器 (`getServer()`)
 - **迁移后**: 使用类结构 (`DeeperDeviceServer`)
 
 #### 2.2 传输层适配
-- **原始**: 使用 `StdioServerTransport` 
+
+- **原始**: 使用 `StdioServerTransport`
 - **迁移后**: 使用 `Transport` 接口，支持内存传输
 
 #### 2.3 配置集成
+
 - **原始**: 独立的配置管理
 - **迁移后**: 集成到 DeepChat 的 MCP 配置系统
 
 ### 3. 核心功能映射
 
-| 原始功能 | 迁移后位置 | 说明 |
-|---------|-----------|------|
-| DPN 管理 | `deeperDeviceServer.ts` | 保持所有DPN相关功能 |
+| 原始功能 | 迁移后位置              | 说明                 |
+| -------- | ----------------------- | -------------------- |
+| DPN 管理 | `deeperDeviceServer.ts` | 保持所有DPN相关功能  |
 | 家长控制 | `deeperDeviceServer.ts` | 保持所有家长控制功能 |
 | 系统管理 | `deeperDeviceServer.ts` | 保持所有系统管理功能 |
-| 状态管理 | `deeperDeviceServer.ts` | 全局状态变量 |
-| 指令说明 | `deeperDeviceServer.ts` | 嵌入到工具设置中 |
+| 状态管理 | `deeperDeviceServer.ts` | 全局状态变量         |
+| 指令说明 | `deeperDeviceServer.ts` | 嵌入到工具设置中     |
 
 ## 后续迁移流程
 
@@ -87,6 +90,7 @@ cp deeperDeviceServer.ts deeperDeviceServer.ts.backup
 ### 手动迁移步骤
 
 1. **代码更新**：
+
    ```bash
    cd /Users/binguo/workspaces/deeper-device-mcp
    git pull origin main
@@ -132,24 +136,28 @@ cp deeperDeviceServer.ts deeperDeviceServer.ts.backup
 ## 迁移检查清单
 
 ### 代码迁移
+
 - [ ] 所有工具函数已迁移
-- [ ] 状态管理逻辑已迁移  
+- [ ] 状态管理逻辑已迁移
 - [ ] 指令说明已更新
 - [ ] 错误处理逻辑已迁移
 
 ### 配置迁移
+
 - [ ] 服务器配置已更新
 - [ ] 默认服务器列表已更新
 - [ ] 环境变量已配置
 - [ ] 权限设置已配置
 
 ### 功能验证
+
 - [ ] 所有DPN功能正常工作
 - [ ] 所有家长控制功能正常工作
 - [ ] 所有系统管理功能正常工作
 - [ ] 与原始项目功能一致
 
 ### 集成验证
+
 - [ ] 在DeepChat中能正常启动
 - [ ] 在MCP服务器列表中显示正常
 - [ ] 工具调用正常响应
@@ -157,10 +165,123 @@ cp deeperDeviceServer.ts deeperDeviceServer.ts.backup
 
 ## 版本历史
 
-| 版本 | 日期 | 变更说明 |
-|------|------|----------|
-| 1.0.0 | 2024-07-09 | 初始迁移完成 |
+| 版本  | 日期       | 变更说明                                                                       |
+| ----- | ---------- | ------------------------------------------------------------------------------ |
+| 1.0.0 | 2024-07-09 | 初始迁移完成                                                                   |
 | 1.0.1 | 2024-07-09 | 优化显示名称：从 "deepchat-inmemory/deeper-device-server" 改为 "Deeper Device" |
+| 2.0.0 | 2025-01-07 | **重大功能更新** - 同步原项目最新功能，新增11个工具和30+个API函数               |
+
+## 2.0.0 版本更新详情
+
+### 新增功能模块
+
+#### 🔐 访问控制管理
+- **listAccessControl** - 查看设备访问控制列表
+- **setAccessControl** - 配置设备访问控制  
+- **updateOneAccessControlDevice** - 更新单个设备配置
+- 新增设备状态管理：在线/离线设备分类显示
+- 支持设备路由模式、HTTPS过滤、域名绕过、带宽限制配置
+
+#### 🌐 网络共享功能
+- **enableSharingState** - 配置网络共享状态
+- **setBtSharing** - BitTorrent共享配置
+- **setSmtpSharing** - SMTP共享配置
+- **setSharingTrafficLimit** - 共享流量限制（GB）
+- **setSharingBandwidthLimit** - 共享带宽限制（Mbps）
+
+#### 🔍 DPN增强功能
+- **deleteTunnels** - 批量删除DPN隧道
+- **testTunnelsConnectivity** - 隧道连接性测试与自动修复
+- 新增隧道节点切换和刷新功能
+- 集成ping连接性检测
+
+#### 📊 系统信息聚合
+- **getDeeperSystemInfo** - 综合系统信息获取
+- 集成软件版本、硬件信息、网络地址、会话统计
+- 一次性获取全面系统状态
+
+### 技术架构增强
+
+#### 新增接口定义
+```typescript
+interface AccessControlDevice {
+  mac: string
+  createdAt: number
+  name: string
+  routeMode: string
+  regionCode: string | null
+  httpsFilter: boolean
+  remark: string
+  pinned: boolean
+  bypass: string[]
+  bwLimit: number
+  ip: string
+}
+```
+
+#### 状态管理扩展
+- 新增设备列表状态管理 `deviceList: AccessControlDevice[]`
+- 新增设备列表操作函数 `getDeviceList()`, `setDeviceList()`
+
+#### API端点映射
+- `/api/accessControl/*` - 访问控制相关API
+- `/api/sharing/*` - 网络共享相关API
+- `/api/system-info/*` - 系统信息相关API
+- `/api/smartRoute/deleteTunnels` - 隧道删除API
+- `/api/smartRoute/switchNode` - 节点切换API
+- `/api/smartRoute/refreshTunnel` - 隧道刷新API
+
+### 新增核心函数
+
+#### 访问控制函数 (6个)
+- `listAccessControl()` - 获取设备列表
+- `setOneAccessControl()` - 更新设备配置
+- `switchAccessControl()` - 启用/禁用访问控制
+- `getAccessControlSwitch()` - 获取访问控制状态
+- `ensureAccessControlSwitch()` - 确保访问控制启用
+
+#### 网络共享函数 (6个)
+- `getSharingConfig()` - 获取共享配置
+- `setSharingConfig()` - 设置共享配置
+- `setSharingState()` - 设置共享状态
+- `setBtSharing()` - 设置BT共享
+- `setSmtpSharing()` - 设置SMTP共享
+- `setSharingTrafficLimit()` - 设置流量限制
+- `setSharingBandwidthLimit()` - 设置带宽限制
+
+#### 系统信息函数 (4个)
+- `getSessionInfo()` - 获取会话信息
+- `getHardwareInfo()` - 获取硬件信息
+- `getSoftwareInfo()` - 获取软件信息
+- `getNetworkAddress()` - 获取网络地址
+
+#### DPN增强函数 (3个)
+- `deleteTunnels()` - 删除隧道
+- `refreshTunnel()` - 刷新隧道
+- `switchNode()` - 切换节点
+
+### 用户体验提升
+
+#### 智能自动化
+- 隧道连接性自动检测和修复
+- 访问控制自动启用依赖检查
+- 共享功能依赖自动配置
+
+#### 详细中文描述
+- 所有新工具配备emoji图标和详细中文说明
+- 明确功能用途、配置选项和使用场景
+- 提供参数说明和使用建议
+
+#### 增强错误处理
+- 完善的错误信息提示
+- 自动登录回退机制
+- 详细的操作失败原因说明
+
+### 兼容性保证
+- 保持与原有工具的完全兼容性
+- 维持现有API接口不变
+- 支持DeepChat MCP传输层
+- 兼容现有认证和状态管理机制
 
 ## 相关文件
 
