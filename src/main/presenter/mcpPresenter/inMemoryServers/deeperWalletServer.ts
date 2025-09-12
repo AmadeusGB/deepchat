@@ -85,6 +85,17 @@ const SUPPORTED_NETWORKS = {
     ],
     currency: 'BNB'
   },
+  // Additional EVM networks
+  HOLESKY: {
+    name: 'Holesky Testnet',
+    type: 'EVM',
+    chainId: 17000,
+    rpcUrls: [
+      'https://ethereum-holesky-rpc.publicnode.com',
+      'https://holesky.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161'
+    ],
+    currency: 'ETH'
+  },
   // Testnets
   'ETHEREUM-SEPOLIA': {
     name: 'Ethereum Sepolia',
@@ -96,6 +107,26 @@ const SUPPORTED_NETWORKS = {
       'https://sepolia.gateway.tenderly.co'
     ],
     currency: 'ETH'
+  },
+  'ETHEREUM-HOLESKY': {
+    name: 'Ethereum Holesky',
+    type: 'EVM',
+    chainId: 17000,
+    rpcUrls: [
+      'https://ethereum-holesky-rpc.publicnode.com',
+      'https://holesky.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161'
+    ],
+    currency: 'ETH'
+  },
+  'POLYGON-MUMBAI': {
+    name: 'Polygon Mumbai',
+    type: 'EVM',
+    chainId: 80001,
+    rpcUrls: [
+      'https://rpc-mumbai.maticvigil.com',
+      'https://polygon-mumbai.blockpi.network/v1/rpc/public'
+    ],
+    currency: 'MATIC'
   },
   // Solana
   SOLANA: {
@@ -109,6 +140,45 @@ const SUPPORTED_NETWORKS = {
     type: 'SOLANA',
     rpcUrls: ['https://api.devnet.solana.com'],
     currency: 'SOL'
+  },
+  'SOLANA-TESTNET': {
+    name: 'Solana Testnet',
+    type: 'SOLANA',
+    rpcUrls: ['https://api.testnet.solana.com'],
+    currency: 'SOL'
+  },
+  // SUI Network
+  SUI: {
+    name: 'Sui Mainnet',
+    type: 'SUI',
+    rpcUrls: ['https://fullnode.mainnet.sui.io:443'],
+    currency: 'SUI'
+  },
+  'SUI-TESTNET': {
+    name: 'Sui Testnet',
+    type: 'SUI',
+    rpcUrls: ['https://fullnode.testnet.sui.io:443'],
+    currency: 'SUI'
+  },
+  // TRON Network
+  TRON: {
+    name: 'TRON Mainnet',
+    type: 'TRON',
+    rpcUrls: ['https://api.trongrid.io'],
+    currency: 'TRX'
+  },
+  // Bitcoin
+  BITCOIN: {
+    name: 'Bitcoin Mainnet',
+    type: 'BITCOIN',
+    rpcUrls: ['https://blockstream.info/api'],
+    currency: 'BTC'
+  },
+  'BITCOIN-TESTNET': {
+    name: 'Bitcoin Testnet',
+    type: 'BITCOIN',
+    rpcUrls: ['https://blockstream.info/testnet/api'],
+    currency: 'BTC'
   }
 } as const
 
@@ -129,6 +199,20 @@ function isValidEthereumAddress(address: string): boolean {
 
 function isValidSolanaAddress(address: string): boolean {
   return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)
+}
+
+function isValidSuiAddress(address: string): boolean {
+  return /^0x[a-fA-F0-9]{64}$/.test(address)
+}
+
+function isValidTronAddress(address: string): boolean {
+  return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address)
+}
+
+function isValidBitcoinAddress(address: string): boolean {
+  // Bitcoin mainnet: starts with 1, 3, or bc1
+  // Bitcoin testnet: starts with m, n, 2, or tb1
+  return /^(1|3|bc1|m|n|2|tb1)[a-zA-Z0-9]{25,62}$/.test(address)
 }
 
 function hexToDecimal(hex: string): string {
@@ -292,7 +376,7 @@ function hexToString(hex: string): string {
   // Convert hex to bytes and then to string, removing null bytes
   let result = ''
   for (let i = 0; i < hex.length; i += 2) {
-    const byte = parseInt(hex.substr(i, 2), 16)
+    const byte = parseInt(hex.substring(i, i + 2), 16)
     if (byte !== 0) {
       result += String.fromCharCode(byte)
     }
@@ -391,6 +475,16 @@ export class DeeperWalletServer {
                 address: z.string().describe('要验证的地址')
               })
             )
+          },
+          {
+            name: 'getNetworkInfo',
+            description:
+              '📋 获取网络详细信息 - 获取指定区块链网络的详细配置信息，包括RPC端点、链ID等',
+            inputSchema: zodToJsonSchema(
+              z.object({
+                network: z.string().describe('区块链网络名称')
+              })
+            )
           }
         ]
       }
@@ -441,7 +535,7 @@ export class DeeperWalletServer {
             }
 
             const networkConfig = SUPPORTED_NETWORKS[networkKey]
-            let result
+            let result: { success: boolean; balance?: string; error?: string }
 
             if (networkConfig.type === 'EVM') {
               result = await getEVMBalance(networkKey, address)
@@ -452,7 +546,7 @@ export class DeeperWalletServer {
                 content: [
                   {
                     type: 'text',
-                    text: `Network type ${(networkConfig as any).type} not yet implemented`
+                    text: `Network type ${networkConfig.type} not yet implemented`
                   }
                 ]
               }
@@ -625,6 +719,12 @@ export class DeeperWalletServer {
               isValid = isValidEthereumAddress(address)
             } else if (networkConfig.type === 'SOLANA') {
               isValid = isValidSolanaAddress(address)
+            } else if (networkConfig.type === 'SUI') {
+              isValid = isValidSuiAddress(address)
+            } else if (networkConfig.type === 'TRON') {
+              isValid = isValidTronAddress(address)
+            } else if (networkConfig.type === 'BITCOIN') {
+              isValid = isValidBitcoinAddress(address)
             }
 
             return {
@@ -632,6 +732,45 @@ export class DeeperWalletServer {
                 {
                   type: 'text',
                   text: `Address: ${address}\nNetwork: ${networkConfig.name}\nType: ${networkConfig.type}\nValid: ${isValid ? '✅ Yes' : '❌ No'}`
+                }
+              ]
+            }
+          }
+
+          case 'getNetworkInfo': {
+            const { network } = z
+              .object({
+                network: z.string()
+              })
+              .parse(args)
+
+            const networkKey = network.toUpperCase() as NetworkKey
+            if (!(networkKey in SUPPORTED_NETWORKS)) {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Unsupported network: ${network}. Use getSupportedNetworks to see available networks.`
+                  }
+                ]
+              }
+            }
+
+            const networkConfig = SUPPORTED_NETWORKS[networkKey]
+            const networkInfo = {
+              network: networkKey,
+              name: networkConfig.name,
+              type: networkConfig.type,
+              currency: networkConfig.currency,
+              chainId: 'chainId' in networkConfig ? networkConfig.chainId : undefined,
+              rpcUrls: networkConfig.rpcUrls
+            }
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Network Information:\n${JSON.stringify(networkInfo, null, 2)}`
                 }
               ]
             }
