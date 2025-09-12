@@ -14,9 +14,6 @@ import { useThemeStore } from '@/stores/theme'
 import { useLanguageStore } from '@/stores/language'
 import TranslatePopup from '@/components/popup/TranslatePopup.vue'
 
-// Stagewise development mode flag
-const isDev = import.meta.env.DEV
-const isStageWiseInitialized = ref(false)
 
 const route = useRoute()
 const configPresenter = usePresenter('configPresenter')
@@ -177,43 +174,6 @@ onMounted(() => {
   document.body.classList.add(themeStore.themeMode)
   document.body.classList.add(settingsStore.fontSizeClass)
 
-  // Initialize stagewise toolbar in development (only once)
-  if (isDev && !isStageWiseInitialized.value) {
-    isStageWiseInitialized.value = true
-    // Use dynamic import with string to avoid TypeScript module resolution issues
-    Promise.all([
-      import('@stagewise/toolbar-vue').catch(() => null),
-      import('@stagewise-plugins/vue').catch(() => null)
-    ])
-      .then(([toolbarModule, pluginModule]) => {
-        if (!toolbarModule || !pluginModule) {
-          console.log('Stagewise toolbar not available in development')
-          isStageWiseInitialized.value = false
-          return
-        }
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { StagewiseToolbar } = toolbarModule as any
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { VuePlugin } = pluginModule as any
-
-        // Create and mount stagewise toolbar
-        const app = document.createElement('div')
-        document.body.appendChild(app)
-
-        import('vue').then(({ createApp }) => {
-          createApp(StagewiseToolbar, {
-            config: {
-              plugins: [VuePlugin]
-            }
-          }).mount(app)
-        })
-      })
-      .catch(() => {
-        console.log('Stagewise toolbar not available in development')
-        isStageWiseInitialized.value = false
-      })
-  }
 
   // 监听全局错误通知事件
   window.electron.ipcRenderer.on(NOTIFICATION_EVENTS.SHOW_ERROR, (_event, error) => {
