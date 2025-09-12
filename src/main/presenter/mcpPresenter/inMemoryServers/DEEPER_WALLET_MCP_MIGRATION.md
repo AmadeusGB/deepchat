@@ -85,11 +85,19 @@ deepchat/src/main/presenter/mcpPresenter/inMemoryServers/
 - **AVALANCHE** - Avalanche C-Chain
 - **BNBSMARTCHAIN** - BNB智能链
 - **SOLANA** - Solana主网
+- **SUI** - Sui主网 (新增)
+- **TRON** - Tron主网 (新增)
+- **BITCOIN** - 比特币主网 (新增)
 
 ### 测试网络 (Testnets)
 
 - **ETHEREUM-SEPOLIA** - 以太坊Sepolia测试网
+- **ETHEREUM-HOLESKY** - 以太坊Holesky测试网 (新增)
+- **POLYGON-MUMBAI** - Polygon Mumbai测试网 (新增)
 - **SOLANA-DEVNET** - Solana开发网
+- **SOLANA-TESTNET** - Solana测试网 (新增)
+- **SUI-TESTNET** - Sui测试网 (新增)
+- **BITCOIN-TESTNET** - 比特币测试网 (新增)
 
 ## 工具功能映射
 
@@ -103,6 +111,7 @@ deepchat/src/main/presenter/mcpPresenter/inMemoryServers/
 | transferContractTokenFromMyWallet | ❌ 未迁移 | -                    | 涉及私钥，安全风险 |
 | -                                 | ✅ 新增   | getSupportedNetworks | 查看支持的网络列表 |
 | -                                 | ✅ 新增   | validateAddress      | 验证地址格式       |
+| -                                 | ✅ 新增   | getNetworkInfo       | 获取网络详细信息   |
 
 ## API端点使用
 
@@ -120,6 +129,18 @@ deepchat/src/main/presenter/mcpPresenter/inMemoryServers/
 
 - https://api.mainnet-beta.solana.com
 - https://solana-api.projectserum.com
+
+**Sui主网**：
+
+- https://fullnode.mainnet.sui.io:443
+
+**TRON主网**：
+
+- https://api.trongrid.io
+
+**Bitcoin主网**：
+
+- https://blockstream.info/api
 
 **其他网络**：类似配置多个备用端点以确保服务可用性
 
@@ -222,9 +243,10 @@ getTokenMetadata({
 
 ## 版本历史
 
-| 版本  | 日期       | 变更说明             |
-| ----- | ---------- | -------------------- |
-| 1.0.0 | 2025-01-07 | 初始简化版本集成完成 |
+| 版本  | 日期       | 变更说明                                                               |
+| ----- | ---------- | ---------------------------------------------------------------------- |
+| 1.0.0 | 2025-01-07 | 初始简化版本集成完成                                                   |
+| 1.1.0 | 2025-01-12 | 新增SUI、TRON、Bitcoin网络支持，新增getNetworkInfo工具，添加更多测试网 |
 
 ## 相关文件
 
