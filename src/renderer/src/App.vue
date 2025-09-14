@@ -14,7 +14,6 @@ import { useThemeStore } from '@/stores/theme'
 import { useLanguageStore } from '@/stores/language'
 import TranslatePopup from '@/components/popup/TranslatePopup.vue'
 
-
 const route = useRoute()
 const configPresenter = usePresenter('configPresenter')
 const artifactStore = useArtifactStore()
@@ -173,7 +172,6 @@ onMounted(() => {
   // 设置初始 body class
   document.body.classList.add(themeStore.themeMode)
   document.body.classList.add(settingsStore.fontSizeClass)
-
 
   // 监听全局错误通知事件
   window.electron.ipcRenderer.on(NOTIFICATION_EVENTS.SHOW_ERROR, (_event, error) => {

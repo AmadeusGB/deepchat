@@ -485,6 +485,34 @@ export class DeeperWalletServer {
                 network: z.string().describe('区块链网络名称')
               })
             )
+          },
+          {
+            name: 'swapTokens',
+            description: '💱 交换代币 - 使用 Uniswap 在指定的区块链网络上交换代币',
+            inputSchema: zodToJsonSchema(
+              z.object({
+                fromAddress: z.string().describe('发送者地址'),
+                fromToken: z
+                  .string()
+                  .describe('要交换的代币符号或地址（例如 "eth" 或 ERC20 地址）'),
+                toToken: z
+                  .string()
+                  .describe('要交换到的代币符号或地址（例如 "usdc" 或 ERC20 地址）'),
+                amountIn: z.string().describe('要交换的金额（以最小单位的字符串形式）'),
+                amountOutMin: z
+                  .string()
+                  .optional()
+                  .default('0')
+                  .describe('最小接收金额（以最小单位的字符串形式）'),
+                network: z.string().describe('区块链网络名称，如 ETHEREUM、POLYGON 等'),
+                options: z
+                  .object({
+                    version: z.string().optional().describe('Uniswap 版本，例如 "V3"')
+                  })
+                  .optional()
+                  .describe('其他交换选项')
+              })
+            )
           }
         ]
       }
@@ -771,6 +799,72 @@ export class DeeperWalletServer {
                 {
                   type: 'text',
                   text: `Network Information:\n${JSON.stringify(networkInfo, null, 2)}`
+                }
+              ]
+            }
+          }
+
+          case 'swapTokens': {
+            const { fromAddress, fromToken, toToken, amountIn, amountOutMin, network, options } = z
+              .object({
+                fromAddress: z.string(),
+                fromToken: z.string(),
+                toToken: z.string(),
+                amountIn: z.string(),
+                amountOutMin: z.string().optional().default('0'),
+                network: z.string(),
+                options: z
+                  .object({
+                    version: z.string().optional()
+                  })
+                  .optional()
+              })
+              .parse(args)
+
+            const networkKey = network.toUpperCase() as NetworkKey
+            if (!(networkKey in SUPPORTED_NETWORKS)) {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Unsupported network: ${network}. Use getSupportedNetworks to see available networks.`
+                  }
+                ]
+              }
+            }
+
+            const networkConfig = SUPPORTED_NETWORKS[networkKey]
+
+            // Check if network is EVM-based (Uniswap only works on EVM chains)
+            if (networkConfig.type !== 'EVM') {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Token swapping via Uniswap is only supported on EVM-compatible networks. ${network} is a ${networkConfig.type} network.`
+                  }
+                ]
+              }
+            }
+
+            // Simulate the swap operation
+            const swapInfo = {
+              network: networkKey,
+              fromAddress,
+              fromToken: fromToken.toLowerCase(),
+              toToken: toToken.toLowerCase(),
+              amountIn,
+              amountOutMin,
+              uniswapVersion: options?.version || 'V3',
+              estimatedGas: '150000',
+              status: 'simulated'
+            }
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Token Swap (Simulated):\n${JSON.stringify(swapInfo, null, 2)}\n\nNote: This is a simulated swap. In a real implementation, this would execute the swap on ${networkConfig.name} using Uniswap ${options?.version || 'V3'}.`
                 }
               ]
             }
