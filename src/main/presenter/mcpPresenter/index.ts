@@ -13,6 +13,7 @@ import {
 import { ServerManager } from './serverManager'
 import { ToolManager } from './toolManager'
 import { MCPHealthChecker } from './healthChecker'
+import { MCPUsageTracker } from './usageTracker'
 import { eventBus, SendTarget } from '@/eventbus'
 import { MCP_EVENTS, NOTIFICATION_EVENTS } from '@/events'
 import { IConfigPresenter } from '@shared/presenter'
@@ -83,6 +84,7 @@ export class McpPresenter implements IMCPPresenter {
   private serverManager: ServerManager
   private toolManager: ToolManager
   private healthChecker: MCPHealthChecker
+  private usageTracker: MCPUsageTracker
   private configPresenter: IConfigPresenter
   private isInitialized: boolean = false
 
@@ -98,6 +100,7 @@ export class McpPresenter implements IMCPPresenter {
       retryAttempts: 3,
       enabled: true
     })
+    this.usageTracker = new MCPUsageTracker()
 
     // 监听自定义提示词服务器检查事件
     eventBus.on(CONFIG_EVENTS.CUSTOM_PROMPTS_SERVER_CHECK_REQUIRED, async () => {
@@ -124,6 +127,13 @@ export class McpPresenter implements IMCPPresenter {
           duration: 5000
         })
       }
+    })
+
+    // 监听使用统计事件
+    this.usageTracker.on(MCP_EVENTS.USAGE_STATS_UPDATED, (analytics) => {
+      console.log('Usage analytics updated:', analytics)
+      // 转发使用统计更新到渲染进程
+      eventBus.send(MCP_EVENTS.USAGE_STATS_UPDATED, SendTarget.ALL_WINDOWS, analytics)
     })
 
     // 延迟初始化，确保其他组件已经准备好
@@ -550,8 +560,63 @@ export class McpPresenter implements IMCPPresenter {
   }
 
   async callTool(request: MCPToolCall): Promise<{ content: string; rawData: MCPToolResponse }> {
-    const toolCallResult = await this.toolManager.callTool(request)
+    const startTime = Date.now()
+    let success = false
+    let error: string | undefined
 
+    try {
+      const toolCallResult = await this.toolManager.callTool(request)
+      success = true
+
+      // 格式化结果
+      const formattedResult = this.formatToolCallResult(toolCallResult)
+
+      // 记录使用统计
+      this.recordToolUsage(request, startTime, success, formattedResult)
+
+      return formattedResult
+    } catch (err) {
+      error = err instanceof Error ? err.message : '未知错误'
+      success = false
+
+      // 记录失败的使用统计
+      this.recordToolUsage(request, startTime, success, undefined, error)
+
+      throw err
+    }
+  }
+
+  /**
+   * 记录工具使用统计
+   */
+  private recordToolUsage(
+    request: MCPToolCall,
+    startTime: number,
+    success: boolean,
+    result?: { content: string; rawData: MCPToolResponse },
+    error?: string
+  ): void {
+    const responseTime = Date.now() - startTime
+    const inputSize = JSON.stringify(request.arguments || {}).length
+    const outputSize = result ? JSON.stringify(result.content).length : 0
+
+    this.usageTracker.recordToolUsage({
+      toolName: request.name,
+      serverName: request.server || 'unknown',
+      timestamp: Date.now(),
+      success,
+      responseTime,
+      inputSize,
+      outputSize,
+      error,
+      sessionId: `session-${Date.now()}` // 可以从上下文获取真实的session ID
+    })
+  }
+
+  /**
+   * 格式化工具调用结果
+   */
+  private formatToolCallResult(toolCallResult: { content: string; rawData: MCPToolResponse }): { content: string; rawData: MCPToolResponse } {
     // 格式化工具调用结果为大模型易于解析的字符串
     let formattedContent = ''
 
@@ -1167,10 +1232,38 @@ export class McpPresenter implements IMCPPresenter {
   }
 
   /**
+   * 获取工具使用统计
+   * @param serverName 可选的服务器名称
+   * @param toolName 可选的工具名称
+   * @returns 工具使用统计数组
+   */
+  async getToolUsageStats(serverName?: string, toolName?: string): Promise<any[]> {
+    return this.usageTracker.getToolStats(serverName, toolName)
+  }
+
+  /**
+   * 获取服务器使用统计
+   * @param serverName 可选的服务器名称
+   * @returns 服务器使用统计数组
+   */
+  async getServerUsageStats(serverName?: string): Promise<any[]> {
+    return this.usageTracker.getServerStats(serverName)
+  }
+
+  /**
+   * 获取综合使用分析数据
+   * @returns 使用分析数据
+   */
+  async getUsageAnalytics(): Promise<any> {
+    return this.usageTracker.getUsageAnalytics()
+  }
+
+  /**
    * 清理资源
    */
   destroy(): void {
     this.healthChecker?.destroy()
+    this.usageTracker?.destroy()
     this.serverManager?.destroy?.()
     this.toolManager?.destroy?.()
   }
