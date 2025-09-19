@@ -62,7 +62,8 @@ export const useMcpStore = defineStore('mcp', () => {
 
   // 🎯 新增：防抖相关状态
   let loadToolsDebounceTimer: NodeJS.Timeout | null = null
-  const LOAD_TOOLS_DEBOUNCE_DELAY = 200 // 200ms防抖延迟
+  const LOAD_TOOLS_DEBOUNCE_DELAY = 300 // 300ms防抖延迟，增加延迟减少频繁调用
+  let isLoadingTools = ref(false) // 添加加载状态锁
 
   // ==================== 计算属性 ====================
   // 服务器列表
@@ -533,13 +534,25 @@ export const useMcpStore = defineStore('mcp', () => {
 
   // 🎯 优化：添加防抖的loadTools方法
   const debouncedLoadTools = () => {
+    // 如果正在加载中，直接返回，避免重复调用
+    if (isLoadingTools.value) {
+      return
+    }
+
     if (loadToolsDebounceTimer) {
       clearTimeout(loadToolsDebounceTimer)
     }
 
     loadToolsDebounceTimer = setTimeout(async () => {
-      await loadTools()
-      loadToolsDebounceTimer = null
+      try {
+        isLoadingTools.value = true
+        await loadTools()
+      } catch (error) {
+        console.error('🔧 [MCP优化] 防抖加载工具失败:', error)
+      } finally {
+        isLoadingTools.value = false
+        loadToolsDebounceTimer = null
+      }
     }, LOAD_TOOLS_DEBOUNCE_DELAY)
   }
 
@@ -564,6 +577,7 @@ export const useMcpStore = defineStore('mcp', () => {
     prompts,
     resources,
     mcpEnabled,
+    isLoadingTools,
 
     // 计算属性
     serverList,
