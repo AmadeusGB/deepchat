@@ -197,43 +197,93 @@ export class SmartToolSelector {
   private analyzeIntent(toolName: string, description: string): ToolCategory {
     const text = `${toolName} ${description}`.toLowerCase()
 
-    // 首先检查高优先级关键词
-    const highPriorityBrowserScore = this.HIGH_PRIORITY_BROWSER_KEYWORDS.filter((keyword) =>
-      text.includes(keyword.toLowerCase())
-    ).length
+    // 使用新的智能权重匹配算法
+    const categoryScores = this.calculateSmartCategoryScores(text)
 
-    const highPriorityDeviceScore = this.HIGH_PRIORITY_DEVICE_KEYWORDS.filter((keyword) =>
-      text.includes(keyword.toLowerCase())
-    ).length
+    // 找到最高分的类别
+    const maxScore = Math.max(...Object.values(categoryScores))
 
-    // 如果有高优先级匹配，直接返回
-    if (highPriorityBrowserScore > 0 && highPriorityBrowserScore >= highPriorityDeviceScore) {
-      return ToolCategory.BROWSER
-    }
-    if (highPriorityDeviceScore > 0 && highPriorityDeviceScore > highPriorityBrowserScore) {
-      return ToolCategory.DEVICE
-    }
-
-    // 计算普通关键词匹配分数
-    const browserScore = this.BROWSER_KEYWORDS.filter((keyword) =>
-      text.includes(keyword.toLowerCase())
-    ).length
-
-    const deviceScore = this.DEVICE_KEYWORDS.filter((keyword) =>
-      text.includes(keyword.toLowerCase())
-    ).length
-
-    // 根据分数确定类别，增加权重差异要求
-    const scoreDiff = Math.abs(browserScore - deviceScore)
-    const minDiff = 2 // 至少需要2个关键词的差异才能确定类别
-
-    if (browserScore > deviceScore && scoreDiff >= minDiff) {
-      return ToolCategory.BROWSER
-    } else if (deviceScore > browserScore && scoreDiff >= minDiff) {
-      return ToolCategory.DEVICE
-    } else {
+    // 如果最高分太低，返回通用类别
+    if (maxScore < 3) {
       return ToolCategory.GENERAL
     }
+
+    // 检查分数差距，如果差距不够大，返回通用类别
+    const sortedScores = Object.entries(categoryScores)
+      .sort((a, b) => b[1] - a[1])
+
+    if (sortedScores.length > 1 && sortedScores[0][1] - sortedScores[1][1] < 2) {
+      return ToolCategory.GENERAL
+    }
+
+    // 返回最高分类别
+    if (categoryScores.browser === maxScore) {
+      return ToolCategory.BROWSER
+    } else if (categoryScores.device === maxScore) {
+      return ToolCategory.DEVICE
+    }
+
+    return ToolCategory.GENERAL
+  }
+
+  /**
+   * 智能计算各类别的加权分数
+   */
+  private calculateSmartCategoryScores(text: string): { browser: number; device: number } {
+    const scores = { browser: 0, device: 0 }
+
+    // 浏览器相关关键词权重计算
+    const browserHighWeight = ['playwright', 'mcp_playwright', 'browser_'].some(k => text.includes(k)) ? 10 : 0
+    const browserMediumWeight = ['浏览器', 'browser', '网页', 'webpage', '点击', 'click', '截图', 'screenshot'].filter(k => text.includes(k)).length * 3
+    const browserLowWeight = ['页面', 'page', '访问', 'visit', '等待', 'wait', '导航', 'navigate'].filter(k => text.includes(k)).length * 1
+
+    scores.browser = browserHighWeight + browserMediumWeight + browserLowWeight
+
+    // 设备相关关键词权重计算
+    const deviceHighWeight = ['deeper device', 'device control', 'mcp_device', 'dpn'].some(k => text.includes(k)) ? 10 : 0
+    const deviceMediumWeight = ['设备', 'device', '隧道', 'tunnel', '家长控制', 'parental'].filter(k => text.includes(k)).length * 3
+    const deviceLowWeight = ['配置', 'config', '控制', 'control', '管理', 'manage'].filter(k => text.includes(k)).length * 1
+
+    scores.device = deviceHighWeight + deviceMediumWeight + deviceLowWeight
+
+    // 上下文语义分析加分
+    scores.browser += this.analyzeContextForBrowser(text)
+    scores.device += this.analyzeContextForDevice(text)
+
+    return scores
+  }
+
+  /**
+   * 浏览器上下文语义分析
+   */
+  private analyzeContextForBrowser(text: string): number {
+    let score = 0
+
+    // 检查动作词组合
+    if (text.includes('打开') && (text.includes('网站') || text.includes('网页'))) score += 3
+    if (text.includes('登录') && text.includes('网站')) score += 3
+    if (text.includes('填写') && text.includes('表单')) score += 3
+    if (text.includes('自动化') && text.includes('浏览器')) score += 4
+
+    // 检查URL模式
+    if (/https?:\/\//.test(text)) score += 2
+
+    return score
+  }
+
+  /**
+   * 设备上下文语义分析
+   */
+  private analyzeContextForDevice(text: string): number {
+    let score = 0
+
+    // 检查设备特定操作
+    if (text.includes('deeper') && text.includes('设备')) score += 4
+    if (text.includes('dpn') && (text.includes('模式') || text.includes('mode'))) score += 3
+    if (text.includes('家长控制') || text.includes('parental control')) score += 3
+    if (text.includes('设备') && text.includes('重启')) score += 3
+
+    return score
   }
 
   /**
