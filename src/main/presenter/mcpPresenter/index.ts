@@ -12,6 +12,7 @@ import {
 } from '@shared/presenter'
 import { ServerManager } from './serverManager'
 import { ToolManager } from './toolManager'
+import { MCPHealthChecker } from './healthChecker'
 import { eventBus, SendTarget } from '@/eventbus'
 import { MCP_EVENTS, NOTIFICATION_EVENTS } from '@/events'
 import { IConfigPresenter } from '@shared/presenter'
@@ -81,6 +82,7 @@ interface AnthropicTool {
 export class McpPresenter implements IMCPPresenter {
   private serverManager: ServerManager
   private toolManager: ToolManager
+  private healthChecker: MCPHealthChecker
   private configPresenter: IConfigPresenter
   private isInitialized: boolean = false
 
@@ -90,10 +92,38 @@ export class McpPresenter implements IMCPPresenter {
     this.configPresenter = configPresenter || presenter.configPresenter
     this.serverManager = new ServerManager(this.configPresenter)
     this.toolManager = new ToolManager(this.configPresenter, this.serverManager)
+    this.healthChecker = new MCPHealthChecker({
+      interval: 30000, // 30秒检查一次
+      timeout: 5000, // 5秒超时
+      retryAttempts: 3,
+      enabled: true
+    })
 
     // 监听自定义提示词服务器检查事件
     eventBus.on(CONFIG_EVENTS.CUSTOM_PROMPTS_SERVER_CHECK_REQUIRED, async () => {
       await this.checkAndManageCustomPromptsServer()
+    })
+
+    // 监听健康检查事件
+    this.healthChecker.on(MCP_EVENTS.SERVER_HEALTH_CHECK, (result) => {
+      console.log(`Health check result for ${result.serverId}:`, result)
+      // 转发健康检查结果到渲染进程
+      eventBus.send(MCP_EVENTS.SERVER_HEALTH_CHECK, SendTarget.ALL_WINDOWS, result)
+    })
+
+    this.healthChecker.on(MCP_EVENTS.SERVER_STATUS_CHANGED, (statusChange) => {
+      console.log(`Server status changed for ${statusChange.serverId}:`, statusChange)
+      // 转发状态变化到渲染进程
+      eventBus.send(MCP_EVENTS.SERVER_STATUS_CHANGED, SendTarget.ALL_WINDOWS, statusChange)
+
+      // 如果服务器变为不健康状态，可以发送通知
+      if (!statusChange.isHealthy) {
+        eventBus.send(NOTIFICATION_EVENTS.SHOW_ERROR, SendTarget.ALL_WINDOWS, {
+          title: 'MCP服务器状态异常',
+          message: `服务器 ${statusChange.serverId} 状态变为 ${statusChange.status}`,
+          duration: 5000
+        })
+      }
     })
 
     // 延迟初始化，确保其他组件已经准备好
@@ -408,11 +438,21 @@ export class McpPresenter implements IMCPPresenter {
 
   async startServer(serverName: string): Promise<void> {
     await this.serverManager.startServer(serverName)
+
+    // 注册到健康检查器
+    const client = this.serverManager.getClient(serverName)
+    if (client) {
+      this.healthChecker.registerClient(serverName, client)
+    }
+
     // 通知渲染进程服务器已启动
     eventBus.send(MCP_EVENTS.SERVER_STARTED, SendTarget.ALL_WINDOWS, serverName)
   }
 
   async stopServer(serverName: string): Promise<void> {
+    // 从健康检查器中注销
+    this.healthChecker.unregisterClient(serverName)
+
     await this.serverManager.stopServer(serverName)
     // 通知渲染进程服务器已停止
     eventBus.send(MCP_EVENTS.SERVER_STOPPED, SendTarget.ALL_WINDOWS, serverName)
@@ -1043,5 +1083,95 @@ export class McpPresenter implements IMCPPresenter {
       }
     })
     return openaiTools
+  }
+
+  /**
+   * 手动触发服务器健康检查
+   * @param serverName 服务器名称
+   * @returns 健康检查结果
+   */
+  async checkServerHealth(serverName: string): Promise<any> {
+    try {
+      const result = await this.healthChecker.checkHealth(serverName)
+
+      // 发送健康检查结果到渲染进程
+      eventBus.send(MCP_EVENTS.SERVER_HEALTH_CHECK, SendTarget.ALL_WINDOWS, {
+        serverName,
+        result
+      })
+
+      return result
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '健康检查失败'
+      console.error(`Health check failed for ${serverName}:`, error)
+
+      throw new Error(`服务器 ${serverName} 健康检查失败: ${errorMessage}`)
+    }
+  }
+
+  /**
+   * 获取服务器健康状态
+   * @param serverName 服务器名称
+   * @returns 健康状态信息
+   */
+  async getServerHealthState(serverName: string): Promise<any> {
+    const healthState = this.healthChecker.getHealthState(serverName)
+
+    if (!healthState) {
+      throw new Error(`服务器 ${serverName} 未注册到健康检查器`)
+    }
+
+    return healthState
+  }
+
+  /**
+   * 获取所有服务器健康状态
+   * @returns 所有服务器健康状态映射
+   */
+  async getAllServerHealthStates(): Promise<any> {
+    const healthStates = this.healthChecker.getAllHealthStates()
+
+    // 转换为普通对象以便序列化
+    const result: Record<string, any> = {}
+    for (const [serverName, state] of healthStates) {
+      result[serverName] = state
+    }
+
+    return result
+  }
+
+  /**
+   * 获取健康检查统计信息
+   * @returns 统计信息
+   */
+  async getHealthCheckStats(): Promise<any> {
+    return this.healthChecker.getHealthStats()
+  }
+
+  /**
+   * 启用/禁用健康检查
+   * @param enabled 是否启用
+   */
+  async setHealthCheckEnabled(enabled: boolean): Promise<void> {
+    this.healthChecker.setEnabled(enabled)
+    console.log(`Health check ${enabled ? 'enabled' : 'disabled'}`)
+  }
+
+  /**
+   * 更新健康检查配置
+   * @param config 新配置
+   */
+  async updateHealthCheckConfig(config: any): Promise<void> {
+    this.healthChecker.updateConfig(config)
+    console.log('Health check config updated:', config)
+  }
+
+  /**
+   * 清理资源
+   */
+  destroy(): void {
+    this.healthChecker?.destroy()
+    this.serverManager?.destroy?.()
+    this.toolManager?.destroy?.()
   }
 }
