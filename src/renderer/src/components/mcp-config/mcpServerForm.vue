@@ -29,6 +29,7 @@ import { MCP_MARKETPLACE_URL, HIGRESS_MCP_MARKETPLACE_URL } from './const'
 import { usePresenter } from '@/composables/usePresenter'
 import { useThemeStore } from '@/stores/theme'
 import { validateMcpServerConfig, validateJsonFormat, createRealtimeValidator, type ValidationResult } from '@/utils/mcpValidation'
+import { parseMultiFormatMcpConfig, generateConfigPreview, validateParsedServers, type MCPJsonParseResult } from '@/utils/mcpJsonParser'
 
 const { t } = useI18n()
 const { toast } = useToast()
@@ -125,6 +126,8 @@ const jsonConfig = ref('')
 // 验证状态
 const configValidation = ref<ValidationResult>({ isValid: true, errors: [], warnings: [] })
 const jsonValidation = ref<ValidationResult>({ isValid: true, errors: [], warnings: [] })
+const jsonParseResult = ref<MCPJsonParseResult | null>(null)
+const showConfigPreview = ref(false)
 
 // 当type变更时处理baseUrl的显示逻辑
 const showBaseUrl = computed(() => type.value === 'sse' || type.value === 'http')
@@ -155,112 +158,140 @@ const handleAutoApproveAllChange = (checked: boolean): void => {
 
 // JSON配置解析
 const parseJsonConfig = (): void => {
-  // 先验证JSON格式
-  const jsonValidationResult = validateJsonFormat(jsonConfig.value)
-  jsonValidation.value = jsonValidationResult
-
-  if (!jsonValidationResult.isValid) {
+  if (!jsonConfig.value.trim()) {
     toast({
-      title: t('mcp.errors.jsonParseError'),
-      description: jsonValidationResult.errors.join(', '),
+      title: t('settings.mcp.serverForm.parseError'),
+      description: '请输入JSON配置',
       variant: 'destructive'
     })
     return
   }
 
-  try {
-    const parsedConfig = JSON.parse(jsonConfig.value)
-    if (!parsedConfig.mcpServers || typeof parsedConfig.mcpServers !== 'object') {
-      throw new Error(t('mcp.errors.configValidationFailed', { details: 'Invalid MCP server configuration format' }))
-    }
+  // 使用增强的多格式解析器
+  const parseResult = parseMultiFormatMcpConfig(jsonConfig.value)
+  jsonParseResult.value = parseResult
 
-    // 获取第一个服务器的配置
-    const serverEntries = Object.entries(parsedConfig.mcpServers)
-    if (serverEntries.length === 0) {
-      throw new Error(t('mcp.errors.configValidationFailed', { details: 'No MCP servers found in configuration' }))
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [serverName, serverConfig] = serverEntries[0] as [string, any]
-
-    // 验证解析后的配置
-    const configValidationResult = validateMcpServerConfig(serverConfig)
-    configValidation.value = configValidationResult
-
-    if (!configValidationResult.isValid) {
-      toast({
-        title: t('mcp.errors.configValidationFailed', { details: 'Configuration validation failed' }),
-        description: configValidationResult.errors.join(', '),
-        variant: 'destructive'
-      })
-      return
-    }
-
-    // 填充表单数据
-    name.value = serverName
-    command.value = serverConfig.command || 'npx'
-    args.value = serverConfig.args?.join(' ') || ''
-    env.value = JSON.stringify(serverConfig.env || {}, null, 2)
-    descriptions.value = serverConfig.descriptions || ''
-    icons.value = serverConfig.icons || '📁'
-    type.value = serverConfig.type || ''
-    baseUrl.value = serverConfig.url || serverConfig.baseUrl || ''
-    console.log('type', type.value, baseUrl.value)
-    if (type.value !== 'stdio' && type.value !== 'sse' && type.value !== 'http') {
-      if (baseUrl.value) {
-        type.value = 'http'
-      } else {
-        type.value = 'stdio'
-      }
-    }
-
-    // 填充 customHeaders (如果存在)
-    if (serverConfig.customHeaders) {
-      customHeaders.value = formatJsonHeaders(serverConfig.customHeaders) // 加载时格式化为 Key=Value
-    } else {
-      customHeaders.value = '' // 默认空字符串
-    }
-
-    // 权限设置
-    autoApproveAll.value = serverConfig.autoApprove?.includes('all') || false
-    autoApproveRead.value =
-      serverConfig.autoApprove?.includes('read') ||
-      serverConfig.autoApprove?.includes('all') ||
-      false
-    autoApproveWrite.value =
-      serverConfig.autoApprove?.includes('write') ||
-      serverConfig.autoApprove?.includes('all') ||
-      false
-
-    // 切换到详细表单
-    currentStep.value = 'detailed'
-
-    // 显示警告信息（如果有）
-    if (configValidationResult.warnings.length > 0) {
-      toast({
-        title: t('settings.mcp.serverForm.parseSuccess'),
-        description: t('settings.mcp.serverForm.configImported') + ' (' + configValidationResult.warnings.join(', ') + ')',
-        variant: 'default'
-      })
-    } else {
-      toast({
-        title: t('settings.mcp.serverForm.parseSuccess'),
-        description: t('settings.mcp.serverForm.configImported')
-      })
-    }
-  } catch (error) {
-    console.error('解析JSON配置失败:', error)
+  if (!parseResult.success) {
     toast({
-      title: t('settings.mcp.serverForm.parseError'),
-      description: error instanceof Error ? error.message : String(error),
+      title: t('mcp.errors.jsonParseError'),
+      description: parseResult.errors.join(', '),
       variant: 'destructive'
     })
+    return
   }
+
+  // 验证解析后的服务器配置
+  const { valid, invalid } = validateParsedServers(parseResult.servers)
+
+  if (invalid.length > 0) {
+    console.warn('发现无效服务器配置:', invalid)
+    // 显示警告但继续处理有效配置
+    toast({
+      title: '配置警告',
+      description: `发现 ${invalid.length} 个无效服务器配置，已跳过`,
+      variant: 'default'
+    })
+  }
+
+  if (valid.length === 0) {
+    toast({
+      title: t('settings.mcp.serverForm.parseError'),
+      description: '未找到有效的服务器配置',
+      variant: 'destructive'
+    })
+    return
+  }
+
+  // 如果有多个服务器，让用户选择或使用第一个
+  const selectedServer = valid[0]
+  const { name: serverName, config: serverConfig } = selectedServer
+
+  // 验证选中的服务器配置
+  const configValidationResult = validateMcpServerConfig(serverConfig)
+  configValidation.value = configValidationResult
+
+  // 填充表单数据
+  name.value = serverName
+  command.value = serverConfig.command || 'npx'
+  args.value = Array.isArray(serverConfig.args) ? serverConfig.args.join(' ') : (serverConfig.args || '')
+  env.value = JSON.stringify(serverConfig.env || {}, null, 2)
+  descriptions.value = serverConfig.descriptions || ''
+  icons.value = serverConfig.icons || '📁'
+  type.value = serverConfig.type || 'stdio'
+  baseUrl.value = serverConfig.baseUrl || ''
+
+  // 填充 customHeaders (如果存在)
+  if (serverConfig.customHeaders) {
+    customHeaders.value = formatJsonHeaders(serverConfig.customHeaders)
+  } else {
+    customHeaders.value = ''
+  }
+
+  // 权限设置
+  autoApproveAll.value = serverConfig.autoApprove?.includes('all') || false
+  autoApproveRead.value =
+    serverConfig.autoApprove?.includes('read') ||
+    serverConfig.autoApprove?.includes('all') ||
+    false
+  autoApproveWrite.value =
+    serverConfig.autoApprove?.includes('write') ||
+    serverConfig.autoApprove?.includes('all') ||
+    false
+
+  // 切换到详细表单
+  currentStep.value = 'detailed'
+
+  // 显示成功信息和警告
+  const messages = [t('settings.mcp.serverForm.configImported')]
+
+  if (parseResult.warnings.length > 0) {
+    messages.push(...parseResult.warnings)
+  }
+
+  if (configValidationResult.warnings.length > 0) {
+    messages.push(...configValidationResult.warnings)
+  }
+
+  if (valid.length > 1) {
+    messages.push(`检测到 ${valid.length} 个服务器，已选择: ${serverName}`)
+  }
+
+  messages.push(`检测到格式: ${parseResult.detectedFormat}`)
+
+  toast({
+    title: t('settings.mcp.serverForm.parseSuccess'),
+    description: messages.join(' | ')
+  })
 }
 
 // 切换到详细表单
 const goToDetailedForm = (): void => {
   currentStep.value = 'detailed'
+}
+
+// 预览JSON配置
+const previewJsonConfig = (): void => {
+  if (!jsonConfig.value.trim()) {
+    toast({
+      title: '预览失败',
+      description: '请输入JSON配置',
+      variant: 'destructive'
+    })
+    return
+  }
+
+  const parseResult = parseMultiFormatMcpConfig(jsonConfig.value)
+  jsonParseResult.value = parseResult
+
+  if (parseResult.success) {
+    showConfigPreview.value = true
+  } else {
+    toast({
+      title: '预览失败',
+      description: parseResult.errors.join(', '),
+      variant: 'destructive'
+    })
+  }
 }
 
 // 创建实时验证器
@@ -767,6 +798,29 @@ HTTP-Referer=deepchatai.cn`
           <div v-if="jsonValidation.warnings.length > 0" class="text-xs text-yellow-600 mt-1">
             {{ jsonValidation.warnings.join(', ') }}
           </div>
+
+          <!-- 配置预览 -->
+          <div v-if="jsonParseResult && showConfigPreview" class="mt-3 p-3 bg-muted rounded-md">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-medium">配置预览</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                @click="showConfigPreview = false"
+              >
+                <X class="h-4 w-4" />
+              </Button>
+            </div>
+            <div class="text-xs text-muted-foreground mb-2">
+              检测格式: {{ jsonParseResult.detectedFormat }} |
+              服务器数量: {{ jsonParseResult.servers.length }}
+            </div>
+            <pre class="text-xs whitespace-pre-wrap text-muted-foreground">{{ generateConfigPreview(jsonParseResult.servers) }}</pre>
+            <div v-if="jsonParseResult.warnings.length > 0" class="mt-2 text-xs text-yellow-600">
+              ⚠️ {{ jsonParseResult.warnings.join(', ') }}
+            </div>
+          </div>
         </div>
       </div>
     </ScrollArea>
@@ -775,9 +829,20 @@ HTTP-Referer=deepchatai.cn`
       <Button type="button" variant="outline" size="sm" @click="goToDetailedForm">
         {{ t('settings.mcp.serverForm.skipToManual') }}
       </Button>
-      <Button type="button" size="sm" @click="parseJsonConfig">
-        {{ t('settings.mcp.serverForm.parseAndContinue') }}
-      </Button>
+      <div class="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          @click="previewJsonConfig"
+          :disabled="!jsonConfig.trim()"
+        >
+          预览配置
+        </Button>
+        <Button type="button" size="sm" @click="parseJsonConfig">
+          {{ t('settings.mcp.serverForm.parseAndContinue') }}
+        </Button>
+      </div>
     </div>
   </form>
 
