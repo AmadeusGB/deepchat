@@ -28,6 +28,7 @@ import type { RENDERER_MODEL_META } from '@shared/presenter'
 import { MCP_MARKETPLACE_URL, HIGRESS_MCP_MARKETPLACE_URL } from './const'
 import { usePresenter } from '@/composables/usePresenter'
 import { useThemeStore } from '@/stores/theme'
+import { validateMcpServerConfig, validateJsonFormat, createRealtimeValidator, type ValidationResult } from '@/utils/mcpValidation'
 
 const { t } = useI18n()
 const { toast } = useToast()
@@ -121,6 +122,10 @@ const autoApproveWrite = ref(
 const currentStep = ref(props.editMode ? 'detailed' : 'simple')
 const jsonConfig = ref('')
 
+// 验证状态
+const configValidation = ref<ValidationResult>({ isValid: true, errors: [], warnings: [] })
+const jsonValidation = ref<ValidationResult>({ isValid: true, errors: [], warnings: [] })
+
 // 当type变更时处理baseUrl的显示逻辑
 const showBaseUrl = computed(() => type.value === 'sse' || type.value === 'http')
 // 添加计算属性来控制命令相关字段的显示
@@ -150,20 +155,46 @@ const handleAutoApproveAllChange = (checked: boolean): void => {
 
 // JSON配置解析
 const parseJsonConfig = (): void => {
+  // 先验证JSON格式
+  const jsonValidationResult = validateJsonFormat(jsonConfig.value)
+  jsonValidation.value = jsonValidationResult
+
+  if (!jsonValidationResult.isValid) {
+    toast({
+      title: t('mcp.errors.jsonParseError'),
+      description: jsonValidationResult.errors.join(', '),
+      variant: 'destructive'
+    })
+    return
+  }
+
   try {
     const parsedConfig = JSON.parse(jsonConfig.value)
     if (!parsedConfig.mcpServers || typeof parsedConfig.mcpServers !== 'object') {
-      throw new Error('Invalid MCP server configuration format')
+      throw new Error(t('mcp.errors.configValidationFailed', { details: 'Invalid MCP server configuration format' }))
     }
 
     // 获取第一个服务器的配置
     const serverEntries = Object.entries(parsedConfig.mcpServers)
     if (serverEntries.length === 0) {
-      throw new Error('No MCP servers found in configuration')
+      throw new Error(t('mcp.errors.configValidationFailed', { details: 'No MCP servers found in configuration' }))
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [serverName, serverConfig] = serverEntries[0] as [string, any]
+
+    // 验证解析后的配置
+    const configValidationResult = validateMcpServerConfig(serverConfig)
+    configValidation.value = configValidationResult
+
+    if (!configValidationResult.isValid) {
+      toast({
+        title: t('mcp.errors.configValidationFailed', { details: 'Configuration validation failed' }),
+        description: configValidationResult.errors.join(', '),
+        variant: 'destructive'
+      })
+      return
+    }
 
     // 填充表单数据
     name.value = serverName
@@ -204,10 +235,19 @@ const parseJsonConfig = (): void => {
     // 切换到详细表单
     currentStep.value = 'detailed'
 
-    toast({
-      title: t('settings.mcp.serverForm.parseSuccess'),
-      description: t('settings.mcp.serverForm.configImported')
-    })
+    // 显示警告信息（如果有）
+    if (configValidationResult.warnings.length > 0) {
+      toast({
+        title: t('settings.mcp.serverForm.parseSuccess'),
+        description: t('settings.mcp.serverForm.configImported') + ' (' + configValidationResult.warnings.join(', ') + ')',
+        variant: 'default'
+      })
+    } else {
+      toast({
+        title: t('settings.mcp.serverForm.parseSuccess'),
+        description: t('settings.mcp.serverForm.configImported')
+      })
+    }
   } catch (error) {
     console.error('解析JSON配置失败:', error)
     toast({
@@ -222,6 +262,32 @@ const parseJsonConfig = (): void => {
 const goToDetailedForm = (): void => {
   currentStep.value = 'detailed'
 }
+
+// 创建实时验证器
+const realtimeConfigValidator = createRealtimeValidator(
+  () => {
+    const config = {
+      name: name.value,
+      type: type.value,
+      command: command.value,
+      baseUrl: baseUrl.value,
+      env: env.value
+    }
+    return validateMcpServerConfig(config)
+  },
+  (result) => {
+    configValidation.value = result
+  },
+  300
+)
+
+const realtimeJsonValidator = createRealtimeValidator(
+  () => validateJsonFormat(jsonConfig.value),
+  (result) => {
+    jsonValidation.value = result
+  },
+  300
+)
 
 // 验证
 const isNameValid = computed(() => name.value.trim().length > 0)
@@ -274,6 +340,9 @@ const isFormValid = computed(() => {
   // 基本验证：名称必须有效
   if (!isNameValid.value) return false
 
+  // 检查配置验证结果
+  if (!configValidation.value.isValid) return false
+
   // 对于SSE类型，只需要名称和baseUrl有效
   if (type.value === 'sse' || type.value === 'http') {
     return isNameValid.value && isBaseUrlValid.value && isCustomHeadersFormatValid.value
@@ -316,6 +385,15 @@ const addFolder = async (): Promise<void> => {
 const removeFolder = (index: number): void => {
   foldersList.value.splice(index, 1)
 }
+
+// 监听表单字段变化，触发实时验证
+watch([name, type, command, baseUrl, env], () => {
+  realtimeConfigValidator()
+}, { immediate: true })
+
+watch(jsonConfig, () => {
+  realtimeJsonValidator()
+}, { immediate: true })
 
 // 监听外部 args 变化，更新内部列表
 watch(
@@ -401,7 +479,17 @@ const focusArgsInput = (): void => {
 
 // 提交表单
 const handleSubmit = (): void => {
-  if (!isFormValid.value) return
+  if (!isFormValid.value) {
+    // 显示具体的验证错误
+    if (configValidation.value.errors.length > 0) {
+      toast({
+        title: t('mcp.errors.configValidationFailed', { details: 'Form validation failed' }),
+        description: configValidation.value.errors.join(', '),
+        variant: 'destructive'
+      })
+    }
+    return
+  }
 
   // 处理自动授权设置
   const autoApprove: string[] = []
@@ -666,7 +754,19 @@ HTTP-Referer=deepchatai.cn`
           <Label class="text-xs text-muted-foreground" for="json-config">
             {{ t('settings.mcp.serverForm.jsonConfig') }}
           </Label>
-          <Textarea id="json-config" v-model="jsonConfig" rows="10" :placeholder="placeholder" />
+          <Textarea
+            id="json-config"
+            v-model="jsonConfig"
+            rows="10"
+            :placeholder="placeholder"
+            :class="{ 'border-red-500': !jsonValidation.isValid }"
+          />
+          <div v-if="!jsonValidation.isValid" class="text-xs text-red-500 mt-1">
+            {{ jsonValidation.errors.join(', ') }}
+          </div>
+          <div v-if="jsonValidation.warnings.length > 0" class="text-xs text-yellow-600 mt-1">
+            {{ jsonValidation.warnings.join(', ') }}
+          </div>
         </div>
       </div>
     </ScrollArea>
@@ -893,7 +993,11 @@ HTTP-Referer=deepchatai.cn`
             v-model="env"
             rows="5"
             :placeholder="t('settings.mcp.serverForm.envPlaceholder')"
-            :class="{ 'border-red-500': !isEnvValid }"
+:class="{ 'border-red-500': !isEnvValid }"
+          />
+          <div v-if="!isEnvValid" class="text-xs text-red-500 mt-1">
+            {{ t('mcp.errors.jsonParseError') }}
+          </div>
           />
         </div>
 
@@ -1012,6 +1116,12 @@ HTTP-Referer=deepchatai.cn`
       <Button type="submit" size="sm" :disabled="!isFormValid">
         {{ t('settings.mcp.serverForm.submit') }}
       </Button>
+      <div v-if="configValidation.errors.length > 0" class="text-xs text-red-500 mt-2">
+        {{ configValidation.errors.join(', ') }}
+      </div>
+      <div v-if="configValidation.warnings.length > 0" class="text-xs text-yellow-600 mt-2">
+        {{ configValidation.warnings.join(', ') }}
+      </div>
     </div>
   </form>
 </template>
