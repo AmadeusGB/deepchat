@@ -24,9 +24,8 @@ interface ToolUsageHistory {
 }
 
 export class SmartToolSelector {
-  // @ts-ignore - configPresenter is passed in but currently unused, keeping for future features
-  private _configPresenter: IConfigPresenter
-  private usageHistory: Map<string, ToolUsageHistory> = new Map()
+  private readonly configPresenter: IConfigPresenter
+  private readonly usageHistory: Map<string, ToolUsageHistory> = new Map()
 
   // 关键词匹配规则 - 优化版
   private readonly BROWSER_KEYWORDS = [
@@ -189,7 +188,7 @@ export class SmartToolSelector {
   ]
 
   constructor(configPresenter: IConfigPresenter) {
-    this._configPresenter = configPresenter
+    this.configPresenter = configPresenter
   }
 
   /**
