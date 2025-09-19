@@ -86,13 +86,46 @@ export const OLLAMA_EVENTS = {
 
 // MCP 相关事件
 export const MCP_EVENTS = {
+  // 服务器生命周期事件
   SERVER_STARTED: 'mcp:server-started',
   SERVER_STOPPED: 'mcp:server-stopped',
-  CONFIG_CHANGED: 'mcp:config-changed',
-  TOOL_CALL_RESULT: 'mcp:tool-call-result',
   SERVER_STATUS_CHANGED: 'mcp:server-status-changed',
+  SERVER_ERROR: 'mcp:server-error',
+  SERVER_HEALTH_CHECK: 'mcp:server-health-check',
+
+  // 配置管理事件
+  CONFIG_CHANGED: 'mcp:config-changed',
+  CONFIG_VALIDATED: 'mcp:config-validated',
+  CONFIG_ERROR: 'mcp:config-error',
+
+  // 工具相关事件
+  TOOL_CALL_START: 'mcp:tool-call-start',
+  TOOL_CALL_RESULT: 'mcp:tool-call-result',
+  TOOL_CALL_ERROR: 'mcp:tool-call-error',
+  TOOLS_LOADED: 'mcp:tools-loaded',
+  TOOLS_CACHE_HIT: 'mcp:tools-cache-hit',
+
+  // 客户端管理事件
   CLIENT_LIST_UPDATED: 'mcp:client-list-updated',
-  INITIALIZED: 'mcp:initialized' // 新增：MCP初始化完成事件
+  CLIENT_CONNECTED: 'mcp:client-connected',
+  CLIENT_DISCONNECTED: 'mcp:client-disconnected',
+
+  // 连接池事件
+  CONNECTION_POOL_STATS: 'mcp:connection-pool-stats',
+  CONNECTION_ACQUIRED: 'mcp:connection-acquired',
+  CONNECTION_RELEASED: 'mcp:connection-released',
+
+  // 缓存事件
+  CACHE_STATS_UPDATED: 'mcp:cache-stats-updated',
+  CACHE_CLEARED: 'mcp:cache-cleared',
+
+  // 系统事件
+  INITIALIZED: 'mcp:initialized',
+  SHUTDOWN: 'mcp:shutdown',
+
+  // 性能监控事件
+  PERFORMANCE_METRICS: 'mcp:performance-metrics',
+  USAGE_STATS_UPDATED: 'mcp:usage-stats-updated'
 }
 
 // 同步相关事件
