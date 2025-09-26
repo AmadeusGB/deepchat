@@ -32,6 +32,7 @@ import {
 } from './llmFormatConverter'
 import { mcpCacheManager } from './cacheManager'
 import { mcpCircuitBreakerManager, DegradedResponse } from './circuitBreaker'
+import { mcpEventOptimizer } from './eventOptimizer'
 
 // 工具类型接口现在从 LLMFormatConverter 导入
 
@@ -1086,6 +1087,58 @@ export class McpPresenter implements IMCPPresenter {
   }
 
   /**
+   * 获取事件优化统计
+   * @returns 事件优化统计信息
+   */
+  getEventOptimizationStats(): Map<string, any> {
+    return mcpEventOptimizer.getEventStats()
+  }
+
+  /**
+   * 获取事件优化汇总
+   * @returns 优化效果汇总
+   */
+  getEventOptimizationSummary(): any {
+    return mcpEventOptimizer.getOptimizationSummary()
+  }
+
+  /**
+   * 配置事件批处理
+   * @param eventType 事件类型
+   * @param config 批处理配置
+   */
+  configureEventBatch(eventType: string, config: any): void {
+    mcpEventOptimizer.configureBatchEvent(eventType, config)
+    console.log(`[MCP] 事件批处理配置已更新 ${eventType}:`, config)
+  }
+
+  /**
+   * 配置事件防抖
+   * @param eventType 事件类型
+   * @param config 防抖配置
+   */
+  configureEventDebounce(eventType: string, config: any): void {
+    mcpEventOptimizer.configureDebounceEvent(eventType, config)
+    console.log(`[MCP] 事件防抖配置已更新 ${eventType}:`, config)
+  }
+
+  /**
+   * 强制刷新所有事件批处理
+   */
+  flushEventBatches(): void {
+    mcpEventOptimizer.flushAllBatches()
+    console.log('[MCP] 所有事件批处理已刷新')
+  }
+
+  /**
+   * 重置事件优化统计
+   */
+  resetEventOptimizationStats(): void {
+    mcpEventOptimizer.resetStats()
+    console.log('[MCP] 事件优化统计已重置')
+  }
+
+  /**
    * 清理资源
    */
   destroy(): void {
@@ -1095,5 +1148,6 @@ export class McpPresenter implements IMCPPresenter {
     this.toolManager?.destroy?.()
     mcpCircuitBreakerManager.destroy()
     mcpCacheManager.destroy()
+    mcpEventOptimizer.destroy()
   }
 }

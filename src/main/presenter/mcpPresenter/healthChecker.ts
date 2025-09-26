@@ -7,6 +7,7 @@ import { McpClient } from './mcpClient'
 import { MCPErrorHandler, MCPErrorType } from './errorHandler'
 import { eventBus, SendTarget } from '@/eventbus'
 import { NOTIFICATION_EVENTS } from '@/events'
+import { mcpEventOptimizer } from './eventOptimizer'
 
 export interface SystemMetrics {
   cpuUsage: number // 0-100
@@ -231,7 +232,8 @@ export class MCPHealthChecker extends EventEmitter {
       this.updateHealthState(serverId, false, responseTime, errorMessage)
     }
 
-    // 发出健康检查事件
+    // 使用优化的事件发送
+    mcpEventOptimizer.optimizedEmit(MCP_EVENTS.SERVER_HEALTH_CHECK, result)
     this.emit(MCP_EVENTS.SERVER_HEALTH_CHECK, result)
 
     return result
@@ -347,12 +349,16 @@ export class MCPHealthChecker extends EventEmitter {
     // 如果健康状态发生变化，发出事件
     const previouslyHealthy = state.isHealthy
     if (previouslyHealthy !== isHealthy) {
-      this.emit(MCP_EVENTS.SERVER_STATUS_CHANGED, {
+      const statusData = {
         serverId,
         status: state.status,
         isHealthy: state.isHealthy,
         previousStatus: previouslyHealthy ? 'healthy' : 'unhealthy'
-      })
+      }
+
+      // 使用优化的事件发送
+      mcpEventOptimizer.optimizedEmit(MCP_EVENTS.SERVER_STATUS_CHANGED, statusData)
+      this.emit(MCP_EVENTS.SERVER_STATUS_CHANGED, statusData)
     }
   }
 

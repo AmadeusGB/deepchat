@@ -3,6 +3,7 @@
 
 import { EventEmitter } from 'events'
 import { MCP_EVENTS } from '../../events'
+import { mcpEventOptimizer } from './eventOptimizer'
 
 export interface ToolUsageEvent {
   toolName: string
@@ -109,7 +110,8 @@ export class MCPUsageTracker extends EventEmitter {
     this.updateToolStats(event)
     this.updateServerStats(event)
 
-    // 发出使用事件
+    // 使用优化的事件发送
+    mcpEventOptimizer.optimizedEmit(MCP_EVENTS.TOOL_CALL_RESULT, event)
     this.emit(MCP_EVENTS.TOOL_CALL_RESULT, event)
   }
 
@@ -428,7 +430,9 @@ export class MCPUsageTracker extends EventEmitter {
   private startPeriodicUpdates(): void {
     // 定期更新分析数据
     this.updateTimer = setInterval(() => {
-      this.emit(MCP_EVENTS.USAGE_STATS_UPDATED, this.getUsageAnalytics())
+      const analytics = this.getUsageAnalytics()
+      mcpEventOptimizer.optimizedEmit(MCP_EVENTS.USAGE_STATS_UPDATED, analytics)
+      this.emit(MCP_EVENTS.USAGE_STATS_UPDATED, analytics)
     }, this.analyticsUpdateInterval)
 
     // 定期清理旧数据

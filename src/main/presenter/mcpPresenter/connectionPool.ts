@@ -1,6 +1,7 @@
 import { McpClient } from './mcpClient'
 import { eventBus } from '@/eventbus'
 import { MCP_EVENTS } from '@/events'
+import { mcpEventOptimizer } from './eventOptimizer'
 import { MCPErrorHandler, MCPErrorType } from './errorHandler'
 
 interface PooledConnection {
@@ -139,12 +140,16 @@ export class MCPConnectionPool {
 
     console.log(`🔗 [连接池] 创建新连接: ${serverName}, 池大小: ${pool.length}`)
 
-    eventBus.emit(MCP_EVENTS.CONNECTION_POOL_STATS, {
+    const poolStats = {
       serverName,
       poolSize: pool.length,
       activeConnections: pool.filter(c => c.isActive).length,
       memoryUsage: this.config.memoryMonitoringEnabled ? this.getMemoryUsage() : undefined
-    })
+    }
+
+    // 使用优化的事件发送
+    mcpEventOptimizer.optimizedEmit(MCP_EVENTS.CONNECTION_POOL_STATS, poolStats)
+    eventBus.emit(MCP_EVENTS.CONNECTION_POOL_STATS, poolStats)
 
     return newClient
   }
