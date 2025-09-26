@@ -6,6 +6,7 @@ import { eventBus, SendTarget } from '@/eventbus'
 import { NOTIFICATION_EVENTS } from '@/events'
 import { MCP_EVENTS } from '@/events'
 import { getErrorMessageLabels } from '@shared/i18n'
+import { MCPErrorHandler, MCPErrorType, MCPErrorSeverity } from './errorHandler'
 
 const NPM_REGISTRY_LIST = [
   'https://registry.npmjs.org/',
@@ -17,6 +18,7 @@ export class ServerManager {
   private clients: Map<string, McpClient> = new Map()
   private configPresenter: IConfigPresenter
   private npmRegistry: string | null = null
+  private errorHandler: MCPErrorHandler
 
   // 添加防抖机制
   private updateDebounceTimer: NodeJS.Timeout | null = null
@@ -24,6 +26,18 @@ export class ServerManager {
 
   constructor(configPresenter: IConfigPresenter) {
     this.configPresenter = configPresenter
+    this.errorHandler = new MCPErrorHandler({
+      maxAttempts: 3,
+      baseDelay: 1000,
+      maxDelay: 10000,
+      backoffFactor: 2,
+      jitter: true
+    })
+
+    // 监听错误事件
+    this.errorHandler.on('error', (error) => {
+      console.warn(`[MCP] Error occurred:`, error)
+    })
   }
 
   // 防抖发送CLIENT_LIST_UPDATED事件
@@ -175,56 +189,97 @@ export class ServerManager {
     const serverConfig = servers[name]
 
     if (!serverConfig) {
-      throw new Error(`MCP server ${name} not found`)
+      const error = this.errorHandler.classifyError(
+        new Error(`MCP server ${name} not found`),
+        { serverId: name, operation: 'startServer' }
+      )
+      throw error.originalError || new Error(error.message)
     }
 
-    try {
-      console.info(`Starting MCP server ${name}...`)
-      const npmRegistry = serverConfig.customNpmRegistry || this.npmRegistry
-      // 创建并保存客户端实例，传入npm registry
-      const client = new McpClient(
-        name,
-        serverConfig as unknown as Record<string, unknown>,
-        npmRegistry
-      )
-      this.clients.set(name, client)
+    // 使用错误处理器的重试机制
+    const result = await this.errorHandler.executeWithRetry(
+      async () => {
+        console.info(`Starting MCP server ${name}...`)
+        const npmRegistry = serverConfig.customNpmRegistry || this.npmRegistry
 
-      // 连接到服务器，这将启动服务
-      await client.connect()
-    } catch (error) {
-      console.error(`Failed to start MCP server ${name}:`, error)
+        // 创建并保存客户端实例，传入npm registry
+        const client = new McpClient(
+          name,
+          serverConfig as unknown as Record<string, unknown>,
+          npmRegistry
+        )
+        this.clients.set(name, client)
 
+        // 连接到服务器，这将启动服务
+        await client.connect()
+
+        console.info(`MCP server ${name} started successfully`)
+        return client
+      },
+      { serverId: name, operation: 'startServer' },
+      {
+        maxAttempts: 3,
+        baseDelay: 1000,
+        retryableErrors: [
+          MCPErrorType.CONNECTION_FAILED,
+          MCPErrorType.CONNECTION_TIMEOUT,
+          MCPErrorType.SERVER_UNAVAILABLE
+        ]
+      }
+    )
+
+    if (!result.success) {
       // 移除客户端引用
       this.clients.delete(name)
 
-      // 发送全局错误通知
-      this.sendMcpConnectionError(name, error)
+      // 发送改进的错误通知
+      this.sendMcpConnectionError(name, result.error!)
 
-      throw error
-    } finally {
+      throw result.error?.originalError || new Error(result.error?.message || 'Unknown error')
+    } else {
+      // 成功启动，发送客户端列表更新事件
       this.debouncedClientListUpdate()
     }
   }
 
   // 处理并发送MCP连接错误通知
   private sendMcpConnectionError(serverName: string, error: unknown): void {
-    // 引入所需模块
-
     try {
       // 获取当前语言
       const locale = this.configPresenter.getLanguage?.() || 'zh-CN'
       const errorMessages = getErrorMessageLabels(locale)
 
-      // 格式化错误信息
-      const errorMsg = error instanceof Error ? error.message : '未知错误'
+      let errorMsg: string
+      let errorType: string = 'error'
+
+      // 处理新的MCPError类型或传统错误
+      if (error && typeof error === 'object' && 'type' in error && 'severity' in error) {
+        const mcpError = error as any // MCPError type
+        errorMsg = mcpError.message
+
+        // 根据错误严重级别设置通知类型
+        switch (mcpError.severity) {
+          case MCPErrorSeverity.LOW:
+            errorType = 'warning'
+            break
+          case MCPErrorSeverity.CRITICAL:
+            errorType = 'critical'
+            break
+          default:
+            errorType = 'error'
+        }
+      } else {
+        errorMsg = error instanceof Error ? error.message : '未知错误'
+      }
+
       const formattedMessage = `${serverName}: ${errorMsg}`
 
       // 发送全局错误通知
       eventBus.sendToRenderer(NOTIFICATION_EVENTS.SHOW_ERROR, SendTarget.ALL_WINDOWS, {
         title: errorMessages.mcpConnectionErrorTitle,
         message: formattedMessage,
-        id: `mcp-error-${serverName}-${Date.now()}`, // 添加时间戳和服务器名称确保每个错误有唯一ID
-        type: 'error'
+        id: `mcp-error-${serverName}-${Date.now()}`,
+        type: errorType
       })
     } catch (notifyError) {
       console.error('Failed to send MCP error notification:', notifyError)
@@ -266,5 +321,46 @@ export class ServerManager {
    */
   getClient(name: string): McpClient | undefined {
     return this.clients.get(name)
+  }
+
+  /**
+   * 获取错误统计
+   */
+  getErrorStats(): Map<string, number> {
+    const stats = this.errorHandler.getErrorStats()
+    const result = new Map<string, number>()
+    stats.forEach((count, errorType) => {
+      result.set(errorType, count)
+    })
+    return result
+  }
+
+  /**
+   * 重置错误统计
+   */
+  resetErrorStats(): void {
+    this.errorHandler.resetErrorStats()
+  }
+
+  /**
+   * 获取错误处理器实例（用于测试或高级配置）
+   */
+  getErrorHandler(): MCPErrorHandler {
+    return this.errorHandler
+  }
+
+  /**
+   * 清理资源
+   */
+  destroy(): void {
+    // 清理防抖定时器
+    if (this.updateDebounceTimer) {
+      clearTimeout(this.updateDebounceTimer)
+      this.updateDebounceTimer = null
+    }
+
+    // 清理错误处理器
+    this.errorHandler.removeAllListeners()
+    this.errorHandler.resetErrorStats()
   }
 }

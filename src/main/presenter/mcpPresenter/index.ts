@@ -522,8 +522,14 @@ export class McpPresenter implements IMCPPresenter {
       const toolCallResult = await this.toolManager.callTool(request)
       success = true
 
+      // 包装结果为预期格式
+      const wrappedResult = {
+        content: typeof toolCallResult.content === 'string' ? toolCallResult.content : JSON.stringify(toolCallResult.content),
+        rawData: toolCallResult
+      }
+
       // 格式化结果
-      const formattedResult = this.formatToolCallResult(toolCallResult)
+      const formattedResult = this.formatToolCallResult(wrappedResult)
 
       // 记录使用统计
       this.recordToolUsage(request, startTime, success, formattedResult)
@@ -551,12 +557,12 @@ export class McpPresenter implements IMCPPresenter {
     error?: string
   ): void {
     const responseTime = Date.now() - startTime
-    const inputSize = JSON.stringify(request.arguments || {}).length
+    const inputSize = JSON.stringify(request.function.arguments || '{}').length
     const outputSize = result ? JSON.stringify(result.content).length : 0
 
     this.usageTracker.recordToolUsage({
-      toolName: request.name,
-      serverName: request.server || 'unknown',
+      toolName: request.function.name,
+      serverName: request.server.name || 'unknown',
       timestamp: Date.now(),
       success,
       responseTime,
@@ -581,9 +587,10 @@ export class McpPresenter implements IMCPPresenter {
     } else if (Array.isArray(toolCallResult.content)) {
       // 内容是结构化数组，需要格式化
       const contentParts: string[] = []
+      const contentArray = toolCallResult.content as Array<any>
 
       // 处理每个内容项
-      for (const item of toolCallResult.content) {
+      for (const item of contentArray) {
         if (item.type === 'text') {
           contentParts.push(item.text)
         } else if (item.type === 'image') {
@@ -607,11 +614,11 @@ export class McpPresenter implements IMCPPresenter {
     }
 
     // 添加错误标记（如果有）
-    if (toolCallResult.isError) {
+    if (toolCallResult.rawData.isError) {
       formattedContent = `错误: ${formattedContent}`
     }
 
-    return { content: formattedContent, rawData: toolCallResult }
+    return { content: formattedContent, rawData: toolCallResult.rawData }
   }
 
   // 工具转换方法现在委托给 LLMFormatConverter
@@ -870,7 +877,7 @@ export class McpPresenter implements IMCPPresenter {
   destroy(): void {
     this.healthChecker?.destroy()
     this.usageTracker?.destroy()
-    this.serverManager?.destroy?.()
+    this.serverManager?.destroy()
     this.toolManager?.destroy?.()
   }
 }

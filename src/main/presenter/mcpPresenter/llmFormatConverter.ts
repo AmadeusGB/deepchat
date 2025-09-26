@@ -87,7 +87,7 @@ export class LLMFormatConverter {
           Record<string, unknown>
         >,
         type: toolDefinition.function.parameters.type,
-        required: toolDefinition.function.parameters.required
+        required: toolDefinition.function.parameters.required || []
       }
     }
   }
