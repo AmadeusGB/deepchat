@@ -544,10 +544,41 @@ export class DeeperWalletServer {
                 network: z.string().describe('区块链网络名称，如 ETHEREUM、POLYGON 等'),
                 options: z
                   .object({
-                    version: z.string().optional().describe('Uniswap 版本，例如 "V3"')
+                    version: z.string().optional().describe('Uniswap 版本，例如 "V3"'),
+                    slippage: z.number().optional().describe('滑点容忍度（百分比）'),
+                    deadline: z.number().optional().describe('交易截止时间（Unix时间戳）'),
+                    fee: z.number().optional().describe('手续费级别（3000=0.3%）')
                   })
                   .optional()
                   .describe('其他交换选项')
+              })
+            )
+          },
+          {
+            name: 'accountList',
+            description: '👤 获取钱包账户列表 - 获取本地钱包中所有可用的账户地址列表',
+            inputSchema: zodToJsonSchema(z.object({}))
+          },
+          {
+            name: 'transferTokenFromMyWallet',
+            description: '💸 转账原生代币 - 从我的钱包地址向其他地址转账原生代币（如ETH、MATIC、SOL等）',
+            inputSchema: zodToJsonSchema(
+              z.object({
+                toAddress: z.string().describe('接收者地址'),
+                amount: z.string().describe('转账金额（以最小单位的字符串形式）'),
+                network: z.string().describe('区块链网络名称，如 ETHEREUM、POLYGON 等')
+              })
+            )
+          },
+          {
+            name: 'transferContractTokenFromMyWallet',
+            description: '🪙 转账合约代币 - 从我的钱包地址向其他地址转账合约代币（如ERC20、SPL代币等）',
+            inputSchema: zodToJsonSchema(
+              z.object({
+                toAddress: z.string().describe('接收者地址'),
+                contract: z.string().describe('代币合约地址'),
+                amount: z.string().describe('转账金额（以最小单位的字符串形式）'),
+                network: z.string().describe('区块链网络名称')
               })
             )
           }
@@ -932,6 +963,122 @@ export class DeeperWalletServer {
                   }
                 ]
               }
+            }
+          }
+
+          case 'accountList': {
+            // Simulate account list - in real implementation this would come from deeper-wallet-mcp
+            const mockAccounts = [
+              {
+                address: '0x742d35cc6634C0532925a3b8D21F21e1a3f2a007',
+                chain_type: 'ETHEREUM',
+                index: 0,
+                derivePath: "m/44'/60'/0'/0/0"
+              },
+              {
+                address: '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM',
+                chain_type: 'SOLANA',
+                index: 0,
+                derivePath: "m/44'/501'/0'/0'"
+              }
+            ]
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Available Wallet Accounts:\n${JSON.stringify(mockAccounts, null, 2)}\n\nNote: This is simulated data. In a real implementation, this would show actual wallet accounts from the deeper-wallet-mcp service.`
+                }
+              ]
+            }
+          }
+
+          case 'transferTokenFromMyWallet': {
+            const { toAddress, amount, network } = z
+              .object({
+                toAddress: z.string(),
+                amount: z.string(),
+                network: z.string()
+              })
+              .parse(args)
+
+            const networkKey = network.toUpperCase() as NetworkKey
+            if (!(networkKey in SUPPORTED_NETWORKS)) {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Unsupported network: ${network}. Use getSupportedNetworks to see available networks.`
+                  }
+                ]
+              }
+            }
+
+            const networkConfig = SUPPORTED_NETWORKS[networkKey]
+
+            // Simulate transfer result
+            const transferInfo = {
+              network: networkKey,
+              networkName: networkConfig.name,
+              toAddress,
+              amount,
+              currency: networkConfig.currency,
+              status: 'simulated',
+              estimatedGas: networkConfig.type === 'EVM' ? '21000' : '5000'
+            }
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Token Transfer (Simulated):\n${JSON.stringify(transferInfo, null, 2)}\n\nNote: This is a simulated transfer. In a real implementation, this would execute the transfer using the deeper-wallet-mcp service.`
+                }
+              ]
+            }
+          }
+
+          case 'transferContractTokenFromMyWallet': {
+            const { toAddress, contract, amount, network } = z
+              .object({
+                toAddress: z.string(),
+                contract: z.string(),
+                amount: z.string(),
+                network: z.string()
+              })
+              .parse(args)
+
+            const networkKey = network.toUpperCase() as NetworkKey
+            if (!(networkKey in SUPPORTED_NETWORKS)) {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Unsupported network: ${network}. Use getSupportedNetworks to see available networks.`
+                  }
+                ]
+              }
+            }
+
+            const networkConfig = SUPPORTED_NETWORKS[networkKey]
+
+            // Simulate contract token transfer result
+            const transferInfo = {
+              network: networkKey,
+              networkName: networkConfig.name,
+              toAddress,
+              contract,
+              amount,
+              status: 'simulated',
+              estimatedGas: networkConfig.type === 'EVM' ? '65000' : '10000'
+            }
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Contract Token Transfer (Simulated):\n${JSON.stringify(transferInfo, null, 2)}\n\nNote: This is a simulated transfer. In a real implementation, this would execute the contract token transfer using the deeper-wallet-mcp service.`
+                }
+              ]
             }
           }
 
