@@ -7,6 +7,7 @@ import { NOTIFICATION_EVENTS } from '@/events'
 import { MCP_EVENTS } from '@/events'
 import { getErrorMessageLabels } from '@shared/i18n'
 import { MCPErrorHandler, MCPErrorType, MCPErrorSeverity } from './errorHandler'
+import { mcpConnectionPool } from './connectionPool'
 
 const NPM_REGISTRY_LIST = [
   'https://registry.npmjs.org/',
@@ -196,24 +197,23 @@ export class ServerManager {
       throw error.originalError || new Error(error.message)
     }
 
-    // 使用错误处理器的重试机制
+    // 使用连接池获取或创建连接
     const result = await this.errorHandler.executeWithRetry(
       async () => {
-        console.info(`Starting MCP server ${name}...`)
+        console.info(`Starting MCP server ${name} through connection pool...`)
         const npmRegistry = serverConfig.customNpmRegistry || this.npmRegistry
 
-        // 创建并保存客户端实例，传入npm registry
-        const client = new McpClient(
+        // 通过连接池获取客户端
+        const client = await mcpConnectionPool.getConnection(
           name,
           serverConfig as unknown as Record<string, unknown>,
           npmRegistry
         )
+
+        // 保存客户端引用以兼容现有代码
         this.clients.set(name, client)
 
-        // 连接到服务器，这将启动服务
-        await client.connect()
-
-        console.info(`MCP server ${name} started successfully`)
+        console.info(`MCP server ${name} started successfully via connection pool`)
         return client
       },
       { serverId: name, operation: 'startServer' },
@@ -294,13 +294,23 @@ export class ServerManager {
     }
 
     try {
-      // 断开连接，这将停止服务
-      await client.disconnect()
+      // 获取服务器配置用于连接池操作
+      const servers = await this.configPresenter.getMcpServers()
+      const serverConfig = servers[name]
+
+      if (serverConfig) {
+        // 释放连接回连接池而不是直接断开
+        mcpConnectionPool.releaseConnection(name, client)
+        console.info(`MCP server ${name} connection released to pool`)
+      } else {
+        // 如果没有配置，直接断开连接
+        await client.disconnect()
+        console.info(`MCP server ${name} has been stopped (direct disconnect)`)
+      }
 
       // 从客户端列表中移除
       this.clients.delete(name)
 
-      console.info(`MCP server ${name} has been stopped`)
       this.debouncedClientListUpdate()
     } catch (error) {
       console.error(`Failed to stop MCP server ${name}:`, error)
@@ -350,17 +360,36 @@ export class ServerManager {
   }
 
   /**
+   * 获取连接池统计信息
+   */
+  getConnectionPoolStats(): any {
+    return mcpConnectionPool.getStats()
+  }
+
+
+  /**
    * 清理资源
    */
-  destroy(): void {
+  async destroy(): Promise<void> {
     // 清理防抖定时器
     if (this.updateDebounceTimer) {
       clearTimeout(this.updateDebounceTimer)
       this.updateDebounceTimer = null
     }
 
+    // 清理连接池
+    try {
+      await mcpConnectionPool.destroy()
+      console.info('Connection pool destroyed')
+    } catch (error) {
+      console.error('Failed to destroy connection pool:', error)
+    }
+
     // 清理错误处理器
     this.errorHandler.removeAllListeners()
     this.errorHandler.resetErrorStats()
+
+    // 清理客户端引用
+    this.clients.clear()
   }
 }
