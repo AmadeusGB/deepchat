@@ -30,6 +30,7 @@ import {
   OpenAITool,
   AnthropicTool
 } from './llmFormatConverter'
+import { mcpCacheManager } from './cacheManager'
 
 // 工具类型接口现在从 LLMFormatConverter 导入
 
@@ -417,6 +418,14 @@ export class McpPresenter implements IMCPPresenter {
     // 从健康检查器中注销
     this.healthChecker.unregisterClient(serverName)
 
+    // 清除服务器相关的缓存
+    mcpCacheManager.clearServerCache(serverName)
+    console.log(`[Cache] Cleared cache for stopped server: ${serverName}`)
+
+    // 清除全局缓存（工具定义、提示等）
+    mcpCacheManager.clearServerCache('all_tool_definitions')
+    mcpCacheManager.clearServerCache('all_prompts')
+
     await this.serverManager.stopServer(serverName)
     // 通知渲染进程服务器已停止
     eventBus.send(MCP_EVENTS.SERVER_STOPPED, SendTarget.ALL_WINDOWS, serverName)
@@ -424,10 +433,29 @@ export class McpPresenter implements IMCPPresenter {
 
   async getAllToolDefinitions(): Promise<MCPToolDefinition[]> {
     const enabled = await this.configPresenter.getMcpEnabled()
-    if (enabled) {
-      return this.toolManager.getAllToolDefinitions()
+    if (!enabled) {
+      return []
     }
-    return []
+
+    // 尝试从缓存获取
+    const cacheKey = 'all_tool_definitions'
+    const cachedTools = mcpCacheManager.getCachedTools(cacheKey)
+
+    if (cachedTools && cachedTools.length > 0) {
+      console.log(`[Cache] Retrieved ${cachedTools.length} tool definitions from cache`)
+      return cachedTools as MCPToolDefinition[]
+    }
+
+    // 缓存未命中，从工具管理器获取
+    const tools = await this.toolManager.getAllToolDefinitions()
+
+    // 缓存工具定义
+    if (tools.length > 0) {
+      await mcpCacheManager.cacheTools(cacheKey, tools as unknown as any)
+      console.log(`[Cache] Cached ${tools.length} tool definitions`)
+    }
+
+    return tools
   }
 
   /**
@@ -438,6 +466,15 @@ export class McpPresenter implements IMCPPresenter {
     const enabled = await this.configPresenter.getMcpEnabled()
     if (!enabled) {
       return []
+    }
+
+    // 尝试从缓存获取
+    const cacheKey = 'all_prompts'
+    const cachedPrompts = mcpCacheManager.getCachedPrompts(cacheKey)
+
+    if (cachedPrompts && cachedPrompts.length > 0) {
+      console.log(`[Cache] Retrieved ${cachedPrompts.length} prompts from cache`)
+      return cachedPrompts as Array<PromptListEntry>
     }
 
     const clients = await this.toolManager.getRunningClients()
@@ -469,6 +506,12 @@ export class McpPresenter implements IMCPPresenter {
           )
         }
       }
+    }
+
+    // 缓存提示列表
+    if (promptsList.length > 0) {
+      await mcpCacheManager.cachePrompts(cacheKey, promptsList as any)
+      console.log(`[Cache] Cached ${promptsList.length} prompts`)
     }
 
     return promptsList
@@ -517,13 +560,42 @@ export class McpPresenter implements IMCPPresenter {
     const startTime = Date.now()
     let success = false
     let error: string | undefined
+    let fromCache = false
 
     try {
-      const toolCallResult = await this.toolManager.callTool(request)
+      // 尝试从缓存获取工具响应
+      const args = request.function.arguments ? JSON.parse(request.function.arguments) : {}
+      const cachedResponse = mcpCacheManager.getCachedToolResponse(
+        request.server.name,
+        request.function.name,
+        args
+      )
+
+      let toolCallResult: MCPToolResponse
+      let wrappedResult: { content: string; rawData: MCPToolResponse }
+
+      if (cachedResponse) {
+        // 使用缓存的响应
+        toolCallResult = cachedResponse
+        fromCache = true
+        console.log(`[Cache] Retrieved tool response from cache: ${request.server.name}:${request.function.name}`)
+      } else {
+        // 缓存未命中，执行实际工具调用
+        toolCallResult = await this.toolManager.callTool(request)
+
+        // 缓存工具响应（如果是幂等操作）
+        await mcpCacheManager.cacheToolResponse(
+          request.server.name,
+          request.function.name,
+          args,
+          toolCallResult
+        )
+      }
+
       success = true
 
       // 包装结果为预期格式
-      const wrappedResult = {
+      wrappedResult = {
         content: typeof toolCallResult.content === 'string' ? toolCallResult.content : JSON.stringify(toolCallResult.content),
         rawData: toolCallResult
       }
@@ -531,8 +603,13 @@ export class McpPresenter implements IMCPPresenter {
       // 格式化结果
       const formattedResult = this.formatToolCallResult(wrappedResult)
 
-      // 记录使用统计
-      this.recordToolUsage(request, startTime, success, formattedResult)
+      // 记录使用统计（包含缓存信息）
+      this.recordToolUsage(request, startTime, success, formattedResult, undefined, fromCache)
+
+      // 缓存命中时，响应时间会明显更快
+      if (fromCache) {
+        console.log(`[Cache] Cache hit improved response time: ${Date.now() - startTime}ms`)
+      }
 
       return formattedResult
     } catch (err) {
@@ -540,7 +617,7 @@ export class McpPresenter implements IMCPPresenter {
       success = false
 
       // 记录失败的使用统计
-      this.recordToolUsage(request, startTime, success, undefined, error)
+      this.recordToolUsage(request, startTime, success, undefined, error, false)
 
       throw err
     }
@@ -554,7 +631,8 @@ export class McpPresenter implements IMCPPresenter {
     startTime: number,
     success: boolean,
     result?: { content: string; rawData: MCPToolResponse },
-    error?: string
+    error?: string,
+    fromCache?: boolean
   ): void {
     const responseTime = Date.now() - startTime
     const inputSize = JSON.stringify(request.function.arguments || '{}').length
@@ -565,7 +643,7 @@ export class McpPresenter implements IMCPPresenter {
       serverName: request.server.name || 'unknown',
       timestamp: Date.now(),
       success,
-      responseTime,
+      responseTime: fromCache ? 0 : responseTime, // 缓存命中时响应时间为0
       inputSize,
       outputSize,
       error,
