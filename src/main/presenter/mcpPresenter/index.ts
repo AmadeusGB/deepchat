@@ -19,65 +19,19 @@ import { MCP_EVENTS, NOTIFICATION_EVENTS } from '@/events'
 import { IConfigPresenter } from '@shared/presenter'
 import { getErrorMessageLabels } from '@shared/i18n'
 import { OpenAI } from 'openai'
-import { ToolListUnion, Type, FunctionDeclaration } from '@google/genai'
+import { ToolListUnion } from '@google/genai'
 import { CONFIG_EVENTS } from '@/events'
 import { presenter } from '@/presenter'
+import {
+  LLMFormatConverter,
+  OpenAIToolCall,
+  AnthropicToolUse,
+  GeminiFunctionCall,
+  OpenAITool,
+  AnthropicTool
+} from './llmFormatConverter'
 
-// 定义MCP工具接口
-interface MCPTool {
-  id: string
-  name: string
-  type: string
-  description: string
-  serverName: string
-  inputSchema: {
-    properties: Record<string, Record<string, unknown>>
-    required: string[]
-    [key: string]: unknown
-  }
-}
-
-// 定义各家LLM的工具类型接口
-interface OpenAIToolCall {
-  function: {
-    name: string
-    arguments: string
-  }
-}
-
-interface AnthropicToolUse {
-  name: string
-  input: Record<string, unknown>
-}
-
-interface GeminiFunctionCall {
-  name: string
-  args: Record<string, unknown>
-}
-
-// 定义工具转换接口
-interface OpenAITool {
-  type: 'function'
-  function: {
-    name: string
-    description: string
-    parameters: {
-      type: string
-      properties: Record<string, Record<string, unknown>>
-      required: string[]
-    }
-  }
-}
-
-interface AnthropicTool {
-  name: string
-  description: string
-  input_schema: {
-    type: string
-    properties: Record<string, Record<string, unknown>>
-    required: string[]
-  }
-}
+// 工具类型接口现在从 LLMFormatConverter 导入
 
 // 完整版的 McpPresenter 实现
 export class McpPresenter implements IMCPPresenter {
@@ -660,53 +614,7 @@ export class McpPresenter implements IMCPPresenter {
     return { content: formattedContent, rawData: toolCallResult }
   }
 
-  // 将MCPToolDefinition转换为MCPTool
-  private mcpToolDefinitionToMcpTool(
-    toolDefinition: MCPToolDefinition,
-    serverName: string
-  ): MCPTool {
-    const mcpTool = {
-      id: toolDefinition.function.name,
-      name: toolDefinition.function.name,
-      type: toolDefinition.type,
-      description: toolDefinition.function.description,
-      serverName,
-      inputSchema: {
-        properties: toolDefinition.function.parameters.properties as Record<
-          string,
-          Record<string, unknown>
-        >,
-        type: toolDefinition.function.parameters.type,
-        required: toolDefinition.function.parameters.required
-      }
-    } as MCPTool
-    return mcpTool
-  }
-
-  // 工具属性过滤函数
-  private filterPropertieAttributes(tool: MCPTool): Record<string, Record<string, unknown>> {
-    const supportedAttributes = [
-      'type',
-      'nullable',
-      'description',
-      'properties',
-      'items',
-      'enum',
-      'anyOf'
-    ]
-
-    const properties = tool.inputSchema.properties
-    const getSubMap = (obj: Record<string, unknown>, keys: string[]): Record<string, unknown> => {
-      return Object.fromEntries(Object.entries(obj).filter(([key]) => keys.includes(key)))
-    }
-
-    const result: Record<string, Record<string, unknown>> = {}
-    for (const [key, val] of Object.entries(properties)) {
-      result[key] = getSubMap(val, supportedAttributes)
-    }
-
-    return result
-  }
+  // 工具转换方法现在委托给 LLMFormatConverter
 
   // 新增工具转换方法
   /**
@@ -719,30 +627,13 @@ export class McpPresenter implements IMCPPresenter {
     mcpTools: MCPToolDefinition[],
     serverName: string
   ): Promise<OpenAITool[]> {
-    const openaiTools: OpenAITool[] = mcpTools.map((toolDef) => {
-      const tool = this.mcpToolDefinitionToMcpTool(toolDef, serverName)
-      return {
-        type: 'function',
-        function: {
-          name: tool.name,
-          description: tool.description,
-          parameters: {
-            type: 'object',
-            properties: this.filterPropertieAttributes(tool),
-            required: tool.inputSchema.required || []
-          }
-        }
-      }
-    })
-    // console.log('openaiTools', JSON.stringify(openaiTools))
-    return openaiTools
+    return LLMFormatConverter.mcpToolsToOpenAITools(mcpTools, serverName)
   }
 
   /**
    * 将OpenAI工具调用转换回MCP工具调用
-   * @param mcpTools MCP工具定义数组
    * @param llmTool OpenAI工具调用
-   * @param serverName 服务器名称
+   * @param providerId 提供者ID
    * @returns 匹配的MCP工具调用
    */
   async openAIToolsToMcpTool(
@@ -750,28 +641,7 @@ export class McpPresenter implements IMCPPresenter {
     providerId: string
   ): Promise<MCPToolCall | undefined> {
     const mcpTools = await this.getAllToolDefinitions()
-    const tool = mcpTools.find((tool) => tool.function.name === llmTool.function.name)
-    if (!tool) {
-      return undefined
-    }
-
-    // 创建MCP工具调用
-    const mcpToolCall: MCPToolCall = {
-      id: `${providerId}:${tool.function.name}-${Date.now()}`, // 生成唯一ID，包含服务器名称
-      type: tool.type,
-      function: {
-        name: tool.function.name,
-        arguments: llmTool.function.arguments
-      },
-      server: {
-        name: tool.server.name,
-        icons: tool.server.icons,
-        description: tool.server.description
-      }
-    }
-    // console.log('mcpToolCall', mcpToolCall, tool)
-
-    return mcpToolCall
+    return LLMFormatConverter.openAIToolsToMcpTool(llmTool, providerId, mcpTools)
   }
 
   /**
@@ -784,25 +654,13 @@ export class McpPresenter implements IMCPPresenter {
     mcpTools: MCPToolDefinition[],
     serverName: string
   ): Promise<AnthropicTool[]> {
-    return mcpTools.map((toolDef) => {
-      const tool = this.mcpToolDefinitionToMcpTool(toolDef, serverName)
-      return {
-        name: tool.name,
-        description: tool.description,
-        input_schema: {
-          type: 'object',
-          properties: tool.inputSchema.properties,
-          required: tool.inputSchema.required as string[]
-        }
-      }
-    })
+    return LLMFormatConverter.mcpToolsToAnthropicTools(mcpTools, serverName)
   }
 
   /**
    * 将Anthropic工具使用转换回MCP工具调用
-   * @param mcpTools MCP工具定义数组
    * @param toolUse Anthropic工具使用
-   * @param serverName 服务器名称
+   * @param providerId 提供者ID
    * @returns 匹配的MCP工具调用
    */
   async anthropicToolUseToMcpTool(
@@ -810,29 +668,7 @@ export class McpPresenter implements IMCPPresenter {
     providerId: string
   ): Promise<MCPToolCall | undefined> {
     const mcpTools = await this.getAllToolDefinitions()
-
-    const tool = mcpTools.find((tool) => tool.function.name === toolUse.name)
-    // console.log('tool', tool, toolUse)
-    if (!tool) {
-      return undefined
-    }
-
-    // 创建MCP工具调用
-    const mcpToolCall: MCPToolCall = {
-      id: `${providerId}:${tool.function.name}-${Date.now()}`, // 生成唯一ID，包含服务器名称
-      type: tool.type,
-      function: {
-        name: tool.function.name,
-        arguments: JSON.stringify(toolUse.input)
-      },
-      server: {
-        name: tool.server.name,
-        icons: tool.server.icons,
-        description: tool.server.description
-      }
-    }
-
-    return mcpToolCall
+    return LLMFormatConverter.anthropicToolUseToMcpTool(toolUse, providerId, mcpTools)
   }
 
   /**
@@ -845,206 +681,13 @@ export class McpPresenter implements IMCPPresenter {
     mcpTools: MCPToolDefinition[] | undefined,
     serverName: string
   ): Promise<ToolListUnion> {
-    if (!mcpTools || mcpTools.length === 0) {
-      return []
-    }
-
-    // 递归清理Schema对象，确保符合Gemini API要求
-    const cleanSchema = (schema: Record<string, unknown>): Record<string, unknown> => {
-      const cleanedSchema: Record<string, unknown> = {}
-
-      // 处理type字段 - 确保始终有有效值
-      if ('type' in schema) {
-        const type = schema.type
-        if (typeof type === 'string' && type.trim() !== '') {
-          cleanedSchema.type = type
-        } else if (Array.isArray(type) && type.length > 0) {
-          // 如果是类型数组，取第一个非空类型
-          const validType = type.find((t) => typeof t === 'string' && t.trim() !== '')
-          if (validType) {
-            cleanedSchema.type = validType
-          } else {
-            cleanedSchema.type = 'string' // 默认类型
-          }
-        } else {
-          // 如果没有有效的type，根据其他属性推断
-          if ('enum' in schema) {
-            cleanedSchema.type = 'string'
-          } else if ('properties' in schema) {
-            cleanedSchema.type = 'object'
-          } else if ('items' in schema) {
-            cleanedSchema.type = 'array'
-          } else {
-            cleanedSchema.type = 'string' // 默认类型
-          }
-        }
-      } else {
-        // 如果完全没有type字段，根据其他属性推断
-        if ('enum' in schema) {
-          cleanedSchema.type = 'string'
-        } else if ('properties' in schema) {
-          cleanedSchema.type = 'object'
-        } else if ('items' in schema) {
-          cleanedSchema.type = 'array'
-        } else if ('anyOf' in schema || 'oneOf' in schema) {
-          // 对于union类型，尝试推断最合适的类型
-          cleanedSchema.type = 'string' // 默认为string
-        } else {
-          cleanedSchema.type = 'string' // 最终默认类型
-        }
-      }
-
-      // 处理description
-      if ('description' in schema && typeof schema.description === 'string') {
-        cleanedSchema.description = schema.description
-      }
-
-      // 处理enum
-      if ('enum' in schema && Array.isArray(schema.enum)) {
-        cleanedSchema.enum = schema.enum
-        // 确保enum类型是string
-        if (!cleanedSchema.type || cleanedSchema.type === '') {
-          cleanedSchema.type = 'string'
-        }
-      }
-
-      // 处理properties
-      if (
-        'properties' in schema &&
-        typeof schema.properties === 'object' &&
-        schema.properties !== null
-      ) {
-        const properties = schema.properties as Record<string, unknown>
-        const cleanedProperties: Record<string, unknown> = {}
-
-        for (const [propName, propValue] of Object.entries(properties)) {
-          if (typeof propValue === 'object' && propValue !== null) {
-            cleanedProperties[propName] = cleanSchema(propValue as Record<string, unknown>)
-          }
-        }
-
-        if (Object.keys(cleanedProperties).length > 0) {
-          cleanedSchema.properties = cleanedProperties
-          cleanedSchema.type = 'object'
-        }
-      }
-
-      // 处理items (数组类型)
-      if ('items' in schema && typeof schema.items === 'object' && schema.items !== null) {
-        cleanedSchema.items = cleanSchema(schema.items as Record<string, unknown>)
-        cleanedSchema.type = 'array'
-      }
-
-      // 处理nullable
-      if ('nullable' in schema && typeof schema.nullable === 'boolean') {
-        cleanedSchema.nullable = schema.nullable
-      }
-
-      // 处理anyOf/oneOf (union类型) - 简化为单一类型
-      if ('anyOf' in schema && Array.isArray(schema.anyOf)) {
-        const anyOfOptions = schema.anyOf as Array<Record<string, unknown>>
-
-        // 尝试找到最适合的类型
-        let bestOption = anyOfOptions[0]
-
-        // 优先选择有enum的选项
-        for (const option of anyOfOptions) {
-          if ('enum' in option && Array.isArray(option.enum)) {
-            bestOption = option
-            break
-          }
-        }
-
-        // 如果没有enum，优先选择string类型
-        if (!('enum' in bestOption)) {
-          for (const option of anyOfOptions) {
-            if (option.type === 'string') {
-              bestOption = option
-              break
-            }
-          }
-        }
-
-        // 递归清理选中的选项
-        const cleanedOption = cleanSchema(bestOption)
-        Object.assign(cleanedSchema, cleanedOption)
-      }
-
-      // 处理oneOf类似anyOf
-      if ('oneOf' in schema && Array.isArray(schema.oneOf)) {
-        const oneOfOptions = schema.oneOf as Array<Record<string, unknown>>
-        const bestOption = oneOfOptions[0] || {}
-        const cleanedOption = cleanSchema(bestOption)
-        Object.assign(cleanedSchema, cleanedOption)
-      }
-
-      // 最终检查：确保必须有type字段
-      if (!cleanedSchema.type || cleanedSchema.type === '') {
-        cleanedSchema.type = 'string'
-      }
-
-      return cleanedSchema
-    }
-
-    // 处理每个工具定义，构建符合Gemini API的函数声明
-    const functionDeclarations = mcpTools.map((toolDef) => {
-      // 转换为内部工具表示
-      const tool = this.mcpToolDefinitionToMcpTool(toolDef, serverName)
-
-      // 获取参数属性
-      const properties = tool.inputSchema.properties
-      const processedProperties: Record<string, Record<string, unknown>> = {}
-
-      // 处理每个属性，应用清理函数
-      for (const [propName, propValue] of Object.entries(properties)) {
-        if (typeof propValue === 'object' && propValue !== null) {
-          const cleaned = cleanSchema(propValue as Record<string, unknown>)
-          // 确保清理后的属性有有效的type
-          if (cleaned.type && cleaned.type !== '') {
-            processedProperties[propName] = cleaned
-          } else {
-            console.warn(`[MCP] Skipping property ${propName} due to invalid type`)
-          }
-        }
-      }
-
-      // 准备函数声明结构
-      const functionDeclaration: FunctionDeclaration = {
-        name: tool.id,
-        description: tool.description
-      }
-
-      if (Object.keys(processedProperties).length > 0) {
-        functionDeclaration.parameters = {
-          type: Type.OBJECT,
-          properties: processedProperties,
-          required: tool.inputSchema.required || []
-        }
-      }
-
-      // 记录没有参数的函数
-      if (Object.keys(processedProperties).length === 0) {
-        console.log(
-          `[MCP] Function ${tool.id} has no parameters, providing minimal parameter structure`
-        )
-      }
-
-      return functionDeclaration
-    })
-
-    // 返回符合Gemini工具格式的结果
-    return [
-      {
-        functionDeclarations
-      }
-    ]
+    return LLMFormatConverter.mcpToolsToGeminiTools(mcpTools, serverName)
   }
 
   /**
    * 将Gemini函数调用转换回MCP工具调用
-   * @param mcpTools MCP工具定义数组
    * @param fcall Gemini函数调用
-   * @param serverName 服务器名称
+   * @param providerId 提供者ID
    * @returns 匹配的MCP工具调用
    */
   async geminiFunctionCallToMcpTool(
@@ -1052,30 +695,7 @@ export class McpPresenter implements IMCPPresenter {
     providerId: string
   ): Promise<MCPToolCall | undefined> {
     const mcpTools = await this.getAllToolDefinitions()
-    if (!fcall) return undefined
-    if (!mcpTools) return undefined
-
-    const tool = mcpTools.find((tool) => tool.function.name === fcall.name)
-    if (!tool) {
-      return undefined
-    }
-
-    // 创建MCP工具调用
-    const mcpToolCall: MCPToolCall = {
-      id: `${providerId}:${tool.function.name}-${Date.now()}`, // 生成唯一ID，包含服务器名称
-      type: tool.type,
-      function: {
-        name: tool.function.name,
-        arguments: JSON.stringify(fcall.args)
-      },
-      server: {
-        name: tool.server.name,
-        icons: tool.server.icons,
-        description: tool.server.description
-      }
-    }
-
-    return mcpToolCall
+    return LLMFormatConverter.geminiFunctionCallToMcpTool(fcall, providerId, mcpTools)
   }
 
   // 获取MCP启用状态
@@ -1133,21 +753,7 @@ export class McpPresenter implements IMCPPresenter {
     mcpTools: MCPToolDefinition[],
     serverName: string
   ): Promise<OpenAI.Responses.Tool[]> {
-    const openaiTools: OpenAI.Responses.Tool[] = mcpTools.map((toolDef) => {
-      const tool = this.mcpToolDefinitionToMcpTool(toolDef, serverName)
-      return {
-        type: 'function',
-        name: tool.name,
-        description: tool.description,
-        parameters: {
-          type: 'object',
-          properties: this.filterPropertieAttributes(tool),
-          required: tool.inputSchema.required || []
-        },
-        strict: false
-      }
-    })
-    return openaiTools
+    return LLMFormatConverter.mcpToolsToOpenAIResponsesTools(mcpTools, serverName)
   }
 
   /**
