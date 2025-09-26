@@ -31,6 +31,7 @@ import {
   AnthropicTool
 } from './llmFormatConverter'
 import { mcpCacheManager } from './cacheManager'
+import { mcpCircuitBreakerManager, DegradedResponse } from './circuitBreaker'
 
 // 工具类型接口现在从 LLMFormatConverter 导入
 
@@ -248,7 +249,26 @@ export class McpPresenter implements IMCPPresenter {
     const clientsList: McpClient[] = []
     for (const client of clients) {
       const results: MCPToolDefinition[] = []
-      const tools = await client.listTools()
+
+      // 使用熔断器保护工具列表获取
+      const toolsResult = await mcpCircuitBreakerManager.executeWithCircuitBreaker(
+        `${client.serverName}-tools`,
+        async () => await client.listTools()
+      )
+
+      // 处理降级响应
+      let tools: any[] = []
+      if (this.isDegradedResponse(toolsResult)) {
+        console.warn(`[熔断器] ${client.serverName} 工具列表获取降级: ${toolsResult.message}`)
+        // 尝试从缓存获取工具列表
+        const cachedTools = mcpCacheManager.getCachedTools(client.serverName)
+        tools = cachedTools || []
+      } else {
+        tools = toolsResult as any[]
+        // 缓存工具列表以备降级时使用
+        await mcpCacheManager.cacheTools(client.serverName, tools)
+      }
+
       for (const tool of tools) {
         const properties = tool.inputSchema.properties || {}
         const toolProperties = { ...properties }
@@ -287,7 +307,22 @@ export class McpPresenter implements IMCPPresenter {
       // 检查并添加 prompts（如果支持）
       if (typeof client.listPrompts === 'function') {
         try {
-          const prompts = await client.listPrompts()
+          // 使用熔断器保护提示列表获取
+          const promptsResult = await mcpCircuitBreakerManager.executeWithCircuitBreaker(
+            `${client.serverName}-prompts`,
+            async () => await client.listPrompts()
+          )
+
+          let prompts: any[] = []
+          if (this.isDegradedResponse(promptsResult)) {
+            console.warn(`[熔断器] ${client.serverName} 提示列表获取降级: ${promptsResult.message}`)
+            const cachedPrompts = mcpCacheManager.getCachedPrompts(client.serverName)
+            prompts = cachedPrompts || []
+          } else {
+            prompts = promptsResult as any[]
+            await mcpCacheManager.cachePrompts(client.serverName, prompts)
+          }
+
           if (prompts && prompts.length > 0) {
             clientObj.prompts = prompts.map((prompt) => ({
               id: prompt.name,
@@ -312,7 +347,22 @@ export class McpPresenter implements IMCPPresenter {
       // 检查并添加 resources（如果支持）
       if (typeof client.listResources === 'function') {
         try {
-          const resources = await client.listResources()
+          // 使用熔断器保护资源列表获取
+          const resourcesResult = await mcpCircuitBreakerManager.executeWithCircuitBreaker(
+            `${client.serverName}-resources`,
+            async () => await client.listResources()
+          )
+
+          let resources: any[] = []
+          if (this.isDegradedResponse(resourcesResult)) {
+            console.warn(`[熔断器] ${client.serverName} 资源列表获取降级: ${resourcesResult.message}`)
+            const cachedResources = mcpCacheManager.getCachedResources(client.serverName)
+            resources = cachedResources || []
+          } else {
+            resources = resourcesResult as any[]
+            await mcpCacheManager.cacheResources(client.serverName, resources)
+          }
+
           if (resources && resources.length > 0) {
             clientObj.resources = resources
           }
@@ -443,7 +493,7 @@ export class McpPresenter implements IMCPPresenter {
 
     if (cachedTools && cachedTools.length > 0) {
       console.log(`[Cache] Retrieved ${cachedTools.length} tool definitions from cache`)
-      return cachedTools as MCPToolDefinition[]
+      return cachedTools as unknown as MCPToolDefinition[]
     }
 
     // 缓存未命中，从工具管理器获取
@@ -483,7 +533,21 @@ export class McpPresenter implements IMCPPresenter {
     for (const client of clients) {
       if (typeof client.listPrompts === 'function') {
         try {
-          const prompts = await client.listPrompts()
+          // 使用熔断器保护提示列表获取
+          const promptsResult = await mcpCircuitBreakerManager.executeWithCircuitBreaker(
+            `${client.serverName}-prompts`,
+            async () => await client.listPrompts()
+          )
+
+          let prompts: any[] = []
+          if (this.isDegradedResponse(promptsResult)) {
+            console.warn(`[熔断器] ${client.serverName} 提示列表获取降级: ${promptsResult.message}`)
+            const cachedPrompts = mcpCacheManager.getCachedPrompts(client.serverName)
+            prompts = cachedPrompts || []
+          } else {
+            prompts = promptsResult as any[]
+          }
+
           if (prompts && prompts.length > 0) {
             // 为每个提示模板添加客户端信息
             const clientPrompts = prompts.map((prompt) => ({
@@ -535,7 +599,21 @@ export class McpPresenter implements IMCPPresenter {
     for (const client of clients) {
       if (typeof client.listResources === 'function') {
         try {
-          const resources = await client.listResources()
+          // 使用熔断器保护资源列表获取
+          const resourcesResult = await mcpCircuitBreakerManager.executeWithCircuitBreaker(
+            `${client.serverName}-resources`,
+            async () => await client.listResources()
+          )
+
+          let resources: any[] = []
+          if (this.isDegradedResponse(resourcesResult)) {
+            console.warn(`[熔断器] ${client.serverName} 资源列表获取降级: ${resourcesResult.message}`)
+            const cachedResources = mcpCacheManager.getCachedResources(client.serverName)
+            resources = cachedResources || []
+          } else {
+            resources = resourcesResult as any[]
+          }
+
           if (resources && resources.length > 0) {
             // 为每个资源添加客户端信息
             const clientResources = resources.map((resource) => ({
@@ -580,8 +658,18 @@ export class McpPresenter implements IMCPPresenter {
         fromCache = true
         console.log(`[Cache] Retrieved tool response from cache: ${request.server.name}:${request.function.name}`)
       } else {
-        // 缓存未命中，执行实际工具调用
-        toolCallResult = await this.toolManager.callTool(request)
+        // 缓存未命中，使用熔断器保护工具调用
+        const toolResult = await mcpCircuitBreakerManager.executeWithCircuitBreaker(
+          `${request.server.name}-tool-execution`,
+          async () => await this.toolManager.callTool(request)
+        )
+
+        // 处理降级响应
+        if (this.isDegradedResponse(toolResult)) {
+          throw new Error(`服务降级: ${toolResult.message}`)
+        }
+
+        toolCallResult = toolResult as MCPToolResponse
 
         // 缓存工具响应（如果是幂等操作）
         await mcpCacheManager.cacheToolResponse(
@@ -621,6 +709,13 @@ export class McpPresenter implements IMCPPresenter {
 
       throw err
     }
+  }
+
+  /**
+   * 检查响应是否为降级响应
+   */
+  private isDegradedResponse(response: any): response is DegradedResponse {
+    return response && typeof response === 'object' && response.isDegraded === true
   }
 
   /**
@@ -950,6 +1045,47 @@ export class McpPresenter implements IMCPPresenter {
   }
 
   /**
+   * 获取熔断器统计信息
+   * @returns 所有熔断器的统计信息
+   */
+  getCircuitBreakerStats(): Map<string, any> {
+    return mcpCircuitBreakerManager.getAllStats()
+  }
+
+  /**
+   * 重置所有熔断器
+   */
+  resetCircuitBreakers(): void {
+    mcpCircuitBreakerManager.resetAll()
+    console.log('[MCP] 所有熔断器已重置')
+  }
+
+  /**
+   * 获取当前熔断的服务列表
+   * @returns 熔断的服务名称列表
+   */
+  getCircuitBreakerOpenServices(): string[] {
+    return mcpCircuitBreakerManager.getOpenCircuitBreakers()
+  }
+
+  /**
+   * 检查是否有服务处于熔断状态
+   * @returns 是否有熔断的服务
+   */
+  hasCircuitBreakerOpen(): boolean {
+    return mcpCircuitBreakerManager.hasCircuitBreakerOpen()
+  }
+
+  /**
+   * 更新熔断器全局配置
+   * @param config 新的熔断器配置
+   */
+  updateCircuitBreakerConfig(config: any): void {
+    mcpCircuitBreakerManager.updateGlobalConfig(config)
+    console.log('[MCP] 熔断器配置已更新:', config)
+  }
+
+  /**
    * 清理资源
    */
   destroy(): void {
@@ -957,5 +1093,7 @@ export class McpPresenter implements IMCPPresenter {
     this.usageTracker?.destroy()
     this.serverManager?.destroy()
     this.toolManager?.destroy?.()
+    mcpCircuitBreakerManager.destroy()
+    mcpCacheManager.destroy()
   }
 }
