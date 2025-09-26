@@ -581,6 +581,28 @@ export class DeeperWalletServer {
                 network: z.string().describe('区块链网络名称')
               })
             )
+          },
+          {
+            name: 'getTokenPrice',
+            description: '💹 获取代币价格 - 获取两个代币之间的当前价格信息和流动性池数据',
+            inputSchema: zodToJsonSchema(
+              z.object({
+                network: z.string().describe('区块链网络名称'),
+                tokenA: z.string().describe('第一个代币的合约地址'),
+                tokenB: z.string().describe('第二个代币的合约地址')
+              })
+            )
+          },
+          {
+            name: 'getAllPools',
+            description: '🏊 获取所有流动性池 - 获取两个代币之间所有可用的流动性池信息',
+            inputSchema: zodToJsonSchema(
+              z.object({
+                network: z.string().describe('区块链网络名称'),
+                tokenA: z.string().describe('第一个代币的合约地址'),
+                tokenB: z.string().describe('第二个代币的合约地址')
+              })
+            )
           }
         ]
       }
@@ -1077,6 +1099,144 @@ export class DeeperWalletServer {
                 {
                   type: 'text',
                   text: `Contract Token Transfer (Simulated):\n${JSON.stringify(transferInfo, null, 2)}\n\nNote: This is a simulated transfer. In a real implementation, this would execute the contract token transfer using the deeper-wallet-mcp service.`
+                }
+              ]
+            }
+          }
+
+          case 'getTokenPrice': {
+            const { network, tokenA, tokenB } = z
+              .object({
+                network: z.string(),
+                tokenA: z.string(),
+                tokenB: z.string()
+              })
+              .parse(args)
+
+            const networkKey = network.toUpperCase() as NetworkKey
+            if (!(networkKey in SUPPORTED_NETWORKS)) {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Unsupported network: ${network}. Use getSupportedNetworks to see available networks.`
+                  }
+                ]
+              }
+            }
+
+            const networkConfig = SUPPORTED_NETWORKS[networkKey]
+
+            if (networkConfig.type !== 'EVM') {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Token price queries currently only supported for EVM networks. ${network} is a ${networkConfig.type} network.`
+                  }
+                ]
+              }
+            }
+
+            // Simulate token price data
+            const priceInfo = {
+              network: networkKey,
+              networkName: networkConfig.name,
+              tokenA,
+              tokenB,
+              price: '0.000567',
+              priceInverse: '1762.34',
+              liquidityUSD: '2,456,789.12',
+              volume24h: '1,234,567.89',
+              priceChange24h: '+2.34%',
+              poolAddress: '0x1234567890abcdef1234567890abcdef12345678',
+              status: 'simulated'
+            }
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Token Price Information (Simulated):\n${JSON.stringify(priceInfo, null, 2)}\n\nNote: This is simulated price data. In a real implementation, this would fetch live prices from Uniswap pools using the deeper-wallet-mcp service.`
+                }
+              ]
+            }
+          }
+
+          case 'getAllPools': {
+            const { network, tokenA, tokenB } = z
+              .object({
+                network: z.string(),
+                tokenA: z.string(),
+                tokenB: z.string()
+              })
+              .parse(args)
+
+            const networkKey = network.toUpperCase() as NetworkKey
+            if (!(networkKey in SUPPORTED_NETWORKS)) {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Unsupported network: ${network}. Use getSupportedNetworks to see available networks.`
+                  }
+                ]
+              }
+            }
+
+            const networkConfig = SUPPORTED_NETWORKS[networkKey]
+
+            if (networkConfig.type !== 'EVM') {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Pool queries currently only supported for EVM networks. ${network} is a ${networkConfig.type} network.`
+                  }
+                ]
+              }
+            }
+
+            // Simulate pool data
+            const pools = [
+              {
+                poolAddress: '0x1234567890abcdef1234567890abcdef12345678',
+                version: 'V3',
+                fee: 3000,
+                liquidity: '123456789012345678901234',
+                sqrtPriceX96: '987654321098765432109876',
+                tick: 12345,
+                token0: tokenA,
+                token1: tokenB,
+                tickSpacing: 60
+              },
+              {
+                poolAddress: '0x2345678901bcdef01234567890abcdef23456789',
+                version: 'V3',
+                fee: 500,
+                liquidity: '987654321098765432109876',
+                sqrtPriceX96: '123456789012345678901234',
+                tick: -6789,
+                token0: tokenA,
+                token1: tokenB,
+                tickSpacing: 10
+              },
+              {
+                poolAddress: '0x3456789012cdef012345678901bcdef034567890',
+                version: 'V2',
+                fee: 3000,
+                reserve0: '123456789012345678901234',
+                reserve1: '987654321098765432109876',
+                token0: tokenA,
+                token1: tokenB
+              }
+            ]
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Available Liquidity Pools (Simulated):\n${JSON.stringify({ network: networkKey, networkName: networkConfig.name, pools, totalPools: pools.length }, null, 2)}\n\nNote: This is simulated pool data. In a real implementation, this would fetch actual pool information from Uniswap using the deeper-wallet-mcp service.`
                 }
               ]
             }
