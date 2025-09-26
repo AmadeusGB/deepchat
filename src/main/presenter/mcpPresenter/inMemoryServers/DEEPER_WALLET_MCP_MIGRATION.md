@@ -46,14 +46,24 @@ deepchat/src/main/presenter/mcpPresenter/inMemoryServers/
 - **代币余额查询**：ERC20/SPL代币余额查询
 - **代币信息查询**：代币名称、符号、小数位数
 - **地址验证**：不同区块链的地址格式验证
+- **Uniswap集成**：V2/V3/V4代币交换框架（模拟）
+- **钱包账户管理**：账户列表查询（模拟）
+- **代币转账**：原生代币和合约代币转账（模拟）
+- **代币价格查询**：流动性池价格信息（模拟）
+- **流动性池查询**：Uniswap池信息查询（模拟）
+- **代币授权**：ERC20和Permit2授权管理（模拟）
+- **授权额度查询**：代币授权状态检查（模拟）
+
+#### ⚠️ **模拟功能（待接入真实服务）**
+
+- **交易执行**：所有交易相关功能目前为模拟状态，需接入deeper-wallet-mcp服务
+- **私钥管理**：钱包操作需要外部安全服务支持
+- **实时数据**：价格和池数据需要连接区块链数据源
 
 #### ❌ **暂未迁移的功能**
 
-- **钱包管理**：HD钱包创建、导入、账户管理
-- **交易签名**：私钥管理和交易签名
-- **交易发送**：代币转账功能
 - **本地数据库**：SQLite存储
-- **价格查询**：代币价格和汇率
+- **HD钱包生成**：完整的钱包创建和恢复
 
 ### 技术架构变更
 
@@ -101,17 +111,22 @@ deepchat/src/main/presenter/mcpPresenter/inMemoryServers/
 
 ## 工具功能映射
 
-| 原始工具                          | 迁移状态  | 新工具名称           | 功能描述           |
-| --------------------------------- | --------- | -------------------- | ------------------ |
-| getBalance                        | ✅ 已迁移 | getBalance           | 查询原生代币余额   |
-| getContractBalance                | ✅ 已迁移 | getTokenBalance      | 查询代币合约余额   |
-| getContractMeta                   | ✅ 已迁移 | getTokenMetadata     | 查询代币元数据     |
-| accountList                       | ❌ 未迁移 | -                    | 需要钱包管理功能   |
-| transferTokenFromMyWallet         | ❌ 未迁移 | -                    | 涉及私钥，安全风险 |
-| transferContractTokenFromMyWallet | ❌ 未迁移 | -                    | 涉及私钥，安全风险 |
-| -                                 | ✅ 新增   | getSupportedNetworks | 查看支持的网络列表 |
-| -                                 | ✅ 新增   | validateAddress      | 验证地址格式       |
-| -                                 | ✅ 新增   | getNetworkInfo       | 获取网络详细信息   |
+| 原始工具                          | 迁移状态  | 新工具名称                          | 功能描述                 |
+| --------------------------------- | --------- | ----------------------------------- | ------------------------ |
+| getBalance                        | ✅ 已迁移 | getBalance                          | 查询原生代币余额         |
+| getContractBalance                | ✅ 已迁移 | getTokenBalance                     | 查询代币合约余额         |
+| getContractMeta                   | ✅ 已迁移 | getTokenMetadata                    | 查询代币元数据           |
+| swapTokens                        | ✅ 已迁移 | swapTokens                          | Uniswap代币交换（模拟）  |
+| accountList                       | ✅ 已迁移 | accountList                         | 钱包账户列表（模拟）     |
+| transferTokenFromMyWallet         | ✅ 已迁移 | transferTokenFromMyWallet           | 原生代币转账（模拟）     |
+| transferContractTokenFromMyWallet | ✅ 已迁移 | transferContractTokenFromMyWallet   | 合约代币转账（模拟）     |
+| -                                 | ✅ 新增   | getSupportedNetworks                | 查看支持的网络列表       |
+| -                                 | ✅ 新增   | validateAddress                     | 验证地址格式             |
+| -                                 | ✅ 新增   | getNetworkInfo                      | 获取网络详细信息         |
+| -                                 | ✅ 新增   | getTokenPrice                       | 代币价格查询（模拟）     |
+| -                                 | ✅ 新增   | getAllPools                         | 流动性池查询（模拟）     |
+| -                                 | ✅ 新增   | approveToken                        | 代币授权（Permit2支持）  |
+| -                                 | ✅ 新增   | checkAllowance                      | 授权额度查询（模拟）     |
 
 ## API端点使用
 
@@ -247,6 +262,30 @@ getTokenMetadata({
 | ----- | ---------- | ---------------------------------------------------------------------- |
 | 1.0.0 | 2025-01-07 | 初始简化版本集成完成                                                   |
 | 1.1.0 | 2025-01-12 | 新增SUI、TRON、Bitcoin网络支持，新增getNetworkInfo工具，添加更多测试网 |
+| 2.0.0 | 2025-09-26 | 重大功能更新：集成Uniswap V2/V3/V4交换，钱包管理，Permit2授权，DeFi工具 |
+
+### v2.0.0 详细更新内容
+
+1. **Uniswap集成框架**
+   - 添加swapTokens工具支持V2/V3/V4版本选择
+   - 集成滑点控制、截止时间、手续费配置
+   - 准备接入deeper-wallet-mcp真实交换服务
+
+2. **钱包管理工具**
+   - 添加accountList账户列表查询
+   - 添加transferTokenFromMyWallet原生代币转账
+   - 添加transferContractTokenFromMyWallet合约代币转账
+   - 提供模拟响应等待真实服务集成
+
+3. **DeFi分析工具**
+   - 添加getTokenPrice代币价格查询
+   - 添加getAllPools流动性池发现
+   - 支持V2/V3池格式和综合数据展示
+
+4. **Permit2授权支持**
+   - 添加approveToken工具支持gasless授权
+   - 添加checkAllowance授权状态查询
+   - 集成标准ERC20和Permit2协议
 
 ## 相关文件
 
