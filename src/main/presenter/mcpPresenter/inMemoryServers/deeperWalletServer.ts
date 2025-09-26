@@ -603,6 +603,31 @@ export class DeeperWalletServer {
                 tokenB: z.string().describe('第二个代币的合约地址')
               })
             )
+          },
+          {
+            name: 'approveToken',
+            description: '✅ 授权代币 - 授权合约地址使用指定数量的代币（用于交易前的授权步骤）',
+            inputSchema: zodToJsonSchema(
+              z.object({
+                tokenAddress: z.string().describe('要授权的代币合约地址'),
+                spenderAddress: z.string().describe('被授权的合约地址（如Uniswap Router）'),
+                amount: z.string().describe('授权金额（以最小单位的字符串形式，使用MAX表示最大授权）'),
+                network: z.string().describe('区块链网络名称'),
+                usePermit2: z.boolean().optional().default(false).describe('是否使用Permit2协议进行授权')
+              })
+            )
+          },
+          {
+            name: 'checkAllowance',
+            description: '🔍 检查授权额度 - 检查指定地址对某个合约的代币授权额度',
+            inputSchema: zodToJsonSchema(
+              z.object({
+                ownerAddress: z.string().describe('代币持有者地址'),
+                tokenAddress: z.string().describe('代币合约地址'),
+                spenderAddress: z.string().describe('被授权的合约地址'),
+                network: z.string().describe('区块链网络名称')
+              })
+            )
           }
         ]
       }
@@ -1237,6 +1262,127 @@ export class DeeperWalletServer {
                 {
                   type: 'text',
                   text: `Available Liquidity Pools (Simulated):\n${JSON.stringify({ network: networkKey, networkName: networkConfig.name, pools, totalPools: pools.length }, null, 2)}\n\nNote: This is simulated pool data. In a real implementation, this would fetch actual pool information from Uniswap using the deeper-wallet-mcp service.`
+                }
+              ]
+            }
+          }
+
+          case 'approveToken': {
+            const { tokenAddress, spenderAddress, amount, network, usePermit2 } = z
+              .object({
+                tokenAddress: z.string(),
+                spenderAddress: z.string(),
+                amount: z.string(),
+                network: z.string(),
+                usePermit2: z.boolean().optional().default(false)
+              })
+              .parse(args)
+
+            const networkKey = network.toUpperCase() as NetworkKey
+            if (!(networkKey in SUPPORTED_NETWORKS)) {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Unsupported network: ${network}. Use getSupportedNetworks to see available networks.`
+                  }
+                ]
+              }
+            }
+
+            const networkConfig = SUPPORTED_NETWORKS[networkKey]
+
+            if (networkConfig.type !== 'EVM') {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Token approval currently only supported for EVM networks. ${network} is a ${networkConfig.type} network.`
+                  }
+                ]
+              }
+            }
+
+            // Simulate token approval
+            const approvalInfo = {
+              network: networkKey,
+              networkName: networkConfig.name,
+              tokenAddress,
+              spenderAddress,
+              amount: amount === 'MAX' ? '115792089237316195423570985008687907853269984665640564039457584007913129639935' : amount,
+              usePermit2,
+              permitType: usePermit2 ? 'Permit2' : 'Standard ERC20 Approval',
+              status: 'simulated',
+              estimatedGas: usePermit2 ? '0' : '46000',
+              transactionHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'
+            }
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Token Approval ${usePermit2 ? '(Permit2)' : ''} (Simulated):\n${JSON.stringify(approvalInfo, null, 2)}\n\nNote: This is a simulated approval. In a real implementation, this would execute the token approval using the deeper-wallet-mcp service.${usePermit2 ? ' Permit2 provides gasless approvals through signature-based permissions.' : ''}`
+                }
+              ]
+            }
+          }
+
+          case 'checkAllowance': {
+            const { ownerAddress, tokenAddress, spenderAddress, network } = z
+              .object({
+                ownerAddress: z.string(),
+                tokenAddress: z.string(),
+                spenderAddress: z.string(),
+                network: z.string()
+              })
+              .parse(args)
+
+            const networkKey = network.toUpperCase() as NetworkKey
+            if (!(networkKey in SUPPORTED_NETWORKS)) {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Unsupported network: ${network}. Use getSupportedNetworks to see available networks.`
+                  }
+                ]
+              }
+            }
+
+            const networkConfig = SUPPORTED_NETWORKS[networkKey]
+
+            if (networkConfig.type !== 'EVM') {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Allowance checks currently only supported for EVM networks. ${network} is a ${networkConfig.type} network.`
+                  }
+                ]
+              }
+            }
+
+            // Simulate allowance check
+            const allowanceInfo = {
+              network: networkKey,
+              networkName: networkConfig.name,
+              ownerAddress,
+              tokenAddress,
+              spenderAddress,
+              allowance: '1000000000000000000000',
+              allowanceFormatted: '1,000.0',
+              isUnlimited: false,
+              needsApproval: false,
+              permit2Allowance: '50000000000000000000000',
+              permit2Formatted: '50,000.0',
+              status: 'simulated'
+            }
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Token Allowance Check (Simulated):\n${JSON.stringify(allowanceInfo, null, 2)}\n\nNote: This is simulated allowance data. In a real implementation, this would query the actual token allowances from the blockchain using the deeper-wallet-mcp service.`
                 }
               ]
             }
