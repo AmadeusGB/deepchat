@@ -403,6 +403,43 @@ async function getSolanaBalance(
   return { success: true, balance: balanceData.value.toString() }
 }
 
+// Uniswap swap implementation
+interface SwapOptions {
+  version?: string
+  slippage?: number
+  deadline?: number
+  fee?: number
+}
+
+interface SwapParams {
+  fromAddress: string
+  fromToken: string
+  toToken: string
+  amountIn: string
+  amountOutMin: string
+  network: NetworkKey
+  options: SwapOptions
+}
+
+interface SwapResult {
+  success: boolean
+  hash?: string
+  amountOut?: string
+  gasUsed?: string
+  error?: string
+}
+
+async function executeUniswapSwap(params: SwapParams): Promise<SwapResult> {
+  // For now, return a simulated result since we need to integrate the full uniswap.js functionality
+  // This would be replaced with actual swap execution from deeper-wallet-mcp
+  const { fromToken, toToken, amountIn, network, options } = params
+
+  return {
+    success: false,
+    error: `Uniswap ${options.version || 'V3'} swap functionality is being integrated. Attempted to swap ${amountIn} ${fromToken} to ${toToken} on ${network}.`
+  }
+}
+
 export class DeeperWalletServer {
   private server: Server
 
@@ -815,7 +852,10 @@ export class DeeperWalletServer {
                 network: z.string(),
                 options: z
                   .object({
-                    version: z.string().optional()
+                    version: z.string().optional(),
+                    slippage: z.number().optional(),
+                    deadline: z.number().optional(),
+                    fee: z.number().optional()
                   })
                   .optional()
               })
@@ -847,26 +887,51 @@ export class DeeperWalletServer {
               }
             }
 
-            // Simulate the swap operation
-            const swapInfo = {
-              network: networkKey,
-              fromAddress,
-              fromToken: fromToken.toLowerCase(),
-              toToken: toToken.toLowerCase(),
-              amountIn,
-              amountOutMin,
-              uniswapVersion: options?.version || 'V3',
-              estimatedGas: '150000',
-              status: 'simulated'
-            }
-
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: `Token Swap (Simulated):\n${JSON.stringify(swapInfo, null, 2)}\n\nNote: This is a simulated swap. In a real implementation, this would execute the swap on ${networkConfig.name} using Uniswap ${options?.version || 'V3'}.`
+            try {
+              // Execute the actual swap using deeper-wallet-mcp functionality
+              const swapResult = await executeUniswapSwap({
+                fromAddress,
+                fromToken: fromToken.toLowerCase(),
+                toToken: toToken.toLowerCase(),
+                amountIn,
+                amountOutMin,
+                network: networkKey,
+                options: {
+                  version: options?.version || 'V3',
+                  slippage: options?.slippage || 0.5,
+                  deadline: options?.deadline || Math.floor(Date.now() / 1000) + 3600,
+                  fee: options?.fee || 3000
                 }
-              ]
+              })
+
+              if (swapResult.success) {
+                return {
+                  content: [
+                    {
+                      type: 'text',
+                      text: `✅ Swap executed successfully!\n\nTransaction Hash: ${swapResult.hash}\nNetwork: ${networkConfig.name}\nFrom: ${fromToken} → To: ${toToken}\nAmount In: ${amountIn}\nAmount Out: ${swapResult.amountOut || 'Unknown'}\nGas Used: ${swapResult.gasUsed || 'Unknown'}\nUniswap Version: ${options?.version || 'V3'}`
+                    }
+                  ]
+                }
+              } else {
+                return {
+                  content: [
+                    {
+                      type: 'text',
+                      text: `❌ Swap failed: ${swapResult.error}`
+                    }
+                  ]
+                }
+              }
+            } catch (error) {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `❌ Swap execution error: ${error instanceof Error ? error.message : String(error)}`
+                  }
+                ]
+              }
             }
           }
 
