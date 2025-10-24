@@ -81,7 +81,20 @@ const SUPPORTED_NETWORKS = {
     rpcUrls: [
       'https://bsc-dataseed.binance.org',
       'https://rpc.ankr.com/bsc',
-      'https://bsc-mainnet.public.blastapi.io'
+      'https://bsc-mainnet.public.blastapi.io',
+      'https://bsc-dataseed1.defibit.io',
+      'https://bsc-dataseed2.defibit.io'
+    ],
+    currency: 'BNB'
+  },
+  'BNBSMARTCHAIN-TESTNET': {
+    name: 'BNB Smart Chain Testnet',
+    type: 'EVM',
+    chainId: 97,
+    rpcUrls: [
+      'https://bsc-testnet-dataseed.bnbchain.org',
+      'https://bsc-testnet.bnbchain.org',
+      'https://bsc-prebsc-dataseed.bnbchain.org'
     ],
     currency: 'BNB'
   },
