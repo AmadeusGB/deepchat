@@ -230,6 +230,22 @@ const COMMON_TOKENS = {
   }
 } as const
 
+// Uniswap Subgraph endpoints for querying pool and swap data
+const SUBGRAPH_ENDPOINTS = {
+  v2: {
+    mainnet: 'https://gateway.thegraph.com/api/subgraphs/id/A3Np3RQbaBA6oKJgiwDJeo5T3zrYfGHPWFYayMwtNDum'
+  },
+  v3: {
+    mainnet:
+      'https://gateway.thegraph.com/api/subgraphs/id/5zvR82QoaXYFyDEKLZ9t6v9adgnptxYpKpSbxtgVENFV',
+    bsc: 'https://gateway.thegraph.com/api/subgraphs/id/Hv1GncLY5docZoGtXjo4kwbTvxm3MAhVZqBZE4sUT9eZ'
+  },
+  v4: {
+    mainnet:
+      'https://gateway.thegraph.com/api/subgraphs/id/DiYPVdygkfjDWhbxGSqAQxwBKmfKnkWQojqeM2rkLb3G'
+  }
+} as const
+
 // Helper functions
 function isValidEthereumAddress(address: string): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(address)
@@ -277,6 +293,22 @@ function mapTokenAddress(tokenSymbolOrAddress: string, network: NetworkKey): str
 
   // If not found in COMMON_TOKENS, assume it's already an address
   return tokenSymbolOrAddress
+}
+
+/**
+ * Get Uniswap subgraph endpoint for a given version and network
+ * Returns the subgraph URL for querying pool and swap data
+ */
+function getSubgraphEndpoint(
+  version: 'v2' | 'v3' | 'v4',
+  network: 'mainnet' | 'bsc' = 'mainnet'
+): string | undefined {
+  const versionEndpoints = SUBGRAPH_ENDPOINTS[version]
+  if (!versionEndpoints) {
+    return undefined
+  }
+
+  return versionEndpoints[network as keyof typeof versionEndpoints]
 }
 
 // Core RPC functions
@@ -495,9 +527,14 @@ async function executeUniswapSwap(params: SwapParams): Promise<SwapResult> {
   const fromTokenAddress = mapTokenAddress(fromToken, network)
   const toTokenAddress = mapTokenAddress(toToken, network)
 
+  // Determine subgraph network based on blockchain network
+  const subgraphNetwork = network === 'BNBSMARTCHAIN' || network === 'BNBSMARTCHAIN-TESTNET' ? 'bsc' : 'mainnet'
+  const version = (options.version?.toLowerCase() || 'v3') as 'v2' | 'v3' | 'v4'
+  const subgraphEndpoint = getSubgraphEndpoint(version, subgraphNetwork)
+
   return {
     success: false,
-    error: `Uniswap ${options.version || 'V3'} swap functionality is being integrated. Attempted to swap ${amountIn} ${fromToken} (${fromTokenAddress}) to ${toToken} (${toTokenAddress}) on ${network}.`
+    error: `Uniswap ${options.version || 'V3'} swap functionality is being integrated. Attempted to swap ${amountIn} ${fromToken} (${fromTokenAddress}) to ${toToken} (${toTokenAddress}) on ${network}. Subgraph endpoint: ${subgraphEndpoint || 'N/A'}`
   }
 }
 
