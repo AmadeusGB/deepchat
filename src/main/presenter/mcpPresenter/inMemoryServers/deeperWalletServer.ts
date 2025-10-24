@@ -523,18 +523,48 @@ async function executeUniswapSwap(params: SwapParams): Promise<SwapResult> {
   // This would be replaced with actual swap execution from deeper-wallet-mcp
   const { fromToken, toToken, amountIn, network, options } = params
 
+  // Detect native tokens (ETH/BNB)
+  const fromTokenLower = fromToken.toLowerCase()
+  const toTokenLower = toToken.toLowerCase()
+  const isNativeIn = fromTokenLower === 'eth' || fromTokenLower === 'bnb'
+  const isNativeOut = toTokenLower === 'eth' || toTokenLower === 'bnb'
+
   // Map token symbols to addresses using COMMON_TOKENS
-  const fromTokenAddress = mapTokenAddress(fromToken, network)
-  const toTokenAddress = mapTokenAddress(toToken, network)
+  // For native tokens, this will map to WETH/WBNB addresses
+  let fromTokenAddress = mapTokenAddress(fromToken, network)
+  let toTokenAddress = mapTokenAddress(toToken, network)
+
+  // If native token mapping failed (not in COMMON_TOKENS), try to get wrapped version
+  if (isNativeIn && fromTokenAddress.toLowerCase() === fromTokenLower) {
+    // Try to get weth/wbnb from COMMON_TOKENS
+    const wrappedSymbol = fromTokenLower === 'eth' ? 'weth' : 'wbnb'
+    fromTokenAddress = mapTokenAddress(wrappedSymbol, network)
+  }
+
+  if (isNativeOut && toTokenAddress.toLowerCase() === toTokenLower) {
+    // Try to get weth/wbnb from COMMON_TOKENS
+    const wrappedSymbol = toTokenLower === 'eth' ? 'weth' : 'wbnb'
+    toTokenAddress = mapTokenAddress(wrappedSymbol, network)
+  }
 
   // Determine subgraph network based on blockchain network
-  const subgraphNetwork = network === 'BNBSMARTCHAIN' || network === 'BNBSMARTCHAIN-TESTNET' ? 'bsc' : 'mainnet'
+  const subgraphNetwork =
+    network === 'BNBSMARTCHAIN' || network === 'BNBSMARTCHAIN-TESTNET' ? 'bsc' : 'mainnet'
   const version = (options.version?.toLowerCase() || 'v3') as 'v2' | 'v3' | 'v4'
   const subgraphEndpoint = getSubgraphEndpoint(version, subgraphNetwork)
 
+  const swapDetails = {
+    from: `${fromToken} (${fromTokenAddress})${isNativeIn ? ' [Native]' : ''}`,
+    to: `${toToken} (${toTokenAddress})${isNativeOut ? ' [Native]' : ''}`,
+    amount: amountIn,
+    network,
+    version: options.version || 'V3',
+    subgraph: subgraphEndpoint || 'N/A'
+  }
+
   return {
     success: false,
-    error: `Uniswap ${options.version || 'V3'} swap functionality is being integrated. Attempted to swap ${amountIn} ${fromToken} (${fromTokenAddress}) to ${toToken} (${toTokenAddress}) on ${network}. Subgraph endpoint: ${subgraphEndpoint || 'N/A'}`
+    error: `Uniswap ${swapDetails.version} swap functionality is being integrated.\n\nSwap Details:\n- From: ${swapDetails.from}\n- To: ${swapDetails.to}\n- Amount: ${swapDetails.amount}\n- Network: ${swapDetails.network}\n- Subgraph: ${swapDetails.subgraph}\n\n${isNativeIn ? 'Note: Native token input will be wrapped before swap.\n' : ''}${isNativeOut ? 'Note: Output will be unwrapped to native token after swap.\n' : ''}`
   }
 }
 
