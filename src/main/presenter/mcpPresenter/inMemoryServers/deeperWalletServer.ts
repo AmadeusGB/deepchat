@@ -205,6 +205,31 @@ const CONTRACT_SELECTORS = {
   DECIMALS: '0x313ce567'
 }
 
+// Common tokens for Uniswap and DEX operations
+const COMMON_TOKENS = {
+  'ETHEREUM-SEPOLIA': {
+    usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+    usdt: '0x7169D38820dfd117C3FA1f22a697dBA58d90BA06',
+    dai: '0x3e622317f8C93f7328350cF0B56d9eD4C620C5d6',
+    eth: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14',
+    weth: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14'
+  },
+  'BNBSMARTCHAIN-TESTNET': {
+    cake3: '0xFa60D973F7642B748046464e165A65B7323b0DEE',
+    busd: '0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee',
+    wbnb: '0xae13d989dac2f0debff460ac112a837c89baa7cd',
+    usdt: '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd',
+    bnb: '0xae13d989dac2f0debff460ac112a837c89baa7cd'
+  },
+  BNBSMARTCHAIN: {
+    usdt: '0x55d398326f99059fF775485246999027B3197955',
+    usdc: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+    busd: '0xe9e7cea3dedca5984780bafc599bd69add087d56',
+    wbnb: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
+    cake: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82'
+  }
+} as const
+
 // Helper functions
 function isValidEthereumAddress(address: string): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(address)
@@ -233,6 +258,25 @@ function hexToDecimal(hex: string): string {
     hex = hex.slice(2)
   }
   return BigInt('0x' + hex).toString()
+}
+
+/**
+ * Map token symbol to contract address for a given network
+ * Returns the address if found in COMMON_TOKENS, otherwise returns the input (assumed to be an address)
+ */
+function mapTokenAddress(tokenSymbolOrAddress: string, network: NetworkKey): string {
+  const lowerSymbol = tokenSymbolOrAddress.toLowerCase()
+
+  // Check if network exists in COMMON_TOKENS
+  if (network in COMMON_TOKENS) {
+    const networkTokens = COMMON_TOKENS[network as keyof typeof COMMON_TOKENS]
+    if (lowerSymbol in networkTokens) {
+      return networkTokens[lowerSymbol as keyof typeof networkTokens]
+    }
+  }
+
+  // If not found in COMMON_TOKENS, assume it's already an address
+  return tokenSymbolOrAddress
 }
 
 // Core RPC functions
@@ -447,9 +491,13 @@ async function executeUniswapSwap(params: SwapParams): Promise<SwapResult> {
   // This would be replaced with actual swap execution from deeper-wallet-mcp
   const { fromToken, toToken, amountIn, network, options } = params
 
+  // Map token symbols to addresses using COMMON_TOKENS
+  const fromTokenAddress = mapTokenAddress(fromToken, network)
+  const toTokenAddress = mapTokenAddress(toToken, network)
+
   return {
     success: false,
-    error: `Uniswap ${options.version || 'V3'} swap functionality is being integrated. Attempted to swap ${amountIn} ${fromToken} to ${toToken} on ${network}.`
+    error: `Uniswap ${options.version || 'V3'} swap functionality is being integrated. Attempted to swap ${amountIn} ${fromToken} (${fromTokenAddress}) to ${toToken} (${toTokenAddress}) on ${network}.`
   }
 }
 
