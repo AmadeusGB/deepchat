@@ -233,7 +233,8 @@ const COMMON_TOKENS = {
 // Uniswap Subgraph endpoints for querying pool and swap data
 const SUBGRAPH_ENDPOINTS = {
   v2: {
-    mainnet: 'https://gateway.thegraph.com/api/subgraphs/id/A3Np3RQbaBA6oKJgiwDJeo5T3zrYfGHPWFYayMwtNDum'
+    mainnet:
+      'https://gateway.thegraph.com/api/subgraphs/id/A3Np3RQbaBA6oKJgiwDJeo5T3zrYfGHPWFYayMwtNDum'
   },
   v3: {
     mainnet:
@@ -689,7 +690,8 @@ export class DeeperWalletServer {
           },
           {
             name: 'transferTokenFromMyWallet',
-            description: '💸 转账原生代币 - 从我的钱包地址向其他地址转账原生代币（如ETH、MATIC、SOL等）',
+            description:
+              '💸 转账原生代币 - 从我的钱包地址向其他地址转账原生代币（如ETH、MATIC、SOL等）',
             inputSchema: zodToJsonSchema(
               z.object({
                 toAddress: z.string().describe('接收者地址'),
@@ -700,7 +702,8 @@ export class DeeperWalletServer {
           },
           {
             name: 'transferContractTokenFromMyWallet',
-            description: '🪙 转账合约代币 - 从我的钱包地址向其他地址转账合约代币（如ERC20、SPL代币等）',
+            description:
+              '🪙 转账合约代币 - 从我的钱包地址向其他地址转账合约代币（如ERC20、SPL代币等）',
             inputSchema: zodToJsonSchema(
               z.object({
                 toAddress: z.string().describe('接收者地址'),
@@ -739,9 +742,15 @@ export class DeeperWalletServer {
               z.object({
                 tokenAddress: z.string().describe('要授权的代币合约地址'),
                 spenderAddress: z.string().describe('被授权的合约地址（如Uniswap Router）'),
-                amount: z.string().describe('授权金额（以最小单位的字符串形式，使用MAX表示最大授权）'),
+                amount: z
+                  .string()
+                  .describe('授权金额（以最小单位的字符串形式，使用MAX表示最大授权）'),
                 network: z.string().describe('区块链网络名称'),
-                usePermit2: z.boolean().optional().default(false).describe('是否使用Permit2协议进行授权')
+                usePermit2: z
+                  .boolean()
+                  .optional()
+                  .default(false)
+                  .describe('是否使用Permit2协议进行授权')
               })
             )
           },
@@ -1437,7 +1446,10 @@ export class DeeperWalletServer {
               networkName: networkConfig.name,
               tokenAddress,
               spenderAddress,
-              amount: amount === 'MAX' ? '115792089237316195423570985008687907853269984665640564039457584007913129639935' : amount,
+              amount:
+                amount === 'MAX'
+                  ? '115792089237316195423570985008687907853269984665640564039457584007913129639935'
+                  : amount,
               usePermit2,
               permitType: usePermit2 ? 'Permit2' : 'Standard ERC20 Approval',
               status: 'simulated',
